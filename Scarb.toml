@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "contracts/path_nft",
+    "contracts/path_minter",
+    "interfaces",
+]
