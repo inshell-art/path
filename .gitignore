@@ -3,3 +3,6 @@ target
 snfoundry_trace/
 coverage/
 profile/
+keystore*
+log.txt
+abi.json

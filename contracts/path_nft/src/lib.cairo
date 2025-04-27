@@ -1,39 +1,63 @@
+// SPDX-License-Identifier: MIT
+// Compatible with OpenZeppelin Contracts for Cairo ^1.0.0
+
 #[starknet::contract]
-mod BasicPathNFT {
-    use starknet::ContractAddress;
-    
-    use openzeppelin::token::erc721::ERC721Component;
-    use openzeppelin::introspection::src5::SRC5Component;
-    use openzeppelin::token::erc721::ERC721HooksEmptyImpl;
+mod PathNFT {
+    use core::num::traits::Zero;
     use openzeppelin::access::ownable::OwnableComponent;
-    
-    const IERC721_ID: felt252 = 0x33eb2f84c309543403fd69f0d0f363781ef06ef6faeb0131ff16ea3175bd943;
-    const IERC721_METADATA_ID: felt252 = 0xabbcd595a567dce909050a1038e055daccb3c42af06f0add544fa90ee91f25;
-    const IOWNABLE_ID: felt252 = 0x047581f005147e35634194b3543927d9b59e86f76859b181c58f951b5193481;
-    const ISRC5_ID: felt252 = selector!("supports_interface");
+    use openzeppelin::introspection::src5::SRC5Component;
+    use openzeppelin::security::pausable::PausableComponent;
+    use openzeppelin::token::erc721::ERC721Component;
+    use openzeppelin::token::erc721::extensions::ERC721EnumerableComponent;
+    use openzeppelin::token::erc721::extensions::erc721_enumerable::interface::IERC721ENUMERABLE_ID;
+    use openzeppelin::token::erc721::interface::IERC721_ID;
+    use openzeppelin::upgrades::UpgradeableComponent;
+    use openzeppelin::upgrades::interface::IUpgradeable;
+    use starknet::{ClassHash, ContractAddress, get_caller_address};
+
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
+    component!(path: PausableComponent, storage: pausable, event: PausableEvent);
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
+    component!(
+        path: ERC721EnumerableComponent, storage: erc721_enumerable, event: ERC721EnumerableEvent,
+    );
+    component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
 
+    // External
     #[abi(embed_v0)]
     impl ERC721MixinImpl = ERC721Component::ERC721MixinImpl<ContractState>;
     #[abi(embed_v0)]
-    impl OwnableImpl = OwnableComponent::OwnableImpl<ContractState>;
-   
+    impl PausableImpl = PausableComponent::PausableImpl<ContractState>;
+    #[abi(embed_v0)]
+    impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
+    #[abi(embed_v0)]
+    impl ERC721EnumerableImpl =
+        ERC721EnumerableComponent::ERC721EnumerableImpl<ContractState>;
+
+    // Internal
     impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
-    impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
     impl SRC5InternalImpl = SRC5Component::InternalImpl<ContractState>;
+    impl PausableInternalImpl = PausableComponent::InternalImpl<ContractState>;
+    impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
+    impl ERC721EnumerableInternalImpl = ERC721EnumerableComponent::InternalImpl<ContractState>;
+    impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
     #[storage]
-    struct Storage {        
+    struct Storage {
         #[substorage(v0)]
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
         src5: SRC5Component::Storage,
         #[substorage(v0)]
+        pausable: PausableComponent::Storage,
+        #[substorage(v0)]
         ownable: OwnableComponent::Storage,
-
+        #[substorage(v0)]
+        erc721_enumerable: ERC721EnumerableComponent::Storage,
+        #[substorage(v0)]
+        upgradeable: UpgradeableComponent::Storage,
     }
 
     #[event]
@@ -44,32 +68,86 @@ mod BasicPathNFT {
         #[flat]
         SRC5Event: SRC5Component::Event,
         #[flat]
+        PausableEvent: PausableComponent::Event,
+        #[flat]
         OwnableEvent: OwnableComponent::Event,
+        #[flat]
+        ERC721EnumerableEvent: ERC721EnumerableComponent::Event,
+        #[flat]
+        UpgradeableEvent: UpgradeableComponent::Event,
     }
 
     #[constructor]
-    fn constructor(
-        ref self: ContractState,
-        name: ByteArray,
-        symbol: ByteArray,
-        base_uri: ByteArray,
-        initial_owner: ContractAddress // This is the owner of the CONTRACT now
-    ) {
-        OwnableInternalImpl::initializer(ref self.ownable, initial_owner);
+    fn constructor(ref self: ContractState, owner: ContractAddress) {
+        self.erc721.initializer("Path", "PTH", "");
+        self.ownable.initializer(owner);
+        self.erc721_enumerable.initializer();
 
-        ERC721InternalImpl::initializer(ref self.erc721, name, symbol, base_uri);
-        
         SRC5InternalImpl::register_interface(ref self.src5, IERC721_ID);
-        SRC5InternalImpl::register_interface(ref self.src5, IERC721_METADATA_ID);
-        SRC5InternalImpl::register_interface(ref self.src5, IOWNABLE_ID);
-        SRC5InternalImpl::register_interface(ref self.src5, ISRC5_ID);
-        
+        SRC5InternalImpl::register_interface(ref self.src5, IERC721ENUMERABLE_ID);
     }
 
-    #[external(v0)]
-    fn mint(ref self: ContractState, recipient: ContractAddress, token_id: u256) {
-        OwnableInternalImpl::assert_only_owner(@ self.ownable);
+    impl ERC721HooksImpl of ERC721Component::ERC721HooksTrait<ContractState> {
+        fn before_update(
+            ref self: ERC721Component::ComponentState<ContractState>,
+            to: ContractAddress,
+            token_id: u256,
+            auth: ContractAddress,
+        ) {
+            let mut contract_state = self.get_contract_mut();
+            contract_state.pausable.assert_not_paused();
+            contract_state.erc721_enumerable.before_update(to, token_id);
+        }
+    }
 
-        ERC721InternalImpl::mint(ref self.erc721, recipient, token_id);
+    #[generate_trait]
+    #[abi(per_item)]
+    impl ExternalImpl of ExternalTrait {
+        #[external(v0)]
+        fn pause(ref self: ContractState) {
+            self.ownable.assert_only_owner();
+            self.pausable.pause();
+        }
+
+        #[external(v0)]
+        fn unpause(ref self: ContractState) {
+            self.ownable.assert_only_owner();
+            self.pausable.unpause();
+        }
+
+        #[external(v0)]
+        fn burn(ref self: ContractState, token_id: u256) {
+            self.erc721.update(Zero::zero(), token_id, get_caller_address());
+        }
+
+        #[external(v0)]
+        fn safe_mint(
+            ref self: ContractState,
+            recipient: ContractAddress,
+            token_id: u256,
+            data: Span<felt252>,
+        ) {
+            self.ownable.assert_only_owner();
+            self.erc721.safe_mint(recipient, token_id, data);
+        }
+
+        #[external(v0)]
+        fn safeMint(
+            ref self: ContractState, recipient: ContractAddress, tokenId: u256, data: Span<felt252>,
+        ) {
+            self.safe_mint(recipient, tokenId, data);
+        }
+    }
+
+    //
+    // Upgradeable
+    //
+
+    #[abi(embed_v0)]
+    impl UpgradeableImpl of IUpgradeable<ContractState> {
+        fn upgrade(ref self: ContractState, new_class_hash: ClassHash) {
+            self.ownable.assert_only_owner();
+            self.upgradeable.upgrade(new_class_hash);
+        }
     }
 }

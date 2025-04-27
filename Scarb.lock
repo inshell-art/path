@@ -131,7 +131,7 @@ checksum = "sha256:fd348b31c4a4407add33adc3c2b8f26dca71dbd7431faaf726168f37a91db
 name = "path_minter"
 version = "0.1.0"
 dependencies = [
- "interfaces",
+ "pulse",
  "snforge_std",
 ]
 
@@ -141,6 +141,14 @@ version = "0.1.0"
 dependencies = [
  "openzeppelin",
  "snforge_std",
+]
+
+[[package]]
+name = "pulse"
+version = "0.1.4"
+source = "git+https://github.com/inshell-art/pulse.git?tag=v0.1.4#e22820d974ecfdde120bb701198d13830446664d"
+dependencies = [
+ "openzeppelin",
 ]
 
 [[package]]

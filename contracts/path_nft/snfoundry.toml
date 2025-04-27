@@ -9,3 +9,4 @@
 # wait-params = { timeout = 300, retry-interval = 10 }     # Wait for submitted transaction parameters
 # block-explorer = "StarkScan"                             # Block explorer service used to display links to transaction details
 # show-explorer-links = true                               # Print links pointing to pages with transaction details in the chosen block explorer
+
