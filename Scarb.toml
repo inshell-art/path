@@ -1,9 +1,18 @@
 [workspace]
-members = [
-    "contracts/path_nft",
-    "contracts/path_minter",
-    "interfaces",
-]
+members = ["contracts/path_nft", "contracts/path_minter", "interfaces"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024_07"
+authors = ["Inshell"]
+
+[workspace.dependencies]
+starknet = "2.11.2"
+openzeppelin = "1.0.0"
 
 [profile.devnet]
 inherits = "dev"
+
+[profile.dev.cairo]
+unstable-add-statements-code-locations-debug-info = true
+unstable-add-statements-functions-debug-info = true

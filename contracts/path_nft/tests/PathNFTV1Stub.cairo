@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts for Cairo ^1.0.0
+#[starknet::interface]
+pub trait PathNFTV1StubInterface<TContractState> {
+    fn version(self: @TContractState) -> felt252;
+}
 
-pub mod PathNFT_interface;
 
 #[starknet::contract]
-mod PathNFT {
-    use core::num::traits::Zero;
+mod PathNFTV1Stub {
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::security::pausable::PausableComponent;
@@ -15,8 +15,8 @@ mod PathNFT {
     use openzeppelin::token::erc721::interface::IERC721_ID;
     use openzeppelin::upgrades::UpgradeableComponent;
     use openzeppelin::upgrades::interface::IUpgradeable;
-    use starknet::{ClassHash, ContractAddress, get_caller_address};
-    use crate::PathNFT_interface::PathNFTInterface;
+    use starknet::{ClassHash, ContractAddress};
+    use super::PathNFTV1StubInterface;
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
@@ -103,35 +103,9 @@ mod PathNFT {
     }
 
     #[abi(embed_v0)]
-    impl PathNFTInterfaceImpl of PathNFTInterface<ContractState> {
-        fn pause(ref self: ContractState) {
-            self.ownable.assert_only_owner();
-            self.pausable.pause();
-        }
-
-        fn unpause(ref self: ContractState) {
-            self.ownable.assert_only_owner();
-            self.pausable.unpause();
-        }
-
-        fn burn(ref self: ContractState, token_id: u256) {
-            self.erc721.update(Zero::zero(), token_id, get_caller_address());
-        }
-
-        fn safe_mint(
-            ref self: ContractState,
-            recipient: ContractAddress,
-            token_id: u256,
-            data: Span<felt252>,
-        ) {
-            self.ownable.assert_only_owner();
-            self.erc721.safe_mint(recipient, token_id, data);
-        }
-
-        fn safeMint(
-            ref self: ContractState, recipient: ContractAddress, tokenId: u256, data: Span<felt252>,
-        ) {
-            self.safe_mint(recipient, tokenId, data);
+    impl PathNFTInterfaceImpl of PathNFTV1StubInterface<ContractState> {
+        fn version(self: @ContractState) -> felt252 {
+            1_felt252 // Version 1
         }
     }
 

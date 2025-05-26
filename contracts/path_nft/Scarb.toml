@@ -1,15 +1,16 @@
 [package]
 name = "path_nft"
-version = "0.1.0"
-edition = "2024_07"
+version.workspace = true
+edition.workspace = true
+author.workspace = true
 
 [dependencies]
-starknet = "2.11.2"
-openzeppelin = "1.0.0"
+starknet.workspace = true
+openzeppelin.workspace = true
 
 [dev-dependencies]
-snforge_std = "0.40.0"
-assert_macros = "2.11.2"
+snforge_std = "0.43.1"
+assert_macros = "2.8.4"
 
 [[target.starknet-contract]]
 sierra = true
@@ -19,3 +20,8 @@ test = "snforge test"
 
 [tool.scarb]
 allow-prebuilt-plugins = ["snforge_std"]
+
+[profile.dev.cairo]
+unstable-add-statements-code-locations-debug-info = true
+unstable-add-statements-functions-debug-info = true
+panic-backtrace = true 
