@@ -1,0 +1,2 @@
+scarb build -p path_nft
+snforge test -p path_nft

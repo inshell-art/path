@@ -1,1 +1,2 @@
-snforge test -p path_nft
+scarb lint -p path_nft
+scarb fmt
