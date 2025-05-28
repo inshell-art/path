@@ -137,7 +137,8 @@ mod PathNFT {
 
     //
     // Upgradeable
-    //
+    // ! Consider omit upgradeable, for the permanence of the contract
+    // Kept for now to demonstrate the upgrade flow for path_minter contract
 
     #[abi(embed_v0)]
     impl UpgradeableImpl of IUpgradeable<ContractState> {
