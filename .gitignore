@@ -8,3 +8,4 @@ log.txt
 abi.json
 node_modules/
 .husky/_/
+tmp_tx.json

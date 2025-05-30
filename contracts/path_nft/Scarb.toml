@@ -24,4 +24,4 @@ allow-prebuilt-plugins = ["snforge_std"]
 [profile.dev.cairo]
 unstable-add-statements-code-locations-debug-info = true
 unstable-add-statements-functions-debug-info = true
-panic-backtrace = true 
+panic-backtrace = true
