@@ -122,7 +122,7 @@ checksum = "sha256:fd348b31c4a4407add33adc3c2b8f26dca71dbd7431faaf726168f37a91db
 
 [[package]]
 name = "path_minter"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "pulse",
  "snforge_std",
@@ -130,7 +130,7 @@ dependencies = [
 
 [[package]]
 name = "path_nft"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "openzeppelin",
  "snforge_std",

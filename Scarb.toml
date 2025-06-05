@@ -2,7 +2,7 @@
 members = ["contracts/path_nft", "contracts/path_minter", "interfaces"]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024_07"
 authors = ["Inshell"]
 

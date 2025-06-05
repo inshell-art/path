@@ -1,10 +1,6 @@
 use starknet::ContractAddress;
 #[starknet::interface]
 pub trait PathNFTInterface<TContractState> {
-    // Pause and unpause the contract
-    fn pause(ref self: TContractState);
-    fn unpause(ref self: TContractState);
-
     // Burn a token (sets owner to zero address)
     fn burn(ref self: TContractState, token_id: u256);
 
