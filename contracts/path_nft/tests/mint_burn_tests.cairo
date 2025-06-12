@@ -1,5 +1,5 @@
 use openzeppelin::token::erc721::interface::IERC721DispatcherTrait;
-use path_nft::PathNFT_interface::PathNFTInterfaceDispatcherTrait;
+use path_nft::i_path_nft::IPathNFTDispatcherTrait;
 use snforge_std::{CheatSpan, cheat_caller_address};
 use starknet::ContractAddress;
 use crate::utils::setup;

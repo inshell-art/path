@@ -1,6 +1,6 @@
 use openzeppelin::security::interface::IPausableDispatcher;
 use openzeppelin::token::erc721::interface::IERC721Dispatcher;
-use path_nft::PathNFT_interface::PathNFTInterfaceDispatcher;
+use path_nft::i_path_nft::IPathNFTDispatcher;
 use snforge_std::{ContractClassTrait, DeclareResultTrait, declare};
 use starknet::ContractAddress;
 
@@ -30,7 +30,7 @@ pub fn deploy_ERC721ReceiverStub() -> ContractAddress {
 pub fn setup() -> (
     ContractAddress,
     ContractAddress,
-    PathNFTInterfaceDispatcher,
+    IPathNFTDispatcher,
     IERC721Dispatcher,
     IPausableDispatcher,
     u256,
@@ -39,7 +39,7 @@ pub fn setup() -> (
 ) {
     let owner: ContractAddress = 1.try_into().unwrap();
     let addr = deploy_contract(owner);
-    let nft_iface = PathNFTInterfaceDispatcher { contract_address: addr };
+    let nft_iface = IPathNFTDispatcher { contract_address: addr };
     let erc721_iface = IERC721Dispatcher { contract_address: addr };
     let pausable_iface = IPausableDispatcher { contract_address: addr };
     let token_id = 2_u256;
