@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts for Cairo ^1.0.0
 
-pub mod PathNFT_interface;
+pub mod i_path_nft;
 
 #[starknet::contract]
 mod PathNFT {
@@ -17,7 +17,7 @@ mod PathNFT {
     };
     use starknet::storage::StoragePointerReadAccess;
     use starknet::{ContractAddress, get_caller_address};
-    use crate::PathNFT_interface::PathNFTInterface;
+    use crate::i_path_nft::IPathNFT;
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     #[abi(embed_v0)]
@@ -68,7 +68,7 @@ mod PathNFT {
     }
 
     #[abi(embed_v0)]
-    impl PathNFTInterfaceImpl of PathNFTInterface<ContractState> {
+    impl IPathNFTIImpl of IPathNFT<ContractState> {
         fn burn(ref self: ContractState, token_id: u256) {
             self.erc721.update(Zero::zero(), token_id, get_caller_address());
         }

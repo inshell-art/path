@@ -1,6 +1,6 @@
 use starknet::ContractAddress;
 #[starknet::interface]
-pub trait PathNFTInterface<TContractState> {
+pub trait IPathNFT<TContractState> {
     // Burn a token (sets owner to zero address)
     fn burn(ref self: TContractState, token_id: u256);
 
