@@ -1,21 +1,14 @@
 [workspace]
 members = ["contracts/path_nft", "contracts/path_minter", "interfaces"]
 
-[package]
-name = "path"
-version = "0.3.0"
-edition = "2024_07"
-authors = ["Inshell"]
-license = "MIT"
-
 [workspace.package]
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024_07"
 authors = ["Inshell"]
 
 [workspace.dependencies]
-starknet = "2.11.2"
-openzeppelin = "1.0.0"
+starknet = "2.11.4"
+openzeppelin = "2.0.0"
 
 [profile.devnet]
 inherits = "dev"
