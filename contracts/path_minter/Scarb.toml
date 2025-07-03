@@ -6,6 +6,8 @@ edition.workspace = true
 [dependencies]
 starknet.workspace = true
 # pulse = { git = "https://github.com/inshell-art/pulse.git", tag = "v0.1.4" }
+openzeppelin.workspace = true
+path_nft = { path = "../path_nft" }
 
 [dev-dependencies]
 snforge_std = "0.44.0"

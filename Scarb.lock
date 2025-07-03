@@ -123,6 +123,8 @@ checksum = "sha256:bf799c794139837f397975ffdf6a7ed5032d198bbf70e87a8f44f144a9dfc
 name = "path_minter"
 version = "0.3.1"
 dependencies = [
+ "openzeppelin",
+ "path_nft",
  "snforge_std",
 ]
 
