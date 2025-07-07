@@ -10,10 +10,12 @@ openzeppelin.workspace = true
 path_nft = { path = "../path_nft" }
 
 [dev-dependencies]
-snforge_std = "0.44.0"
+snforge_std.workspace = true
+assert_macros.workspace = true
 
 [[target.starknet-contract]]
 sierra = true
+build-external-contracts = ["path_nft::path_nft::PathNFT"]
 
 [scripts]
 test = "snforge test"

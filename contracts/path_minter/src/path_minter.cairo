@@ -28,16 +28,25 @@ mod PathMinter {
     // ----------------------- Imports -----------------------
     use openzeppelin::access::accesscontrol::AccessControlComponent;
     use openzeppelin::access::accesscontrol::DEFAULT_ADMIN_ROLE;
-    use openzeppelin::access::accesscontrol::interface::IAccessControlDispatcherTrait;
     use openzeppelin::introspection::interface::ISRC5_ID;
     use openzeppelin::introspection::src5::SRC5Component;
-    use path_nft::i_path_nft::{IPathNFTDispatcher, IPathNFTDispatcherTrait};
+    use path_nft::interface::{IPathNFTDispatcher, IPathNFTDispatcherTrait};
     use starknet::ContractAddress;
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+    use crate::interface::IPathMinter;
+
 
     // ----------------------- Constants ---------------------
-    /// Role that allows a contract to call the public mint helpers
+    /// Role that call to mint_single, sales engines, like PulseAuction
     const SALES_ROLE: felt252 = selector!("SALES_ROLE");
+    /// Role that call to mint_reserved, internal management
+    const RESERVED_ROLE: felt252 = selector!("RESERVED_ROLE");
+    /// The maximum value for a 256-bit unsigned integer minus one.
+    /// This is used to calculate the reserved token IDs in descending order.
+    const MAX_MINUS_ONE: u256 = u256 {
+        // 128-bit halves written in hex for clarity
+        low: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE, high: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+    };
 
     // ----------------------- Components --------------------
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
@@ -62,6 +71,9 @@ mod PathMinter {
         path_nft_addr: ContractAddress,
         /// Next token id to mint (sequential schema)
         next_id: u256,
+        /// Reserved minting counter
+        reserved_cap: u64,
+        reserved_remaining: u64,
     }
 
     // ----------------------- Events ------------------------
@@ -81,6 +93,7 @@ mod PathMinter {
         admin: ContractAddress,
         path_nft_addr: ContractAddress,
         first_token_id: u256,
+        reserved_cap: u64,
     ) {
         // Set up AccessControl (caller is temporary admin until transferred).
         self.access.initializer();
@@ -89,61 +102,82 @@ mod PathMinter {
         self.access._grant_role(DEFAULT_ADMIN_ROLE, admin);
         self.access._revoke_role(DEFAULT_ADMIN_ROLE, starknet::get_caller_address());
 
-        // Record PathNFT address & starting id
+        // Set up the initial state
         self.path_nft_addr.write(path_nft_addr);
         self.next_id.write(first_token_id);
-
-        // Acquire mint power on PathNFT (one‑time).
-        let path_ac = IAccessControlDispatcher { contract_address: path_addr };
-        path_ac.grant_role(MINTER_ROLE_NFT, ContractAddress::from_const());
+        self.reserved_cap.write(reserved_cap);
+        self.reserved_remaining.write(reserved_cap);
 
         SRC5InternalImpl::register_interface(ref self.src5, ISRC5_ID);
     }
 
     // ----------------------- External API ------------------
     #[abi(embed_v0)]
-    impl PathMinterInterface of self::internal::InternalPathMinter<ContractState> {
-        /// Mint a single token – used by PulseAuction.
-        fn mint_single(ref self: ContractState, to: ContractAddress, data: Span<felt252>) {
-            self.assert_only_role(SALES_ROLE);
-            self._mint_internal(to, data);
+    impl IPathMinterImpl of IPathMinter<ContractState> {
+        /// View the reserved cap for minting.
+        fn get_reserved_cap(ref self: ContractState) -> u64 {
+            self.reserved_cap.read()
         }
 
-        /// Batch mint – can be used for reserves / airdrops.
-        fn mint_batch(ref self: ContractState, tos: Span<ContractAddress>) {
-            self.assert_only_role(SALES_ROLE);
-            for address in tos.iter() {
-                self._mint_internal(*address, array![].span());
-            }
+        /// View the remaining reserved NFTs that can be minted.
+        fn get_reserved_remaining(ref self: ContractState) -> u64 {
+            self.reserved_remaining.read()
         }
 
-        /// Admin‑only helper to add a new sales engine.
-        fn grant_sales_role(ref self: ContractState, sales: ContractAddress) {
-            self.assert_only_role(DEFAULT_ADMIN_ROLE);
-            self._grant_role(SALES_ROLE, sales);
+        /// Public mint
+        /// * Caller must hold `SALES_ROLE`
+        /// * Returns the `tokenId` just minted
+        fn mint_public(ref self: ContractState, to: ContractAddress, data: Span<felt252>) -> u256 {
+            self.access.assert_only_role(SALES_ROLE);
+            let id = self.next_id.read();
+            _mint_to_nft(ref self, to, id, data);
+            self.next_id.write(id + 1); // Increment the next token ID
+
+            id
         }
 
-        /// Admin‑only helper to revoke a sales engine.
-        fn revoke_sales_role(ref self: ContractState, sales: ContractAddress) {
-            self.assert_only_role(DEFAULT_ADMIN_ROLE);
-            self._revoke_role(SALES_ROLE, sales);
-        }
+        /// Reserved-pool mint (up to `reserved_cap` tokens) for path finders
+        /// * Caller must hold `RESERVED_ROLE`.
+        /// * Reverts once every reserved token has been issued.
+        /// * Returns the `tokenId` just minted (0 … reserved_cap-1).
+        //todo: modify finder to sparker
+        //todo: decide meta info in minter or nft
+        fn mint_finder(ref self: ContractState, to: ContractAddress, data: Span<felt252>) -> u256 {
+            self.access.assert_only_role(RESERVED_ROLE);
 
-        /// View next token id (debug / UI helper)
-        fn next_token_id(self: @ContractState) -> u256 {
-            self.next_id.read()
+            let remaining = self.reserved_remaining.read(); // u64
+            assert(remaining > 0, 'NO_RESERVED_LEFT');
+
+            let minted_so_far: u64 = self.reserved_cap.read() - remaining;
+            let id: u256 = MAX_MINUS_ONE - minted_so_far.into();
+
+            _mint_to_nft(ref self, to, id, data);
+
+            self.reserved_remaining.write(remaining - 1);
+
+            id
         }
     }
 
     // ----------------------- Internal helpers --------------
-    mod internal {
+
+    /// Common mint logic
+    fn _mint_to_nft(ref self: ContractState, to: ContractAddress, id: u256, data: Span<felt252>) {
+        let nft = IPathNFTDispatcher { contract_address: self.path_nft_addr.read() };
+        nft.safe_mint(to, id, data);
+    }
+
+    // ----------------------- Tests --------------------------
+    #[cfg(test)]
+    mod tests {
+        use core::num::traits::Bounded;
         use super::*;
-        /// Common mint logic
-        fn _mint_internal(ref self: ContractState, to: ContractAddress, data: Span<felt252>) {
-            let id = self.next_id.read();
-            let nft = IPathNFTDispatcher { contract_address: self.path.read() };
-            nft.safe_mint(to, id, data);
-            self.next_id.write(id + 1);
+
+        #[test]
+        fn max_minus_one_is_biggest_minus_one() {
+            let max_u128 = Bounded::<u128>::MAX;
+            assert(MAX_MINUS_ONE.high == max_u128, 'high half');
+            assert(MAX_MINUS_ONE.low == max_u128 - 1, 'low half');
         }
     }
 }
