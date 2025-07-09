@@ -13,5 +13,15 @@ pub trait IPathMinter<TState> {
     fn mint_public(ref self: TState, to: ContractAddress, data: Span<felt252>) -> u256;
 
     /// Mints reserved NFTs to the specified address.
-    fn mint_finder(ref self: TState, to: ContractAddress, data: Span<felt252>) -> u256;
+    fn mint_sparker(ref self: TState, to: ContractAddress, data: Span<felt252>) -> u256;
+}
+
+#[starknet::interface]
+pub trait IForwarder<TState> {
+    /// Execute `target.selector(calldata)` as this contract.
+    //! here is the //!
+    // yes can not //
+    fn execute(
+        ref self: TState, target: ContractAddress, selector: felt252, calldata: Span<felt252>,
+    ) -> Span<felt252>;
 }

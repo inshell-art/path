@@ -1,42 +1,37 @@
-//! PathMinter – shared mint proxy for PathNFT
-//!
-//! * One contract holds the NFT's `MINTER_ROLE` and exposes a thin façade
-//!   (`mint_single`, `mint_batch`, `drop_mint`) that any authorised sales
-//!   engine can call (PulseAuction, Dutch auction, bridge, airdrop script …).
-//! * Granular `SALES_ROLE` limits callers to **mint‑only** functions; the
-//!   NFT logic and treasury remain elsewhere.
-//! * Upgradable/pausable by the project owner via OpenZeppelin AccessControl.
-//!
-//! ## Storage layout
-//! | Field       | Meaning                                      |
-//! |-------------|----------------------------------------------|
-//! | access      | OZ AccessControl component                   |
-//! | path        | Address of the PathNFT contract              |
-//! | next_id     | Counter for the next tokenId to mint         |
-//!
-//! ## Roles
-//! | Constant        | Who should hold it                |
-//! |-----------------|------------------------------------|
-//! | DEFAULT_ADMIN   | DAO multisig / time lock           |
-//! | SALES_ROLE      | PulseAuction + 3 extra sale engines|
-//! | MINTER_ROLE_NFT | Granted **to this contract** on PathNFT |
+// SPDX-License-Identifier: MIT
+// $PATH Minter: shared mint proxy for PathNFT
+
+/// # PathMinter Contract
+/// This contract is a minting proxy for the PathNFT collection.
+/// It allows for minting NFTs with specific roles and provides a reserved pool for
+/// path sparkers.
+/// It is designed to be used in conjunction with the PathNFT contract,
+/// which handles the actual NFT logic.
+///
+/// ## Public Minting
+/// The public minting function allows users to mint NFTs by calling the `mint_public`
+/// method. This method requires the caller to hold the `SALES_ROLE` role.
+/// It mints a new NFT with a sequential token ID, starting from the `first_token_id`
+/// specified during contract deployment. The token ID is incremented after each minting.
+/// is sold out.
+///
+/// ## Reserved Minting
+/// The reserved minting function allows for minting NFTs from a reserved pool.
+/// This is intended for path sparkers and requires the caller to hold the `RESERVED_ROLE`
+/// role.
 
 #[starknet::contract]
 mod PathMinter {
     use core::integer::u256;
-
-    // ----------------------- Imports -----------------------
-    use openzeppelin::access::accesscontrol::AccessControlComponent;
-    use openzeppelin::access::accesscontrol::DEFAULT_ADMIN_ROLE;
+    use openzeppelin::access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE};
     use openzeppelin::introspection::interface::ISRC5_ID;
     use openzeppelin::introspection::src5::SRC5Component;
     use path_nft::interface::{IPathNFTDispatcher, IPathNFTDispatcherTrait};
-    use starknet::ContractAddress;
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
-    use crate::interface::IPathMinter;
+    use starknet::syscalls::call_contract_syscall;
+    use starknet::{ContractAddress, SyscallResultTrait};
+    use crate::interface::{IForwarder, IPathMinter};
 
-
-    // ----------------------- Constants ---------------------
     /// Role that call to mint_single, sales engines, like PulseAuction
     const SALES_ROLE: felt252 = selector!("SALES_ROLE");
     /// Role that call to mint_reserved, internal management
@@ -48,7 +43,6 @@ mod PathMinter {
         low: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE, high: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
     };
 
-    // ----------------------- Components --------------------
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
     #[abi(embed_v0)]
     impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
@@ -60,7 +54,6 @@ mod PathMinter {
         AccessControlComponent::AccessControlImpl<ContractState>;
     impl AccessControlInternalImpl = AccessControlComponent::InternalImpl<ContractState>;
 
-    // ----------------------- Storage -----------------------
     #[storage]
     struct Storage {
         #[substorage(v0)]
@@ -76,7 +69,6 @@ mod PathMinter {
         reserved_remaining: u64,
     }
 
-    // ----------------------- Events ------------------------
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
@@ -86,7 +78,6 @@ mod PathMinter {
         SRC5Event: SRC5Component::Event,
     }
 
-    // ----------------------- Constructor -------------------
     #[constructor]
     fn constructor(
         ref self: ContractState,
@@ -111,7 +102,6 @@ mod PathMinter {
         SRC5InternalImpl::register_interface(ref self.src5, ISRC5_ID);
     }
 
-    // ----------------------- External API ------------------
     #[abi(embed_v0)]
     impl IPathMinterImpl of IPathMinter<ContractState> {
         /// View the reserved cap for minting.
@@ -125,8 +115,8 @@ mod PathMinter {
         }
 
         /// Public mint
-        /// * Caller must hold `SALES_ROLE`
-        /// * Returns the `tokenId` just minted
+        /// - Caller must hold `SALES_ROLE`
+        /// - Returns the `tokenId` just minted
         fn mint_public(ref self: ContractState, to: ContractAddress, data: Span<felt252>) -> u256 {
             self.access.assert_only_role(SALES_ROLE);
             let id = self.next_id.read();
@@ -136,13 +126,12 @@ mod PathMinter {
             id
         }
 
-        /// Reserved-pool mint (up to `reserved_cap` tokens) for path finders
-        /// * Caller must hold `RESERVED_ROLE`.
-        /// * Reverts once every reserved token has been issued.
-        /// * Returns the `tokenId` just minted (0 … reserved_cap-1).
-        //todo: modify finder to sparker
-        //todo: decide meta info in minter or nft
-        fn mint_finder(ref self: ContractState, to: ContractAddress, data: Span<felt252>) -> u256 {
+        /// Reserved-pool mint (up to `reserved_cap` tokens) for path sparkers
+        /// - Caller must hold `RESERVED_ROLE`.
+        /// - Reverts once every reserved token has been issued.
+        /// - Returns the `tokenId` just minted (0 … reserved_cap-1).
+        //todo: consider the role and the data content to mint latter
+        fn mint_sparker(ref self: ContractState, to: ContractAddress, data: Span<felt252>) -> u256 {
             self.access.assert_only_role(RESERVED_ROLE);
 
             let remaining = self.reserved_remaining.read(); // u64
@@ -159,8 +148,30 @@ mod PathMinter {
         }
     }
 
-    // ----------------------- Internal helpers --------------
+    /// Forwarder interface implementation
+    /// - This allows the contract to forward calls to other contracts, such as
+    /// transferring ownership or calling other methods on the PathNFT contract.
+    /// - This is useful for administrative tasks that require the contract to act
+    /// as the owner of the PathNFT contract.
+    /// - The `execute` method allows the contract to call any method on the target
+    /// contract with the specified selector and calldata.
+    /// - The caller must hold the `DEFAULT_ADMIN_ROLE` to execute this method.
+    #[abi(embed_v0)]
+    impl IForwarderImpl of IForwarder<ContractState> {
+        /// Execute `target.selector(calldata)` as this contract.
+        fn execute(
+            ref self: ContractState,
+            target: ContractAddress,
+            selector: felt252,
+            calldata: Span<felt252>,
+        ) -> Span<felt252> {
+            self.access.assert_only_role(DEFAULT_ADMIN_ROLE);
+            // Forward the call to the target contract
+            call_contract_syscall(target, selector, calldata).unwrap_syscall()
+        }
+    }
 
+    // ----------------------- Internal helpers --------------
     /// Common mint logic
     fn _mint_to_nft(ref self: ContractState, to: ContractAddress, id: u256, data: Span<felt252>) {
         let nft = IPathNFTDispatcher { contract_address: self.path_nft_addr.read() };
