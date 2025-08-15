@@ -9,8 +9,9 @@ authors = ["Inshell"]
 [workspace.dependencies]
 starknet = "2.11.4"
 openzeppelin = "2.0.0"
-snforge_std = "0.45.0"
+snforge_std = "0.48.0"
 assert_macros = "2.9.4"
+path_interfaces = { path = "interfaces" }
 
 [profile.devnet]
 inherits = "dev"

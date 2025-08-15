@@ -7,6 +7,7 @@ author.workspace = true
 [dependencies]
 starknet.workspace = true
 openzeppelin.workspace = true
+path_interfaces.workspace = true
 
 [dev-dependencies]
 snforge_std.workspace = true

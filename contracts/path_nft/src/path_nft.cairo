@@ -13,9 +13,9 @@ mod PathNFT {
     use openzeppelin::token::erc721::{
         ERC721Component, ERC721HooksEmptyImpl, interface as ERC721Interface,
     };
+    use path_interfaces::IPathNFT;
     use starknet::storage::{Map, StoragePointerReadAccess};
     use starknet::{ContractAddress, get_caller_address};
-    use crate::interface::IPathNFT;
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     #[abi(embed_v0)]

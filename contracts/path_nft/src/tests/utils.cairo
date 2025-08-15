@@ -1,6 +1,6 @@
 use openzeppelin::security::interface::IPausableDispatcher;
 use openzeppelin::token::erc721::interface::IERC721Dispatcher;
-use path_nft::interface::IPathNFTDispatcher;
+use path_interfaces::IPathNFTDispatcher;
 use snforge_std::{ContractClassTrait, DeclareResultTrait, declare};
 use starknet::ContractAddress;
 

@@ -1,8 +1,8 @@
 use openzeppelin::token::erc721::interface::IERC721DispatcherTrait;
-use path_nft::interface::IPathNFTDispatcherTrait;
+use path_interfaces::IPathNFTDispatcherTrait;
 use snforge_std::{CheatSpan, cheat_caller_address};
 use starknet::ContractAddress;
-use crate::utils::setup;
+use super::utils::setup;
 
 const ERR_NOT_OWNER: felt252 =
     0x43616c6c6572206973206e6f7420746865206f776e6572; // "Caller is not the owner"

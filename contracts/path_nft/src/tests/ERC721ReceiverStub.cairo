@@ -1,4 +1,3 @@
-#[cfg(test)]
 #[starknet::contract]
 mod ERC721ReceiverStub {
     use openzeppelin::introspection::src5::SRC5Component;

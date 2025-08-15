@@ -1,9 +1,9 @@
 use openzeppelin::token::erc721::interface::{
     IERC721DispatcherTrait, IERC721MetadataDispatcher, IERC721MetadataDispatcherTrait,
 };
-use path_nft::interface::IPathNFTDispatcherTrait;
+use path_interfaces::IPathNFTDispatcherTrait;
 use snforge_std::{CheatSpan, cheat_caller_address};
-use crate::utils::setup;
+use crate::tests::utils::setup;
 
 // “ERC721: invalid token ID” as a felt252 short-string
 const ERC721_INVALID_TOKEN_ID: felt252 = 0x4552433732313a20696e76616c696420746f6b656e204944;
