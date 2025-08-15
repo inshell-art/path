@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts for Cairo ^1.0.0
 
+//todo: consider if implement upgradeable
+
 #[starknet::contract]
 mod PathNFT {
     use core::num::traits::Zero;
@@ -42,8 +44,6 @@ mod PathNFT {
         src5: SRC5Component::Storage,
         #[substorage(v0)]
         ownable: OwnableComponent::Storage,
-        /// Provenance storage, only for sparkers
-        sparker_original_minter: Map<u256, ByteArray>,
     }
 
     #[event]
@@ -87,12 +87,6 @@ mod PathNFT {
             ref self: ContractState, recipient: ContractAddress, tokenId: u256, data: Span<felt252>,
         ) {
             self.safe_mint(recipient, tokenId, data);
-        }
-
-        //todo: add role check for reserved minting
-        fn set_sparker_original_minter(ref self: ContractState, token_id: u256, minter: ByteArray) {
-            self.erc721._require_owned(token_id);
-            // self.sparker_original_minter.write(token_id, minter);
         }
     }
 

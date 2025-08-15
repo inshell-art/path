@@ -20,17 +20,17 @@
 /// This is intended for path sparkers and requires the caller to hold the `RESERVED_ROLE`
 /// role.
 
+//todo: implement the upgradeable
 #[starknet::contract]
 mod PathMinter {
     use core::integer::u256;
     use openzeppelin::access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE};
     use openzeppelin::introspection::interface::ISRC5_ID;
     use openzeppelin::introspection::src5::SRC5Component;
-    use path_nft::interface::{IPathNFTDispatcher, IPathNFTDispatcherTrait};
+    use path_interfaces::{IForwarder, IPathMinter, IPathNFTDispatcher, IPathNFTDispatcherTrait};
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
     use starknet::syscalls::call_contract_syscall;
     use starknet::{ContractAddress, SyscallResultTrait};
-    use crate::interface::{IForwarder, IPathMinter};
 
     /// Role that call to mint_single, sales engines, like PulseAuction
     const SALES_ROLE: felt252 = selector!("SALES_ROLE");

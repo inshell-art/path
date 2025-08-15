@@ -1,7 +1,7 @@
 //! Integration tests for PathMinter
+use path_interfaces::IPathMinterDispatcherTrait;
 use snforge_std::{mock_call, start_cheat_caller_address, stop_cheat_caller_address, test_address};
 use starknet::ContractAddress;
-use crate::interface::IPathMinterDispatcherTrait;
 use super::helper::{MAX_MINUS_ONE, deploy_fixture};
 
 

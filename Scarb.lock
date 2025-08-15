@@ -128,7 +128,7 @@ name = "path_minter"
 version = "0.3.1"
 dependencies = [
  "openzeppelin",
- "path_nft",
+ "path_interfaces",
  "snforge_std",
 ]
 

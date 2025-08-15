@@ -2,12 +2,12 @@ use openzeppelin::access::accesscontrol::interface::{
     IAccessControlDispatcher, IAccessControlDispatcherTrait,
 };
 use openzeppelin::access::ownable::interface::{IOwnableDispatcher, IOwnableDispatcherTrait};
+use path_interfaces::IPathMinterDispatcher;
 use snforge_std::{
     ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
     stop_cheat_caller_address,
 };
 use starknet::contract_address::ContractAddress;
-use crate::interface::IPathMinterDispatcher;
 
 // re compute `SALES_ROLE` and `RESERVED_ROLE` selectors, and MAX_MINUS_ONE
 const SALES_ROLE: felt252 = selector!("SALES_ROLE");
@@ -35,10 +35,7 @@ pub fn deploy_fixture(
     let (minter_addr, _) = class
         .deploy(
             @array![
-                minter_admin.into(),
-                nft_addr.into(),
-                first_id_low.into(),
-                first_id_high.into(),
+                minter_admin.into(), nft_addr.into(), first_id_low.into(), first_id_high.into(),
                 reserved_cap.into(),
             ],
         )

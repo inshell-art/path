@@ -1,8 +1,8 @@
 use core::array::Span;
 use openzeppelin::access::ownable::interface::{IOwnableDispatcher, IOwnableDispatcherTrait};
+use path_interfaces::{IForwarderDispatcher, IForwarderDispatcherTrait};
 use snforge_std::{start_cheat_caller_address, stop_cheat_caller_address, test_address};
 use starknet::ContractAddress;
-use crate::interface::{IForwarderDispatcher, IForwarderDispatcherTrait};
 use crate::tests::helper::deploy_fixture;
 
 
