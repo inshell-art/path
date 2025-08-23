@@ -17,16 +17,6 @@ pub trait IPathMinter<TState> {
 }
 
 #[starknet::interface]
-pub trait IForwarder<TState> {
-    /// Execute `target.selector(calldata)` as this contract.
-    //! here is the //!
-    // yes can not //
-    fn execute(
-        ref self: TState, target: ContractAddress, selector: felt252, calldata: Span<felt252>,
-    ) -> Span<felt252>;
-}
-
-#[starknet::interface]
 pub trait IPathNFT<TContractState> {
     // Burn a token (sets owner to zero address)
     fn burn(ref self: TContractState, token_id: u256);

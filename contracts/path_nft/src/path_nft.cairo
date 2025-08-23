@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts for Cairo ^1.0.0
 
-//todo: consider if implement upgradeable
-
+pub use PathNFT::Event as PathNFTEvent;
 #[starknet::contract]
 mod PathNFT {
     use core::num::traits::Zero;
-    use openzeppelin::access::ownable::OwnableComponent;
+    use core::panic_with_felt252;
+    use openzeppelin::access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE};
     use openzeppelin::introspection::interface::ISRC5_ID;
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::token::erc721::interface::{
@@ -16,8 +16,10 @@ mod PathNFT {
         ERC721Component, ERC721HooksEmptyImpl, interface as ERC721Interface,
     };
     use path_interfaces::IPathNFT;
-    use starknet::storage::{Map, StoragePointerReadAccess};
-    use starknet::{ContractAddress, get_caller_address};
+    use starknet::ContractAddress;
+    use starknet::storage::StoragePointerReadAccess;
+
+    const MINTER_ROLE: felt252 = selector!("MINTER_ROLE");
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     #[abi(embed_v0)]
@@ -31,10 +33,11 @@ mod PathNFT {
     impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
     impl SRC5InternalImpl = SRC5Component::InternalImpl<ContractState>;
 
-    component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
+    component!(path: AccessControlComponent, storage: access_control, event: AccessControlEvent);
     #[abi(embed_v0)]
-    impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
-    impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
+    impl AccessControlImpl =
+        AccessControlComponent::AccessControlImpl<ContractState>;
+    impl AccessControlInternalImpl = AccessControlComponent::InternalImpl<ContractState>;
 
     #[storage]
     struct Storage {
@@ -43,24 +46,38 @@ mod PathNFT {
         #[substorage(v0)]
         src5: SRC5Component::Storage,
         #[substorage(v0)]
-        ownable: OwnableComponent::Storage,
+        access_control: AccessControlComponent::Storage,
     }
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         #[flat]
         ERC721Event: ERC721Component::Event,
         #[flat]
         SRC5Event: SRC5Component::Event,
         #[flat]
-        OwnableEvent: OwnableComponent::Event,
+        AccessControlEvent: AccessControlComponent::Event,
     }
 
     #[constructor]
-    fn constructor(ref self: ContractState, owner: ContractAddress) {
-        self.erc721.initializer("Path", "PTH", "");
-        self.ownable.initializer(owner);
+    fn constructor(
+        ref self: ContractState,
+        initial_admin: ContractAddress,
+        initial_minter: ContractAddress,
+        name: ByteArray,
+        symbol: ByteArray,
+        base_uri: ByteArray,
+    ) {
+        self.erc721.initializer(name, symbol, base_uri);
+        self.access_control.initializer();
+        if initial_admin.is_zero() {
+            panic_with_felt252('ZERO_ADMIN')
+        }
+        self.access_control._grant_role(DEFAULT_ADMIN_ROLE, initial_admin);
+        if !initial_minter.is_zero() {
+            self.access_control._grant_role(MINTER_ROLE, initial_minter);
+        }
 
         SRC5InternalImpl::register_interface(ref self.src5, IERC721_ID);
         SRC5InternalImpl::register_interface(ref self.src5, IERC721_METADATA_ID);
@@ -70,7 +87,12 @@ mod PathNFT {
     #[abi(embed_v0)]
     impl IPathNFTImpl of IPathNFT<ContractState> {
         fn burn(ref self: ContractState, token_id: u256) {
-            self.erc721.update(Zero::zero(), token_id, get_caller_address());
+            let owner = self.erc721.owner_of(token_id);
+            let caller = starknet::get_caller_address();
+            if !self.erc721._is_authorized(owner, caller, token_id) {
+                panic_with_felt252('ERR_NOT_OWNER');
+            }
+            self.erc721.burn(token_id);
         }
 
         fn safe_mint(
@@ -79,7 +101,7 @@ mod PathNFT {
             token_id: u256,
             data: Span<felt252>,
         ) {
-            self.ownable.assert_only_owner();
+            self.access_control.assert_only_role(MINTER_ROLE);
             self.erc721.safe_mint(recipient, token_id, data);
         }
 
@@ -124,4 +146,13 @@ mod PathNFT {
             token_id,
         )
     }
+    #[cfg(test)]
+    mod unit {
+        #[test]
+        fn minter_role_selector_is_stable() {
+            let expected = selector!("MINTER_ROLE");
+            assert_eq!(super::MINTER_ROLE, expected);
+        }
+    }
 }
+

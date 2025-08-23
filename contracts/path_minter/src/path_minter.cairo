@@ -20,17 +20,15 @@
 /// This is intended for path sparkers and requires the caller to hold the `RESERVED_ROLE`
 /// role.
 
-//todo: implement the upgradeable
 #[starknet::contract]
 mod PathMinter {
     use core::integer::u256;
     use openzeppelin::access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE};
     use openzeppelin::introspection::interface::ISRC5_ID;
     use openzeppelin::introspection::src5::SRC5Component;
-    use path_interfaces::{IForwarder, IPathMinter, IPathNFTDispatcher, IPathNFTDispatcherTrait};
+    use path_interfaces::{IPathMinter, IPathNFTDispatcher, IPathNFTDispatcherTrait};
+    use starknet::ContractAddress;
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
-    use starknet::syscalls::call_contract_syscall;
-    use starknet::{ContractAddress, SyscallResultTrait};
 
     /// Role that call to mint_single, sales engines, like PulseAuction
     const SALES_ROLE: felt252 = selector!("SALES_ROLE");
@@ -91,7 +89,6 @@ mod PathMinter {
 
         // Transfer admin role to the provided admin address
         self.access._grant_role(DEFAULT_ADMIN_ROLE, admin);
-        self.access._revoke_role(DEFAULT_ADMIN_ROLE, starknet::get_caller_address());
 
         // Set up the initial state
         self.path_nft_addr.write(path_nft_addr);
@@ -120,8 +117,8 @@ mod PathMinter {
         fn mint_public(ref self: ContractState, to: ContractAddress, data: Span<felt252>) -> u256 {
             self.access.assert_only_role(SALES_ROLE);
             let id = self.next_id.read();
-            _mint_to_nft(ref self, to, id, data);
             self.next_id.write(id + 1); // Increment the next token ID
+            _mint_to_nft(ref self, to, id, data);
 
             id
         }
@@ -129,7 +126,7 @@ mod PathMinter {
         /// Reserved-pool mint (up to `reserved_cap` tokens) for path sparkers
         /// - Caller must hold `RESERVED_ROLE`.
         /// - Reverts once every reserved token has been issued.
-        /// - Returns the `tokenId` just minted (0 … reserved_cap-1).
+        /// - Returns the `tokenId` just minted (2^256 - 2 … 2^256 - reserved_cap).
         //todo: consider the role and the data content to mint latter
         fn mint_sparker(ref self: ContractState, to: ContractAddress, data: Span<felt252>) -> u256 {
             self.access.assert_only_role(RESERVED_ROLE);
@@ -145,29 +142,6 @@ mod PathMinter {
             self.reserved_remaining.write(remaining - 1);
 
             id
-        }
-    }
-
-    /// Forwarder interface implementation
-    /// - This allows the contract to forward calls to other contracts, such as
-    /// transferring ownership or calling other methods on the PathNFT contract.
-    /// - This is useful for administrative tasks that require the contract to act
-    /// as the owner of the PathNFT contract.
-    /// - The `execute` method allows the contract to call any method on the target
-    /// contract with the specified selector and calldata.
-    /// - The caller must hold the `DEFAULT_ADMIN_ROLE` to execute this method.
-    #[abi(embed_v0)]
-    impl IForwarderImpl of IForwarder<ContractState> {
-        /// Execute `target.selector(calldata)` as this contract.
-        fn execute(
-            ref self: ContractState,
-            target: ContractAddress,
-            selector: felt252,
-            calldata: Span<felt252>,
-        ) -> Span<felt252> {
-            self.access.assert_only_role(DEFAULT_ADMIN_ROLE);
-            // Forward the call to the target contract
-            call_contract_syscall(target, selector, calldata).unwrap_syscall()
         }
     }
 

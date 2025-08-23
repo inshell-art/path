@@ -8,6 +8,7 @@ starknet.workspace = true
 # pulse = { git = "https://github.com/inshell-art/pulse.git", tag = "v0.1.4" }
 openzeppelin.workspace = true
 path_interfaces.workspace = true
+path_nft.workspace = true
 
 [dev-dependencies]
 snforge_std.workspace = true

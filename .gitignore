@@ -10,3 +10,4 @@ node_modules/
 .husky/_/
 tmp_tx.json
 .DS_Store
+.vscode/
