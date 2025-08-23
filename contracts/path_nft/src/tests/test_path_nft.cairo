@@ -53,6 +53,7 @@ fn BOB() -> ContractAddress {
 
 const T1: u256 = 1_u256;
 const T2: u256 = 777_u256;
+const minter_role: felt252 = selector!("MINTER_ROLE");
 
 fn ZERO_ADDR() -> ContractAddress {
     0.try_into().unwrap()
@@ -111,14 +112,14 @@ struct Handles {
     meta: IERC721MetadataDispatcher,
     camel_meta: IERC721MetadataCamelOnlyDispatcher,
     src5: ISRC5Dispatcher,
+    ac: IAccessControlDispatcher,
 }
 
-fn deploy_path_nft(admin: ContractAddress, minter: ContractAddress) -> Handles {
+fn deploy_path_nft(admin: ContractAddress) -> Handles {
     let class = declare("PathNFT").unwrap().contract_class();
 
     let mut calldata = ArrayTrait::new();
     admin.serialize(ref calldata);
-    minter.serialize(ref calldata);
     NAME().serialize(ref calldata);
     SYMBOL().serialize(ref calldata);
     BASE_URI().serialize(ref calldata);
@@ -134,6 +135,7 @@ fn deploy_path_nft(admin: ContractAddress, minter: ContractAddress) -> Handles {
         meta: IERC721MetadataDispatcher { contract_address: addr },
         camel_meta: IERC721MetadataCamelOnlyDispatcher { contract_address: addr },
         src5: ISRC5Dispatcher { contract_address: addr },
+        ac: IAccessControlDispatcher { contract_address: addr },
     }
 }
 
@@ -149,7 +151,7 @@ fn deploy_receiver() -> ContractAddress {
 
 #[test]
 fn gl_constructor_registers_interfaces_and_sets_metadata() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     assert_eq!(h.meta.name(), NAME());
     assert_eq!(h.meta.symbol(), SYMBOL());
 
@@ -160,8 +162,11 @@ fn gl_constructor_registers_interfaces_and_sets_metadata() {
 
 #[test]
 fn gl_camelcase_aliases_are_wired() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safeMint(to, T1, array![].span());
@@ -174,7 +179,7 @@ fn gl_camelcase_aliases_are_wired() {
 
 #[test]
 fn gl_supports_interface_false_for_unknown() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let unknown: felt252 = 'NO_IFACE';
     assert!(!h.src5.supports_interface(unknown));
 }
@@ -185,9 +190,11 @@ fn gl_supports_interface_false_for_unknown() {
 
 #[test]
 fn ac_admin_and_minter_roles_bootstrap_ok() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let ac = IAccessControlDispatcher { contract_address: h.addr };
-    let minter_role = selector!("MINTER_ROLE");
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     assert!(ac.has_role(DEFAULT_ADMIN_ROLE, ADMIN()));
     assert!(ac.has_role(minter_role, MINTER()));
@@ -197,7 +204,7 @@ fn ac_admin_and_minter_roles_bootstrap_ok() {
 #[test]
 #[feature("safe_dispatcher")]
 fn ac_admin_cannot_mint_without_minter_role() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
 
     // ADMIN is DEFAULT_ADMIN_ROLE, but not MINTER_ROLE
@@ -206,6 +213,9 @@ fn ac_admin_cannot_mint_without_minter_role() {
         Result::Ok(_) => panic!("ADMIN should not be able to mint without MINTER_ROLE"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'Caller is missing role') },
     }
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     // MINTER can mint (sanity)
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
@@ -216,7 +226,7 @@ fn ac_admin_cannot_mint_without_minter_role() {
 #[test]
 #[feature("safe_dispatcher")]
 fn ac_admin_grant_and_revoke_minter_emits_events_and_changes_effect() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let ac = IAccessControlDispatcher { contract_address: h.addr };
     let minter_role = selector!("MINTER_ROLE");
     let to = deploy_receiver();
@@ -265,7 +275,7 @@ fn ac_admin_grant_and_revoke_minter_emits_events_and_changes_effect() {
 #[test]
 #[feature("safe_dispatcher")]
 fn ac_non_admin_cannot_grant_or_revoke_minter() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let acs = IAccessControlSafeDispatcher { contract_address: h.addr };
     let minter_role = selector!("MINTER_ROLE");
 
@@ -291,8 +301,11 @@ fn ac_non_admin_cannot_grant_or_revoke_minter() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_duplicate_token_id_reverts() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(2)); // call twice
     h.nft.safe_mint(to, T1, array![].span());
@@ -307,7 +320,7 @@ fn mint_duplicate_token_id_reverts() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_only_minter_can_safe_mint() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
@@ -315,6 +328,9 @@ fn mint_only_minter_can_safe_mint() {
         Result::Ok(_) => panic!("expected revert: non-minter mint"),
         Result::Err(_panic_data) => {},
     }
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
@@ -335,7 +351,11 @@ fn mint_only_minter_can_safe_mint() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_mint_to_zero_address_reverts() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
+
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     match h.nft_safe.safe_mint(ZERO_ADDR(), T1, array![].span()) {
         Result::Ok(_) => panic!("mint to zero should revert"),
@@ -349,8 +369,11 @@ fn mint_mint_to_zero_address_reverts() {
 
 #[test]
 fn tr_owner_transfer_from_works() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
@@ -364,8 +387,11 @@ fn tr_owner_transfer_from_works() {
 #[test]
 #[feature("safe_dispatcher")]
 fn tr_transfer_unauthorized_reverts() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
@@ -380,8 +406,11 @@ fn tr_transfer_unauthorized_reverts() {
 
 #[test]
 fn tr_approved_can_transfer_and_approval_clears() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
@@ -400,8 +429,11 @@ fn tr_approved_can_transfer_and_approval_clears() {
 
 #[test]
 fn tr_operator_transfer_and_event() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
@@ -433,8 +465,11 @@ fn tr_operator_transfer_and_event() {
 #[test]
 #[feature("safe_dispatcher")]
 fn burn_reverts_for_non_owner() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
@@ -449,7 +484,7 @@ fn burn_reverts_for_non_owner() {
 #[test]
 #[feature("safe_dispatcher")]
 fn burn_nonexistent_reverts() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
 
     // No mint; any caller should see a revert (owner_of inside burn will fail)
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
@@ -462,8 +497,11 @@ fn burn_nonexistent_reverts() {
 #[test]
 #[feature("safe_dispatcher")]
 fn burn_owner_can_burn_and_owner_of_then_reverts() {
-    let h: Handles = deploy_path_nft(ADMIN(), MINTER());
+    let h: Handles = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
@@ -490,8 +528,11 @@ fn burn_owner_can_burn_and_owner_of_then_reverts() {
 
 #[test]
 fn burn_approved_can_burn() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
@@ -507,8 +548,11 @@ fn burn_approved_can_burn() {
 
 #[test]
 fn burn_operator_can_burn() {
-    let h = deploy_path_nft(ADMIN(), MINTER());
+    let h = deploy_path_nft(ADMIN());
     let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());

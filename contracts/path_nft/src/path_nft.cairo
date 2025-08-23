@@ -64,7 +64,6 @@ mod PathNFT {
     fn constructor(
         ref self: ContractState,
         initial_admin: ContractAddress,
-        initial_minter: ContractAddress,
         name: ByteArray,
         symbol: ByteArray,
         base_uri: ByteArray,
@@ -75,9 +74,6 @@ mod PathNFT {
             panic_with_felt252('ZERO_ADMIN')
         }
         self.access_control._grant_role(DEFAULT_ADMIN_ROLE, initial_admin);
-        if !initial_minter.is_zero() {
-            self.access_control._grant_role(MINTER_ROLE, initial_minter);
-        }
 
         SRC5InternalImpl::register_interface(ref self.src5, IERC721_ID);
         SRC5InternalImpl::register_interface(ref self.src5, IERC721_METADATA_ID);
