@@ -363,9 +363,52 @@ fn mint_mint_to_zero_address_reverts() {
     }
 }
 
+#[test]
+fn mint_remint_after_burn_works() {
+    let h = deploy_path_nft(ADMIN());
+    let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
+
+    // First mint
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T1, array![].span());
+    assert_eq!(h.erc721.owner_of(T1), to);
+
+    // Burn as owner
+    cheat_caller_address(h.addr, to, CheatSpan::TargetCalls(1));
+    h.nft.burn(T1);
+
+    // Re-mint same id: allowed
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T1, array![].span());
+    assert_eq!(h.erc721.owner_of(T1), to);
+}
+
 //
 // tr_* (transfer)
 //
+
+#[test]
+#[feature("safe_dispatcher")]
+fn tr_transfer_to_zero_address_reverts() {
+    let h = deploy_path_nft(ADMIN());
+    let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.ac.grant_role(minter_role, MINTER());
+
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T1, array![].span());
+
+    cheat_caller_address(h.addr, to, CheatSpan::TargetCalls(1));
+    match h.erc721_safe.transfer_from(to, ZERO_ADDR(), T1) {
+        Result::Ok(_) => panic!("transfer to ZERO address should revert"),
+        Result::Err(_) => {},
+    }
+}
+
 
 #[test]
 fn tr_owner_transfer_from_works() {
