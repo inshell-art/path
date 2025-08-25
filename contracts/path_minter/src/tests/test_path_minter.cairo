@@ -15,7 +15,6 @@ use path_interfaces::{
     IPathMinterSafeDispatcherTrait, IPathNFTDispatcher,
 };
 use path_nft::path_nft::PathNFTEvent;
-use snforge_std::byte_array::try_deserialize_bytearray_error;
 use snforge_std::cheatcodes::CheatSpan;
 use snforge_std::{
     ContractClassTrait, DeclareResultTrait, EventSpyAssertionsTrait, cheat_caller_address, declare,
@@ -116,12 +115,11 @@ struct NftHandles {
     ac: IAccessControlDispatcher,
 }
 
-fn deploy_path_nft_zero_minter() -> NftHandles {
+fn deploy_path_nft() -> NftHandles {
     let class = declare("PathNFT").unwrap().contract_class();
 
     let mut calldata = ArrayTrait::new();
     ADMIN().serialize(ref calldata);
-    ZERO().serialize(ref calldata);
     NAME().serialize(ref calldata);
     SYMBOL().serialize(ref calldata);
     BASE_URI().serialize(ref calldata);
@@ -149,11 +147,7 @@ struct MinterHandles {
     erc721_safe: IERC721SafeDispatcher,
 }
 
-//todo: sort out the comments
-
-fn deploy_path_minter_only(
-    nft: @NftHandles, first_public_id: u256, reserved_cap: u64,
-) -> MinterHandles {
+fn deploy_path_minter(nft: @NftHandles, first_public_id: u256, reserved_cap: u64) -> MinterHandles {
     let class = declare("PathMinter").unwrap().contract_class();
 
     let mut calldata = ArrayTrait::new();
@@ -187,8 +181,8 @@ fn grant_minter_on_nft(nft: @NftHandles, minter_addr: ContractAddress) {
 
 #[test]
 fn gl_pm_constructor_registers_src5_and_caps() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
 
     let src5 = ISRC5Dispatcher { contract_address: m.addr };
     assert!(src5.supports_interface(ISRC5_ID));
@@ -199,8 +193,8 @@ fn gl_pm_constructor_registers_src5_and_caps() {
 
 #[test]
 fn gl_pm_supports_interface_false_for_unknown() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let unknown: felt252 = 'NO_IFACE';
     let src5 = ISRC5Dispatcher { contract_address: m.addr };
     assert!(!src5.supports_interface(unknown));
@@ -213,13 +207,16 @@ fn gl_pm_supports_interface_false_for_unknown() {
 #[test]
 #[feature("safe_dispatcher")]
 fn ac_pm_only_admin_can_grant_roles() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
 
     cheat_caller_address(m.addr, BOB(), CheatSpan::TargetCalls(1));
     match m.ac_safe.grant_role(SALES_ROLE, ALICE()) {
         Result::Ok(_) => panic!("non-admin should not grant SALES_ROLE"),
-        Result::Err(_) => {},
+        Result::Err(panic_data) => {
+            assert_eq!(panic_data.len(), 1, "expected single-felt panic data");
+            assert_eq!(*panic_data.at(0), 'Caller is missing role');
+        },
     }
 
     cheat_caller_address(m.addr, ADMIN(), CheatSpan::TargetCalls(2));
@@ -233,8 +230,8 @@ fn ac_pm_only_admin_can_grant_roles() {
 #[test]
 #[feature("safe_dispatcher")]
 fn ac_pm_non_admin_cannot_revoke_roles() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
 
     cheat_caller_address(m.addr, ADMIN(), CheatSpan::TargetCalls(1));
     m.ac.grant_role(SALES_ROLE, ALICE());
@@ -243,7 +240,10 @@ fn ac_pm_non_admin_cannot_revoke_roles() {
     cheat_caller_address(m.addr, BOB(), CheatSpan::TargetCalls(1));
     match m.ac_safe.revoke_role(SALES_ROLE, ALICE()) {
         Result::Ok(_) => panic!("non-admin should not revoke SALES_ROLE"),
-        Result::Err(_) => {},
+        Result::Err(panic_data) => {
+            assert_eq!(panic_data.len(), 1, "expected single-felt panic data");
+            assert_eq!(*panic_data.at(0), 'Caller is missing role');
+        },
     }
     assert!(m.ac.has_role(SALES_ROLE, ALICE()));
 }
@@ -255,8 +255,8 @@ fn ac_pm_non_admin_cannot_revoke_roles() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_public_requires_sales_role() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
     grant_minter_on_nft(@nft, m.addr);
@@ -264,14 +264,17 @@ fn mint_public_requires_sales_role() {
     cheat_caller_address(m.addr, BOB(), CheatSpan::TargetCalls(1));
     match m.minter_safe.mint_public(to, array![].span()) {
         Result::Ok(_) => panic!("mint_public without SALES_ROLE should revert"),
-        Result::Err(_) => {},
+        Result::Err(panic_data) => {
+            assert_eq!(panic_data.len(), 1, "expected single-felt panic data");
+            assert_eq!(*panic_data.at(0), 'Caller is missing role');
+        },
     }
 }
 
 #[test]
 fn mint_public_sequences_ids_and_sets_ownership() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
     grant_minter_on_nft(@nft, m.addr);
@@ -291,30 +294,43 @@ fn mint_public_sequences_ids_and_sets_ownership() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_public_rolls_back_next_id_on_nft_revert() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    // NFT with NO minter
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
+    // Give ALICE SALES_ROLE on PathMinter, but DO NOT grant MINTER_ROLE on the NFT yet
     cheat_caller_address(m.addr, ADMIN(), CheatSpan::TargetCalls(1));
     m.ac.grant_role(SALES_ROLE, ALICE());
 
+    // Sanity: PathMinter should not be an NFT minter now
+    let ac_nft = IAccessControlDispatcher { contract_address: nft.addr };
+    let minter_role = selector!("MINTER_ROLE");
+    assert!(!ac_nft.has_role(minter_role, m.addr));
+
+    // 1) This must revert -> state (next_id) should roll back
     cheat_caller_address(m.addr, ALICE(), CheatSpan::TargetCalls(1));
     match m.minter_safe.mint_public(to, array![].span()) {
-        Result::Ok(_) => panic!("expected revert due to missing MINTER_ROLE on NFT"),
-        Result::Err(_) => {},
+        Result::Ok(_) => panic!("expected revert: PathMinter missing MINTER_ROLE on NFT"),
+        Result::Err(panic_data) => {
+            assert_eq!(panic_data.len(), 1, "expected single-felt panic data");
+            assert_eq!(*panic_data.at(0), 'Caller is missing role');
+        },
     }
 
+    // 2) Grant MINTER_ROLE, then mint -> should return FIRST_PUBLIC_ID (not 1001)
     grant_minter_on_nft(@nft, m.addr);
     cheat_caller_address(m.addr, ALICE(), CheatSpan::TargetCalls(1));
     let id = m.minter.mint_public(to, array![].span());
-    assert_eq!(id, FIRST_PUBLIC_ID);
     assert_eq!(m.erc721.owner_of(id), to);
+    assert_eq!(id, FIRST_PUBLIC_ID);
 }
+
 
 #[test]
 fn mint_reserved_ids_are_above_public_ids() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
     grant_minter_on_nft(@nft, m.addr);
@@ -333,21 +349,25 @@ fn mint_reserved_ids_are_above_public_ids() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_mint_public_to_address_that_rejects_receiver_reverts() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let to = deploy_receiver();
 
     grant_minter_on_nft(@nft, m.addr);
     cheat_caller_address(m.addr, ADMIN(), CheatSpan::TargetCalls(1));
-    m.ac.grant_role(SALES_ROLE, ALICE());
+    m.ac.grant_role(SALES_ROLE, to);
 
     const ON_ERC721_RECEIVED: felt252 = selector!("on_erc721_received");
     const BAD_ID: felt252 = 0;
-    mock_call(ALICE(), ON_ERC721_RECEIVED, BAD_ID, 1_u32);
+    mock_call(to, ON_ERC721_RECEIVED, BAD_ID, 1_u32);
 
-    cheat_caller_address(m.addr, ALICE(), CheatSpan::TargetCalls(1));
-    match m.minter_safe.mint_public(ALICE(), array![].span()) {
+    cheat_caller_address(m.addr, to, CheatSpan::TargetCalls(1));
+    match m.minter_safe.mint_public(to, array![].span()) {
         Result::Ok(_) => panic!("expected revert due to receiver rejecting"),
-        Result::Err(_) => {} //todo: concrete error handling
+        Result::Err(panic_data) => {
+            assert_eq!(panic_data.len(), 1, "expected single-felt panic data");
+            assert_eq!(*panic_data.at(0), 'ERC721: safe mint failed');
+        },
     }
 }
 
@@ -359,8 +379,8 @@ fn mint_mint_public_to_address_that_rejects_receiver_reverts() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_sparker_requires_reserved_role() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
     grant_minter_on_nft(@nft, m.addr); // ensure underlying NFT accepts mints
@@ -368,14 +388,17 @@ fn mint_sparker_requires_reserved_role() {
     cheat_caller_address(m.addr, BOB(), CheatSpan::TargetCalls(1));
     match m.minter_safe.mint_sparker(to, array![].span()) {
         Result::Ok(_) => panic!("mint_sparker without RESERVED_ROLE should revert"),
-        Result::Err(_) => {},
+        Result::Err(panic_data) => {
+            assert_eq!(panic_data.len(), 1, "expected single-felt panic data");
+            assert_eq!(*panic_data.at(0), 'Caller is missing role');
+        },
     }
 }
 
 #[test]
 fn mint_sparker_counts_down_and_updates_remaining() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
     grant_minter_on_nft(@nft, m.addr);
@@ -397,8 +420,8 @@ fn mint_sparker_counts_down_and_updates_remaining() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_sparker_exhaustion_reverts() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
     grant_minter_on_nft(@nft, m.addr);
@@ -416,28 +439,22 @@ fn mint_sparker_exhaustion_reverts() {
     match m.minter_safe.mint_sparker(to, array![].span()) {
         Result::Ok(_) => panic!("expected NO_RESERVED_LEFT revert"),
         Result::Err(panic_data) => {
-            match try_deserialize_bytearray_error(panic_data.span()) {
-                Result::Ok(msg) => assert_eq!(msg, "NO_RESERVED_LEFT"),
-                Result::Err(_) => {
-                    assert!(panic_data.len() >= 1, "no panic data");
-                    assert_eq!(*panic_data.at(0), 'NO_RESERVED_LEFT');
-                },
-            }
+            assert_eq!(panic_data.len(), 1, "expected single-felt panic data");
+            assert_eq!(*panic_data.at(0), 'NO_RESERVED_LEFT');
         },
     }
     stop_cheat_caller_address(m.addr);
 }
 
 //
-//      int_*
+//      int_* (Integration)
 //
-//todo: what's int?
 
 #[test]
 #[feature("safe_dispatcher")]
 fn int_pm_requires_minter_role_on_nft() {
-    let nft = deploy_path_nft_zero_minter(); // PathMinter not yet minter on NFT
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft(); // PathMinter not yet minter on NFT
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
     // Give SALES_ROLE so only the NFT minter-role dependency can fail
@@ -448,14 +465,17 @@ fn int_pm_requires_minter_role_on_nft() {
     cheat_caller_address(m.addr, ALICE(), CheatSpan::TargetCalls(1));
     match m.minter_safe.mint_public(to, array![].span()) {
         Result::Ok(_) => panic!("expected revert due to missing MINTER_ROLE on NFT for PathMinter"),
-        Result::Err(_) => {},
+        Result::Err(panic_data) => {
+            assert_eq!(panic_data.len(), 1, "expected single-felt panic data");
+            assert_eq!(*panic_data.at(0), 'Caller is missing role');
+        },
     }
 }
 
 #[test]
 fn int_pm_emits_transfer_on_public_mint() {
-    let nft = deploy_path_nft_zero_minter();
-    let m = deploy_path_minter_only(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+    let nft = deploy_path_nft();
+    let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
     // Grants required

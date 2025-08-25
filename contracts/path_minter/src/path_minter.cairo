@@ -117,8 +117,8 @@ mod PathMinter {
         fn mint_public(ref self: ContractState, to: ContractAddress, data: Span<felt252>) -> u256 {
             self.access.assert_only_role(SALES_ROLE);
             let id = self.next_id.read();
-            self.next_id.write(id + 1); // Increment the next token ID
             _mint_to_nft(ref self, to, id, data);
+            self.next_id.write(id + 1); // Increment the next token ID
 
             id
         }
