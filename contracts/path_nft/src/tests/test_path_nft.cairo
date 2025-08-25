@@ -146,7 +146,7 @@ fn deploy_receiver() -> ContractAddress {
 }
 
 //
-// global
+// gl_* (global)
 //
 
 #[test]
@@ -185,7 +185,7 @@ fn gl_supports_interface_false_for_unknown() {
 }
 
 //
-// access control
+// ac_* (access control)
 //
 
 #[test]
@@ -295,7 +295,7 @@ fn ac_non_admin_cannot_grant_or_revoke_minter() {
 }
 
 //
-// mint
+// mint_* (minting)
 //
 
 #[test]
@@ -364,7 +364,7 @@ fn mint_mint_to_zero_address_reverts() {
 }
 
 //
-// transfer
+// tr_* (transfer)
 //
 
 #[test]
@@ -459,7 +459,7 @@ fn tr_operator_transfer_and_event() {
 
 
 //
-// burn
+// burn_* (burning)
 //
 
 #[test]
