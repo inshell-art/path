@@ -1,2 +1,2 @@
-scarb lint -p path_nft
+scarb lint
 scarb fmt
