@@ -1,5 +1,11 @@
 [workspace]
-members = ["contracts/path_nft", "contracts/path_minter", "interfaces"]
+members = [
+    "contracts/path_nft",
+    "contracts/path_minter",
+    "interfaces",
+    "contracts/path_minter_adapter",
+    "crates/e2e",
+]
 
 [workspace.package]
 version = "0.3.1"
@@ -14,6 +20,10 @@ assert_macros = "2.9.4"
 path_interfaces = { path = "interfaces" }
 path_nft = { path = "contracts/path_nft" }
 path_minter = { path = "contracts/path_minter" }
+path_minter_adapter = { path = "contracts/path_minter_adapter" }
+pulse_auction = { git = "https://github.com/inshell-art/pulse.git", rev = "da2506bf7c03534d0785459ecf13815676f18279" }
+pulse_adapter = { git = "https://github.com/inshell-art/pulse.git", rev = "da2506bf7c03534d0785459ecf13815676f18279" }
+
 
 [profile.devnet]
 inherits = "dev"

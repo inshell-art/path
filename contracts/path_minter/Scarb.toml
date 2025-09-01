@@ -5,7 +5,6 @@ edition.workspace = true
 
 [dependencies]
 starknet.workspace = true
-# pulse = { git = "https://github.com/inshell-art/pulse.git", tag = "v0.1.4" }
 openzeppelin.workspace = true
 path_interfaces.workspace = true
 path_nft.workspace = true
@@ -17,7 +16,11 @@ assert_macros.workspace = true
 [[target.starknet-contract]]
 sierra = true
 casm = true
+
+[[target.test]]
 build-external-contracts = ["path_nft::path_nft::PathNFT"]
+
+[[target.lib]]
 
 [scripts]
 test = "snforge test"

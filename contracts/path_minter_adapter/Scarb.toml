@@ -1,0 +1,15 @@
+[package]
+name = "path_minter_adapter"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+starknet.workspace = true
+openzeppelin.workspace = true
+path_minter = { workspace = true }
+pulse_adapter = { workspace = true }
+path_interfaces = { workspace = true }
+
+[dev-dependencies]
+snforge_std.workspace = true
+assert_macros.workspace = true
