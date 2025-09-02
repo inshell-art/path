@@ -5,6 +5,7 @@ members = [
     "interfaces",
     "contracts/path_minter_adapter",
     "crates/e2e",
+    "crates/test_support",
 ]
 
 [workspace.package]
@@ -23,6 +24,7 @@ path_minter = { path = "contracts/path_minter" }
 path_minter_adapter = { path = "contracts/path_minter_adapter" }
 pulse_auction = { git = "https://github.com/inshell-art/pulse.git", rev = "da2506bf7c03534d0785459ecf13815676f18279" }
 pulse_adapter = { git = "https://github.com/inshell-art/pulse.git", rev = "da2506bf7c03534d0785459ecf13815676f18279" }
+path_test_support = { path = "crates/test_support" }
 
 
 [profile.devnet]

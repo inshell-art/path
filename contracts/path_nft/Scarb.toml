@@ -8,6 +8,7 @@ author.workspace = true
 starknet.workspace = true
 openzeppelin.workspace = true
 path_interfaces.workspace = true
+path_test_support.workspace = true
 
 [dev-dependencies]
 snforge_std.workspace = true
@@ -15,6 +16,11 @@ assert_macros.workspace = true
 
 [[target.starknet-contract]]
 sierra = true
+
+[[target.test]]
+build-external-contracts = [
+    "path_test_support::test_support::TestERC721Receiver",
+]
 
 [[target.lib]]
 

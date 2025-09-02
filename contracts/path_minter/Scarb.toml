@@ -8,6 +8,7 @@ starknet.workspace = true
 openzeppelin.workspace = true
 path_interfaces.workspace = true
 path_nft.workspace = true
+path_test_support.workspace = true
 
 [dev-dependencies]
 snforge_std.workspace = true
@@ -18,7 +19,11 @@ sierra = true
 casm = true
 
 [[target.test]]
-build-external-contracts = ["path_nft::path_nft::PathNFT"]
+build-external-contracts = [
+    "path_nft::path_nft::PathNFT",
+    "path_test_support::test_support::TestERC721Receiver",
+]
+
 
 [[target.lib]]
 

@@ -1,179 +1,18 @@
 use core::array::ArrayTrait;
-use core::option::OptionTrait;
-use core::traits::TryInto;
 use openzeppelin::access::accesscontrol::interface::{
-    IAccessControlDispatcher, IAccessControlDispatcherTrait, IAccessControlSafeDispatcher,
-    IAccessControlSafeDispatcherTrait,
+    IAccessControlDispatcher, IAccessControlDispatcherTrait, IAccessControlSafeDispatcherTrait,
 };
 use openzeppelin::introspection::interface::{ISRC5Dispatcher, ISRC5DispatcherTrait, ISRC5_ID};
 use openzeppelin::token::erc721::ERC721Component;
-use openzeppelin::token::erc721::interface::{
-    IERC721Dispatcher, IERC721DispatcherTrait, IERC721SafeDispatcher,
-};
-use path_interfaces::{
-    IPathMinterDispatcher, IPathMinterDispatcherTrait, IPathMinterSafeDispatcher,
-    IPathMinterSafeDispatcherTrait, IPathNFTDispatcher,
-};
+use openzeppelin::token::erc721::interface::IERC721DispatcherTrait;
+use path_interfaces::{IPathMinterDispatcherTrait, IPathMinterSafeDispatcherTrait};
 use path_nft::path_nft::PathNFTEvent;
+use path_test_support::prelude::*;
 use snforge_std::cheatcodes::CheatSpan;
 use snforge_std::{
-    ContractClassTrait, DeclareResultTrait, EventSpyAssertionsTrait, cheat_caller_address, declare,
-    mock_call, spy_events, start_cheat_caller_address, stop_cheat_caller_address,
+    EventSpyAssertionsTrait, cheat_caller_address, mock_call, spy_events,
+    start_cheat_caller_address, stop_cheat_caller_address,
 };
-use starknet::ContractAddress;
-
-//
-// Setup
-//
-
-fn ADMIN() -> ContractAddress {
-    'ADMIN'.try_into().unwrap()
-}
-fn ALICE() -> ContractAddress {
-    'ALICE'.try_into().unwrap()
-}
-fn BOB() -> ContractAddress {
-    'BOB'.try_into().unwrap()
-}
-fn ZERO() -> ContractAddress {
-    0.try_into().unwrap()
-}
-
-fn NAME() -> ByteArray {
-    "PATH NFT"
-}
-fn SYMBOL() -> ByteArray {
-    "PATH"
-}
-fn BASE_URI() -> ByteArray {
-    ""
-}
-
-const FIRST_PUBLIC_ID: u256 = 1000_u256;
-const RESERVED_CAP: u64 = 3_u64;
-
-const MINTER_ROLE: felt252 = selector!("MINTER_ROLE");
-const SALES_ROLE: felt252 = selector!("SALES_ROLE");
-const RESERVED_ROLE: felt252 = selector!("RESERVED_ROLE");
-
-//
-// Helpers
-//
-
-#[starknet::contract]
-mod TestERC721Receiver {
-    use openzeppelin::introspection::src5::SRC5Component;
-    use openzeppelin::token::erc721::ERC721ReceiverComponent;
-
-    component!(path: ERC721ReceiverComponent, storage: erc721_receiver, event: ERC721ReceiverEvent);
-    component!(path: SRC5Component, storage: src5, event: SRC5Event);
-
-    #[abi(embed_v0)]
-    impl ERC721ReceiverImpl =
-        ERC721ReceiverComponent::ERC721ReceiverImpl<ContractState>;
-    impl ERC721ReceiverInternalImpl = ERC721ReceiverComponent::InternalImpl<ContractState>;
-
-    #[abi(embed_v0)]
-    impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
-    impl SRC5InternalImpl = SRC5Component::InternalImpl<ContractState>;
-
-    #[storage]
-    struct Storage {
-        #[substorage(v0)]
-        erc721_receiver: ERC721ReceiverComponent::Storage,
-        #[substorage(v0)]
-        src5: SRC5Component::Storage,
-    }
-
-    #[event]
-    #[derive(Drop, starknet::Event)]
-    enum Event {
-        #[flat]
-        ERC721ReceiverEvent: ERC721ReceiverComponent::Event,
-        #[flat]
-        SRC5Event: SRC5Component::Event,
-    }
-
-    #[constructor]
-    fn constructor(ref self: ContractState) {
-        self.erc721_receiver.initializer();
-    }
-}
-
-fn deploy_receiver() -> ContractAddress {
-    let class = declare("TestERC721Receiver").unwrap().contract_class();
-    let (addr, _) = class.deploy(@array![]).unwrap();
-    addr
-}
-
-#[derive(Drop)]
-struct NftHandles {
-    addr: ContractAddress,
-    nft: IPathNFTDispatcher,
-    erc721: IERC721Dispatcher,
-    erc721_safe: IERC721SafeDispatcher,
-    ac: IAccessControlDispatcher,
-}
-
-fn deploy_path_nft() -> NftHandles {
-    let class = declare("PathNFT").unwrap().contract_class();
-
-    let mut calldata = ArrayTrait::new();
-    ADMIN().serialize(ref calldata);
-    NAME().serialize(ref calldata);
-    SYMBOL().serialize(ref calldata);
-    BASE_URI().serialize(ref calldata);
-
-    let (addr, _) = class.deploy(@calldata).unwrap();
-
-    NftHandles {
-        addr,
-        nft: IPathNFTDispatcher { contract_address: addr },
-        erc721: IERC721Dispatcher { contract_address: addr },
-        erc721_safe: IERC721SafeDispatcher { contract_address: addr },
-        ac: IAccessControlDispatcher { contract_address: addr },
-    }
-}
-
-#[derive(Drop)]
-struct MinterHandles {
-    addr: ContractAddress,
-    minter: IPathMinterDispatcher,
-    minter_safe: IPathMinterSafeDispatcher,
-    ac: IAccessControlDispatcher,
-    ac_safe: IAccessControlSafeDispatcher,
-    nft_addr: ContractAddress,
-    erc721: IERC721Dispatcher,
-    erc721_safe: IERC721SafeDispatcher,
-}
-
-fn deploy_path_minter(nft: @NftHandles, first_public_id: u256, reserved_cap: u64) -> MinterHandles {
-    let class = declare("PathMinter").unwrap().contract_class();
-
-    let mut calldata = ArrayTrait::new();
-    ADMIN().serialize(ref calldata);
-    nft.addr.serialize(ref calldata);
-    first_public_id.serialize(ref calldata);
-    reserved_cap.serialize(ref calldata);
-
-    let (addr, _) = class.deploy(@calldata).unwrap();
-
-    MinterHandles {
-        addr,
-        minter: IPathMinterDispatcher { contract_address: addr },
-        minter_safe: IPathMinterSafeDispatcher { contract_address: addr },
-        ac: IAccessControlDispatcher { contract_address: addr },
-        ac_safe: IAccessControlSafeDispatcher { contract_address: addr },
-        nft_addr: *nft.addr,
-        erc721: IERC721Dispatcher { contract_address: *nft.addr },
-        erc721_safe: IERC721SafeDispatcher { contract_address: *nft.addr },
-    }
-}
-
-fn grant_minter_on_nft(nft: @NftHandles, minter_addr: ContractAddress) {
-    cheat_caller_address(*nft.addr, ADMIN(), CheatSpan::TargetCalls(1));
-    nft.ac.grant_role(MINTER_ROLE, minter_addr);
-}
 
 //
 // gl_*  (Global)
@@ -181,7 +20,7 @@ fn grant_minter_on_nft(nft: @NftHandles, minter_addr: ContractAddress) {
 
 #[test]
 fn gl_pm_constructor_registers_src5_and_caps() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
 
     let src5 = ISRC5Dispatcher { contract_address: m.addr };
@@ -193,7 +32,7 @@ fn gl_pm_constructor_registers_src5_and_caps() {
 
 #[test]
 fn gl_pm_supports_interface_false_for_unknown() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let unknown: felt252 = 'NO_IFACE';
     let src5 = ISRC5Dispatcher { contract_address: m.addr };
@@ -207,7 +46,7 @@ fn gl_pm_supports_interface_false_for_unknown() {
 #[test]
 #[feature("safe_dispatcher")]
 fn ac_pm_only_admin_can_grant_roles() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
 
     cheat_caller_address(m.addr, BOB(), CheatSpan::TargetCalls(1));
@@ -230,7 +69,7 @@ fn ac_pm_only_admin_can_grant_roles() {
 #[test]
 #[feature("safe_dispatcher")]
 fn ac_pm_non_admin_cannot_revoke_roles() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
 
     cheat_caller_address(m.addr, ADMIN(), CheatSpan::TargetCalls(1));
@@ -255,7 +94,7 @@ fn ac_pm_non_admin_cannot_revoke_roles() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_public_requires_sales_role() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
@@ -273,7 +112,7 @@ fn mint_public_requires_sales_role() {
 
 #[test]
 fn mint_public_sequences_ids_and_sets_ownership() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
@@ -295,7 +134,7 @@ fn mint_public_sequences_ids_and_sets_ownership() {
 #[feature("safe_dispatcher")]
 fn mint_public_rolls_back_next_id_on_nft_revert() {
     // NFT with NO minter
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
@@ -329,7 +168,7 @@ fn mint_public_rolls_back_next_id_on_nft_revert() {
 
 #[test]
 fn mint_reserved_ids_are_above_public_ids() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
@@ -349,7 +188,7 @@ fn mint_reserved_ids_are_above_public_ids() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_mint_public_to_address_that_rejects_receiver_reverts() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
@@ -379,7 +218,7 @@ fn mint_mint_public_to_address_that_rejects_receiver_reverts() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_sparker_requires_reserved_role() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
@@ -397,7 +236,7 @@ fn mint_sparker_requires_reserved_role() {
 
 #[test]
 fn mint_sparker_counts_down_and_updates_remaining() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
@@ -420,7 +259,7 @@ fn mint_sparker_counts_down_and_updates_remaining() {
 #[test]
 #[feature("safe_dispatcher")]
 fn mint_sparker_exhaustion_reverts() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
@@ -453,7 +292,7 @@ fn mint_sparker_exhaustion_reverts() {
 #[test]
 #[feature("safe_dispatcher")]
 fn int_pm_requires_minter_role_on_nft() {
-    let nft = deploy_path_nft(); // PathMinter not yet minter on NFT
+    let nft = deploy_path_nft_default(); // PathMinter not yet minter on NFT
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
@@ -474,7 +313,7 @@ fn int_pm_requires_minter_role_on_nft() {
 
 #[test]
 fn int_pm_emits_transfer_on_public_mint() {
-    let nft = deploy_path_nft();
+    let nft = deploy_path_nft_default();
     let m = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
     let to = deploy_receiver();
 
@@ -493,7 +332,7 @@ fn int_pm_emits_transfer_on_public_mint() {
     // Expect Transfer(0 -> to, tokenId) on PathNFT
     let expected: PathNFTEvent = PathNFTEvent::ERC721Event(
         ERC721Component::Event::Transfer(
-            ERC721Component::Transfer { from: ZERO(), to, token_id: minted },
+            ERC721Component::Transfer { from: ZERO_ADDR(), to, token_id: minted },
         ),
     );
     spy.assert_emitted(@array![(nft.addr, expected)]);
