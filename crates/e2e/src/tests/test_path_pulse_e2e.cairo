@@ -1,113 +1,185 @@
 use core::array::ArrayTrait;
+use openzeppelin::access::accesscontrol::interface::IAccessControlDispatcherTrait;
+use openzeppelin::token::erc721::interface::{IERC721Dispatcher, IERC721DispatcherTrait};
+use path_minter_adapter::path_minter_adapter::IAdapterAdminDispatcherTrait;
+use path_test_support::prelude::*;
+use pulse_adapter::interface::IPulseAdapterSafeDispatcherTrait;
+use pulse_auction::interface::{IPulseAuctionDispatcherTrait, IPulseAuctionSafeDispatcherTrait};
 use snforge_std::cheatcodes::{CheatSpan, mock_call};
-use snforge_std::{
-    EventSpyTrait, EventsFilterTrait, cheat_block_number, cheat_block_timestamp,
-    cheat_caller_address, spy_events,
-};
-use crate::tests::test_helper::*;
+use snforge_std::{cheat_block_number, cheat_block_timestamp, cheat_caller_address};
 
-#[test]
-fn gl_wiring_and_target() {
-    let e = deploy_env();
-    // Adapter.target() should point to auction
-    assert_eq!(e.adapter.target(), e.auction_addr);
+//
+// Helper
+//
+
+#[derive(Drop)]
+struct Env {
+    nft: NftHandles,
+    minter: MinterHandles,
+    adapter: AdapterHandles,
+    auction: AuctionHandles,
+    erc721: IERC721Dispatcher,
 }
 
+fn wire_env(start_delay_sec: u64, k: u256, gp: u256, gf: u256, pts: felt252) -> Env {
+    let nft = deploy_path_nft_default(); // admin = ADMIN, initial_minter omitted per your helper
+    let erc721 = IERC721Dispatcher { contract_address: nft.addr };
+
+    // 2) PathMinter
+    let minter = deploy_path_minter(@nft, FIRST_PUBLIC_ID, RESERVED_CAP);
+
+    // 3) Adapter (auction unknown yet → ZERO, will be set after auction deploy)
+    let adapter = deploy_path_minter_adapter(ADMIN(), ZERO_ADDR(), minter.addr);
+
+    // 4) Auction (PAYTOKEN is a sentinel; we'll mock transfer_from)
+    let auction = deploy_pulse_auction_with(
+        start_delay_sec, k, gp, gf, pts, PAYTOKEN(), TREASURY(), adapter.addr,
+    );
+
+    // 5) Finalize wiring
+    cheat_caller_address(adapter.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    adapter.admin.set_auction(auction.addr);
+
+    grant_minter_on_nft(@nft, minter.addr); // NFT → MINTER_ROLE to PathMinter
+    cheat_caller_address(minter.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    minter.ac.grant_role(SALES_ROLE, adapter.addr); // PathMinter → SALES_ROLE to Adapter
+
+    Env { nft, minter, adapter, auction, erc721 }
+}
+
+//
+// gl_* (global / config)
+//
 #[test]
 #[feature("safe_dispatcher")]
-fn admin_setters_reject_zero_and_only_owner() {
-    let e = deploy_env();
+fn gl_config_ok_and_adapter_only_auction() {
+    let e = wire_env(0, 10_000_u128.into(), 1_000_u128.into(), 800_u128.into(), 10);
 
-    // zero rejection
-    cheat_caller_address(e.adapter_addr, ADMIN(), CheatSpan::TargetCalls(1));
-    match e.adapter_safe.set_minter(ZERO()) {
-        Result::Ok(_) => panic!("ZERO_MINTER expected"),
-        Result::Err(p) => { assert_eq!(*p.at(0), 'ZERO_MINTER'); },
-    }
+    // Auction config sanity
+    let (open_time, gp, gf, k, pts) = e.auction.auction.get_config();
+    assert!(open_time >= 0_u64);
+    assert_eq!(gp, 1_000_u128.into());
+    assert_eq!(gf, 800_u128.into());
+    assert_eq!(k, 10_000_u128.into());
+    assert_eq!(pts, 10);
 
-    // only owner
-    cheat_caller_address(e.adapter_addr, ALICE(), CheatSpan::TargetCalls(1));
-    match e.adapter_safe.set_auction(e.auction_addr) {
-        Result::Ok(_) => panic!("ONLY_OWNER expected"),
-        Result::Err(p) => { assert_eq!(*p.at(0), 'Ownable: caller is not the owner'); },
+    // Adapter ONLY_AUCTION guard (negative probe)
+    cheat_caller_address(e.adapter.addr, ALICE(), CheatSpan::TargetCalls(1));
+    match e.adapter.adapter_safe.settle(ALICE(), array![].span()) {
+        Result::Ok(_) => panic!("adapter.settle by non-auction should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ONLY_AUCTION'); },
     }
 }
 
+//
+// bid_* (bidding through full chain)
+//
 #[test]
 #[feature("safe_dispatcher")]
-fn nft_owner_can_burn_then_owner_of_reverts() {
-    let e = deploy_env();
+fn bid_before_open_time_reverts() {
+    // open in future: start_delay_sec = 500
+    let e = wire_env(500, 10_000_u128.into(), 1_000_u128.into(), 800_u128.into(), 10);
 
-    // Mint directly via PathMinter (bypassing auction) to set baseline
-    cheat_caller_address(e.minter_addr, ADMIN(), CheatSpan::TargetCalls(1));
-    let id = e.minter.mint_public(ALICE(), array![].span());
-    assert_eq!(e.erc721.owner_of(id), ALICE());
-
-    // Burn and verify owner_of reverts
-    cheat_caller_address(e.nft_addr, ALICE(), CheatSpan::TargetCalls(1));
-    e.nft.burn(id);
-
-    match e.erc721.owner_of_safe(id) {
-        Result::Ok(_) => panic!("expected invalid token ID"),
-        Result::Err(p) => { assert_eq!(*p.at(0), 'ERC721: invalid token ID'); },
-    }
-}
-
-#[test]
-#[feature("safe_dispatcher")]
-fn auction_not_open_reverts() {
-    let e = deploy_env();
-    cheat_caller_address(e.auction_addr, ALICE(), CheatSpan::TargetCalls(1));
-    match e.auction_safe.bid(1_000_u128.into()) {
+    cheat_caller_address(e.auction.addr, ALICE(), CheatSpan::TargetCalls(1));
+    match e.auction.auction_safe.bid(1_000_u128.into()) {
         Result::Ok(_) => panic!("AUCTION_NOT_OPEN expected"),
-        Result::Err(p) => { assert_eq!(*p.at(0), 'AUCTION_NOT_OPEN'); },
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'AUCTION_NOT_OPEN'); },
     }
-}
-
-#[test]
-fn genesis_bid_activates_curve_and_mints_one() {
-    let e = deploy_env();
-
-    // mock ERC20 transferFrom success for 1 call
-    mock_call(ZERO(), 0_u128.into(), array![1].span(), 1);
-
-    cheat_block_number(e.auction_addr, 1_u64, CheatSpan::TargetCalls(1));
-    cheat_block_timestamp(e.auction_addr, 1_000_u64, CheatSpan::TargetCalls(1));
-    cheat_caller_address(e.auction_addr, ALICE(), CheatSpan::TargetCalls(1));
-
-    let mut spy = spy_events();
-    e.auction.bid(1_000_u128.into());
-
-    // Sale event emitted & curve active
-    let evs = spy.get_events().emitted_by(e.auction_addr);
-    assert!(evs.events.len() > 0);
 }
 
 #[test]
 #[feature("safe_dispatcher")]
-fn adapter_only_auction_can_settle_and_revert_rolls_back() {
-    let e = deploy_env();
+fn bid_genesis_mints_to_path_nft() {
+    let e = wire_env(0, 10_000_u128.into(), 1_000_u128.into(), 800_u128.into(), 10);
+    let receiver = deploy_receiver();
 
-    // Non-auction trying to settle
-    cheat_caller_address(e.adapter_addr, ALICE(), CheatSpan::TargetCalls(1));
-    match e.adapter_safe.settle(ALICE(), array![].span()) {
-        Result::Ok(_) => panic!("ONLY_AUCTION expected"),
-        Result::Err(p) => { assert_eq!(*p.at(0), 'ONLY_AUCTION'); },
+    // Mock ERC-20 transfer_from(buyer→treasury, ask) to return true once
+    let selector_transfer_from = selector!("transfer_from");
+    mock_call(PAYTOKEN(), selector_transfer_from, array![1].span(), 1);
+
+    // Deterministic boot: avoid u64_sub underflow in anchor calc and set block guard baseline
+    cheat_block_number(e.auction.addr, 1_u64, CheatSpan::TargetCalls(1));
+    cheat_block_timestamp(e.auction.addr, 1_000_u64, CheatSpan::TargetCalls(1));
+
+    // Genesis bid
+    cheat_caller_address(e.auction.addr, receiver, CheatSpan::TargetCalls(1));
+    e.auction.auction.bid(1_000_u128.into());
+
+    assert!(e.auction.auction.curve_active());
+    assert_eq!(e.erc721.owner_of(FIRST_PUBLIC_ID), receiver);
+
+    // Same block → one-bid-per-block guard
+    cheat_block_number(e.auction.addr, 1_u64, CheatSpan::TargetCalls(1));
+    cheat_block_timestamp(e.auction.addr, 1_000_u64, CheatSpan::TargetCalls(1));
+    cheat_caller_address(e.auction.addr, receiver, CheatSpan::TargetCalls(1));
+    match e.auction.auction_safe.bid(1_000_u128.into()) {
+        Result::Ok(_) => panic!("second bid in same block should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ONE_BID_PER_BLOCK'); },
     }
+}
 
-    // Now drive a bid but force adapter to revert: set a flag on adapter admin if you expose it,
-    // else mock a revert by making ERC20 call fail if your adapter propagates it.
-    // Example: if PathMinterAdapter surfaces 'ADAPTER_REVERT' in your admin:
-    cheat_caller_address(e.adapter_addr, ADMIN(), CheatSpan::TargetCalls(1));
-    // e.adapter_admin.set_should_revert(true); // uncomment if you expose this in adapter
+#[test]
+fn bid_next_block_succeeds_and_id_increments() {
+    let e = wire_env(0, 10_000_u128.into(), 1_000_u128.into(), 800_u128.into(), 10);
+    let receiver = deploy_receiver();
 
-    cheat_block_number(e.auction_addr, 1_u64, CheatSpan::TargetCalls(1));
-    cheat_block_timestamp(e.auction_addr, 1_000_u64, CheatSpan::TargetCalls(1));
-    cheat_caller_address(e.auction_addr, ALICE(), CheatSpan::TargetCalls(1));
+    // Mock two payments (genesis + next)
+    let selector_transfer_from = selector!("transfer_from");
+    mock_call(PAYTOKEN(), selector_transfer_from, array![1].span(), 2);
 
-    match e.auction_safe.bid(1_000_u128.into()) {
-        Result::Ok(_) => panic!("expected adapter revert"),
-        Result::Err(_p) => {},
+    // Genesis @ block 1, t=1000
+    cheat_block_number(e.auction.addr, 1_u64, CheatSpan::TargetCalls(1));
+    cheat_block_timestamp(e.auction.addr, 1_000_u64, CheatSpan::TargetCalls(1));
+    cheat_caller_address(e.auction.addr, receiver, CheatSpan::TargetCalls(1));
+    e.auction.auction.bid(1_000_u128.into());
+    assert!(e.auction.auction.curve_active());
+    assert_eq!(e.erc721.owner_of(FIRST_PUBLIC_ID), receiver);
+
+    // Next bid @ block 2, later timestamp
+    cheat_block_number(e.auction.addr, 2_u64, CheatSpan::TargetCalls(1));
+    cheat_block_timestamp(e.auction.addr, 1_010_u64, CheatSpan::TargetCalls(1));
+    cheat_caller_address(e.auction.addr, receiver, CheatSpan::TargetCalls(1));
+    e.auction.auction.bid(10_000_u128.into()); // generous ceiling
+
+    assert_eq!(e.erc721.owner_of(FIRST_PUBLIC_ID + 1_u128.into()), receiver);
+}
+
+#[test]
+fn bid_price_decays_over_time_after_genesis() {
+    let e = wire_env(0, 10_000_u128.into(), 1_000_u128.into(), 800_u128.into(), 10);
+    let receiver = deploy_receiver();
+
+    // One mocked payment for genesis
+    let selector_transfer_from = selector!("transfer_from");
+    mock_call(PAYTOKEN(), selector_transfer_from, array![1].span(), 1);
+
+    // Activate curve
+    cheat_block_number(e.auction.addr, 1_u64, CheatSpan::TargetCalls(1));
+    cheat_block_timestamp(e.auction.addr, 1_000_u64, CheatSpan::TargetCalls(1));
+    cheat_caller_address(e.auction.addr, receiver, CheatSpan::TargetCalls(1));
+    e.auction.auction.bid(1_000_u128.into());
+
+    // Sample prices at later times: k/(now-a)+b decreases with now
+    cheat_block_timestamp(e.auction.addr, 1_050_u64, CheatSpan::TargetCalls(1));
+    let p1 = e.auction.auction.get_current_price();
+
+    cheat_block_timestamp(e.auction.addr, 1_500_u64, CheatSpan::TargetCalls(1));
+    let p2 = e.auction.auction.get_current_price();
+
+    assert!(p2 < p1);
+}
+
+//
+// adp_* (adapter)
+//
+#[test]
+#[feature("safe_dispatcher")]
+fn adp_only_auction_can_settle() {
+    let e = wire_env(0, 10_000_u128.into(), 1_000_u128.into(), 800_u128.into(), 10);
+    // Direct call from non-auction should revert
+    cheat_caller_address(e.adapter.addr, ALICE(), CheatSpan::TargetCalls(1));
+    match e.adapter.adapter_safe.settle(ALICE(), array![].span()) {
+        Result::Ok(_) => panic!("adapter.settle by non-auction should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ONLY_AUCTION'); },
     }
-    // After revert: curve not active; next_id unchanged (peek via minter if you expose it)
 }

@@ -164,6 +164,7 @@ dependencies = [
  "path_minter",
  "path_minter_adapter",
  "path_nft",
+ "path_test_support",
  "pulse_adapter",
  "pulse_auction",
  "snforge_std",

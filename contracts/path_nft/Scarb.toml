@@ -17,7 +17,9 @@ assert_macros.workspace = true
 [[target.starknet-contract]]
 sierra = true
 
-[[target.test]]
+[[test]]
+name = "path_nft_unit"
+test-type = "unit"
 build-external-contracts = [
     "path_test_support::test_support::TestERC721Receiver",
 ]

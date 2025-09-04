@@ -13,14 +13,18 @@ path_minter_adapter.workspace = true
 pulse_auction.workspace = true
 pulse_adapter.workspace = true
 path_interfaces.workspace = true
+path_test_support.workspace = true
 
 [dev-dependencies]
 assert_macros.workspace = true
 
-[[target.test]]
+[[test]]
+name = "e2e_unit"
+test-type = "unit"
 build-external-contracts = [
     "path_nft::path_nft::PathNFT",
     "path_minter::path_minter::PathMinter",
     "pulse_auction::pulse_auction::PulseAuction",
-    "pulse_adapter::pulse_adapter::PulseAdapter",
+    "path_minter_adapter::path_minter_adapter::PathMinterAdapter",
+    "path_test_support::test_support::TestERC721Receiver",
 ]

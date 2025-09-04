@@ -18,7 +18,9 @@ assert_macros.workspace = true
 sierra = true
 casm = true
 
-[[target.test]]
+[[test]]
+name = "path_minter_unit"
+test-type = "unit"
 build-external-contracts = [
     "path_nft::path_nft::PathNFT",
     "path_test_support::test_support::TestERC721Receiver",
