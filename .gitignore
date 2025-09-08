@@ -11,3 +11,4 @@ node_modules/
 tmp_tx.json
 .DS_Store
 .vscode/
+output/
