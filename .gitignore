@@ -12,3 +12,4 @@ tmp_tx.json
 .DS_Store
 .vscode/
 output/
+deployments/
