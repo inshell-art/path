@@ -1,0 +1,3 @@
+[submodule "vendor/pulse_auction"]
+	path = vendor/pulse_auction
+	url = https://github.com/inshell-art/pulse.git
