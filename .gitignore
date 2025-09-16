@@ -12,4 +12,8 @@ tmp_tx.json
 .DS_Store
 .vscode/
 output/
+!output/.gitkeep
 deployments/
+scripts/.env.local
+scripts/params.devnet.local
+.accounts/

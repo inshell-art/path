@@ -186,16 +186,15 @@ dependencies = [
 
 [[package]]
 name = "pulse_adapter"
-version = "0.1.0"
-source = "git+https://github.com/inshell-art/pulse.git?rev=da2506bf7c03534d0785459ecf13815676f18279#da2506bf7c03534d0785459ecf13815676f18279"
+version = "0.3.1"
 
 [[package]]
 name = "pulse_auction"
-version = "0.2.0"
-source = "git+https://github.com/inshell-art/pulse.git?rev=da2506bf7c03534d0785459ecf13815676f18279#da2506bf7c03534d0785459ecf13815676f18279"
+version = "0.3.1"
 dependencies = [
  "openzeppelin",
  "pulse_adapter",
+ "snforge_std",
 ]
 
 [[package]]
