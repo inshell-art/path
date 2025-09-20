@@ -1,0 +1,28 @@
+# ---- Who signs (admin/owner) ----
+# Must match a [sncast.*] profile in your snforge.toml
+ADMIN_PROFILE="dev_deployer"
+# Leave blank to auto-derive from ADMIN_PROFILE & SNCAST_ACCOUNTS_FILE
+ADMIN_ADDRESS=""
+
+# ---- Role IDs (leave blank to auto-compute via keccak(name) % prime) ----
+MINTER_ROLE_ID=""
+SALES_ROLE_ID=""
+
+# ---- NFT constructor ----
+NFT_NAME="PATH"
+NFT_SYMBOL="PATH"
+NFT_BASE_URI=""
+
+# ---- Minter constructor ----
+# FIRST_TOKEN_ID is u256 (decimal or 0x...). Script splits to (low, high).
+FIRST_TOKEN_ID=0
+RESERVED_CAP=0
+
+# ---- PulseAuction constructor ----
+OPEN_DELAY=0
+K_DEC=10000
+GENESIS_P_DEC=1000
+FLOOR_DEC=800
+PTS=10
+PAYTOKEN=0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d
+TREASURY=0x222

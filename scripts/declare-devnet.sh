@@ -6,8 +6,8 @@ set -euo pipefail
 cd -- "$(dirname -- "$0")/.."
 
 # ---- env & deps ----
-[ -f scripts/.env.local ] && . scripts/.env.local
 [ -f scripts/.env.example ] && . scripts/.env.example
+[ -f scripts/.env.local ] && . scripts/.env.local
 
 need() { command -v "$1" >/dev/null 2>&1 || {
 	echo "Missing dependency: $1" >&2
@@ -86,8 +86,6 @@ export CLASS_NFT=${CLASS_NFT}
 export CLASS_MINTER=${CLASS_MINTER}
 export CLASS_ADAPTER=${CLASS_ADAPTER}
 export CLASS_PULSE=${CLASS_PULSE}
-export RPC_URL=${RPC}
-export PROFILE=${PROFILE}
 EOF
 
 echo

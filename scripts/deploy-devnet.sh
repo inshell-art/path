@@ -5,8 +5,9 @@ set -euo pipefail
 cd -- "$(dirname -- "$0")/.."
 
 # ---- env & deps ----
-[ -f scripts/.env.local ] && . scripts/.env.local # optional constructor defaults
-[ -f output/classes.env ] && . output/classes.env # provides CLASS_* + RPC_URL + PROFILE
+[ -f output/classes.env ] && . output/classes.env
+[ -f scripts/.env.example ] && . scripts/.env.example
+[ -f scripts/params.devnet.example ] && . scripts/params.devnet.example
 
 need() { command -v "$1" >/dev/null 2>&1 || {
 	echo "Missing: $1" >&2
@@ -69,6 +70,24 @@ print(low, high)
 PY
 }
 
+# Map sncast profile -> account address in OZ accounts JSON
+profile_addr() {
+	local name="$1"
+	local file="${SNCAST_ACCOUNTS_FILE:?set in scripts/.env.*}"
+	local ns="${SNCAST_ACCOUNTS_NAMESPACE:-alpha-sepolia}"
+	jq -r --arg ns "$ns" --arg name "$name" '.[$ns][$name].address' "$file"
+}
+
+# If ADMIN_ADDRESS is blank, derive it from ADMIN_PROFILE
+if [ -z "${ADMIN_ADDRESS:-}" ] && [ -n "${ADMIN_PROFILE:-}" ]; then
+	ADMIN_ADDRESS="$(profile_addr "$ADMIN_PROFILE")"
+fi
+
+[ -n "${ADMIN_ADDRESS:-}" ] || {
+	echo "ADMIN_ADDRESS is empty; set it in scripts/params.devnet.* or set ADMIN_PROFILE and SNCAST_ACCOUNTS_* correctly." >&2
+	exit 1
+}
+
 # deploy_one VAR_NAME package ContractName class_hash <calldata...>
 deploy_one() {
 	local envvar="$1" pkg="$2" cname="$3" class="$4"
@@ -102,24 +121,6 @@ deploy_one() {
 : "${CLASS_MINTER:?source output/classes.env first (missing CLASS_MINTER)}"
 : "${CLASS_ADAPTER:?source output/classes.env first (missing CLASS_ADAPTER)}"
 : "${CLASS_PULSE:?source output/classes.env first (missing CLASS_PULSE)}"
-
-# ---- constructor args (simple, override via scripts/.env.local if you want) ----
-ADMIN_ADDRESS="${ADMIN_ADDRESS:-0x1}"
-
-NFT_NAME="${NFT_NAME:-PATH}"
-NFT_SYMBOL="${NFT_SYMBOL:-PATH}"
-NFT_BASE_URI="${NFT_BASE_URI:-}" # empty ok
-
-FIRST_TOKEN_ID="${FIRST_TOKEN_ID:-0}" # u256
-RESERVED_CAP="${RESERVED_CAP:-0}"
-
-OPEN_DELAY="${OPEN_DELAY:-0}"
-K_DEC="${K_DEC:-10000}"
-GENESIS_P_DEC="${GENESIS_P_DEC:-1000}"
-FLOOR_DEC="${FLOOR_DEC:-800}"
-PTS="${PTS:-10}"
-PAYTOKEN="${PAYTOKEN:-0x111}"
-TREASURY="${TREASURY:-0x222}"
 
 # ---- encode calldata ----
 read -r NFT_NAME_C <<<"$(encode_bytearray "$NFT_NAME")"
@@ -172,12 +173,17 @@ jq -n \
 	--argjson gp_low "$GP_LOW" --argjson gp_high "$GP_HIGH" \
 	--argjson fl_low "$FL_LOW" --argjson fl_high "$FL_HIGH" \
 	--arg pts "$PTS" --arg pay "$PAYTOKEN" --arg tre "$TREASURY" \
-	--arg salt_nft "$SALT_NFT" --arg salt_minter "$SALT_MINTER" \
-	--arg salt_adapter "$SALT_ADAPTER" --arg salt_pulse "$SALT_PULSE" \
+	--arg salt_nft "${SALT_NFT-}" \
+	--arg salt_minter "${SALT_MINTER-}" \
+	--arg salt_adapter "${SALT_ADAPTER-}" \
+	--arg salt_pulse "${SALT_PULSE-}" \
 	'{
-     admin: $admin, nft: {name:$name, symbol:$sym, base_uri:$base},
-     minter: {first_token_id:{low:$first_low, high:$first_high}},
-     pulse: {k:{low:$k_low, high:$k_high}, genesis_price:{low:$gp_low, high:$gp_high},
-             floor:{low:$fl_low, high:$fl_high}, pts:$pts, payment_token:$pay, treasury:$tre},
-     salts: {nft:$salt_nft, minter:$salt_minter, adapter:$salt_adapter, pulse:$salt_pulse}
+     admin: $admin,
+     nft:   { name:$name, symbol:$sym, base_uri:$base },
+     minter:{ first_token_id:{low:$first_low, high:$first_high} },
+     pulse: { k:{low:$k_low, high:$k_high},
+              genesis_price:{low:$gp_low, high:$gp_high},
+              floor:{low:$fl_low, high:$fl_high},
+              pts:$pts, payment_token:$pay, treasury:$tre },
+     salts: { nft:$salt_nft, minter:$salt_minter, adapter:$salt_adapter, pulse:$salt_pulse }
    }' >output/deploy.params.devnet.json
