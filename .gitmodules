@@ -1,3 +1,4 @@
 [submodule "vendors/pulse"]
 	path = vendors/pulse
 	url = https://github.com/inshell-art/pulse.git
+	branch = main
