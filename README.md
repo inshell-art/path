@@ -4,6 +4,18 @@ Protocol deployment + config steps that used to live in `inshell.art/README.md`.
 Run these from the `../path` repo (sibling to the FE repo) before syncing data
 back into the frontend.
 
+## 0) Start Starknet Devnet
+
+```bash
+starknet-devnet --host 127.0.0.1 --port 5050 --seed 0 --allow-mint
+```
+
+Any equivalent devnet command works; the important bits are:
+
+- RPC listening at `http://127.0.0.1:5050/rpc` (scripts default to this URL).
+- Faucet enabled (`--allow-mint`) if you want to fund bidder accounts via `/mint`.
+- Deterministic seed so addresses match `.accounts/devnet_oz_accounts.json`.
+
 ## 1) Declare classes (build → declare → class hashes)
 
 ```bash
@@ -48,11 +60,21 @@ Constructor calldata is encoded (ByteArray/u256). Deployment order:
 
 ## 4) (Optional) Smoke / Seed bids for FE data
 
-**Smoke (simple sanity, N bids with approval):**
+**Smoke (genesis sanity, single bid with approval):**
 
 ```bash
 ./scripts/smoke.sh
 # Produces JSONL log in output/smoke_*.jsonl
+# Runs only if the Pulse auction's genesis bid is still open.
+```
+
+Fund the bidder before running the smoke script (10 000 STRK = `1e4 * 10^18` fri on devnet).
+If you’re running Starknet Devnet with the faucet enabled (`--allow-mint` or equivalent), you can use:
+
+```bash
+curl -X POST http://127.0.0.1:5050/mint \
+  -H 'Content-Type: application/json' \
+  -d '{"address":"0x04f348398f859a55a0c80b1446c5fdc37edb3a8478a32f10764659fc241027d3","amount":"10000000000000000000000"}'
 ```
 
 **Seeder (quote-driven, one bid per block):**

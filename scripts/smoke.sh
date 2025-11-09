@@ -23,9 +23,22 @@ PROFILE_BIDDER="${BIDDER_PROFILE:-dev_bidder1}"
 : "${PULSE_AUCTION:?source output/addresses.env}"
 : "${PAYTOKEN:?source scripts/params.devnet.example}"
 
-COUNT="${COUNT:-5}"                                 # number of bids
-SLEEP_S="${SLEEP_S:-2}"                             # pause between bids (seconds)
+COUNT="${COUNT:-1}"                                 # genesis smoke runs exactly once
+SLEEP_S="${SLEEP_S:-2}"                             # pause after bid (seconds)
 ALLOW_DEC="${ALLOW_DEC:-1000000000000000000000000}" # 1e24
+
+case "$COUNT" in
+	''|*[!0-9]*)
+		echo "COUNT must be a positive integer (got '$COUNT')." >&2
+		exit 1
+		;;
+	*)
+		if [ "$COUNT" -ne 1 ]; then
+			echo "Genesis smoke only supports COUNT=1; override via simulate-bids.sh for loops." >&2
+			exit 1
+		fi
+		;;
+esac
 
 OUT_DIR="output"
 mkdir -p "$OUT_DIR"
@@ -45,6 +58,11 @@ PY
 dec_of_hex() {
 	python3 - "$1" <<'PY'
 import sys; s=sys.argv[1].strip(); print(int(s,16) if s.startswith(("0x","0X")) else int(s))
+PY
+}
+lower() {
+	python3 - "$1" <<'PY'
+import sys; print((sys.argv[1] or "").lower())
 PY
 }
 
@@ -111,6 +129,28 @@ cat <<EOF
     Sleep   : ${SLEEP_S}s
     Log     : $LOG_FILE
 EOF
+echo
+
+# Genesis guard – skip if curve already active
+curve_status="$(call_json "$PROFILE_BIDDER" "$PULSE_AUCTION" curve_active 2>/dev/null || true)"
+curve_flag="$(jq -r '.response_raw[0] // .response[0] // empty' <<<"$curve_status" 2>/dev/null || true)"
+case "$(lower "$curve_flag")" in
+	0x1 | 1)
+		echo "Pulse auction curve is already active – genesis bid settled; nothing to do."
+		exit 0
+		;;
+	0x0 | 0)
+		echo "Genesis bid still open; continuing."
+		;;
+	"")
+		echo "Unable to read curve_active state (empty response)." >&2
+		exit 1
+		;;
+	*)
+		echo "Unexpected curve_active response: $curve_flag" >&2
+		exit 1
+		;;
+esac
 echo
 
 # Approve once
