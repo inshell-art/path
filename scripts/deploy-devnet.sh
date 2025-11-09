@@ -8,6 +8,7 @@ cd -- "$(dirname -- "$0")/.."
 [ -f output/classes.env ] && . output/classes.env
 [ -f scripts/.env.example ] && . scripts/.env.example
 [ -f scripts/params.devnet.example ] && . scripts/params.devnet.example
+[ -f scripts/params.devnet.local ] && . scripts/params.devnet.local
 
 need() { command -v "$1" >/dev/null 2>&1 || {
 	echo "Missing: $1" >&2
@@ -20,6 +21,7 @@ need python3
 
 RPC="${RPC_URL:-http://127.0.0.1:5050/rpc}"
 PROFILE="${PROFILE:-dev_deployer}"
+FRI_PER_STRK="${FRI_PER_STRK:-1000000000000000000}"
 
 OUT_DIR="output"
 mkdir -p "$OUT_DIR"
@@ -67,6 +69,34 @@ import sys
 n=int(sys.argv[1],0)
 low=n & ((1<<128)-1); high=n>>128
 print(low, high)
+PY
+}
+
+to_fri() { # decimal STRK -> fri (wei-like)
+	python3 - "$1" "$FRI_PER_STRK" <<'PY'
+import sys
+from decimal import Decimal, InvalidOperation, getcontext
+
+raw = sys.argv[1].strip().replace("_", "")
+mult = Decimal(sys.argv[2])
+
+if raw.lower().startswith("0x"):
+    # already absolute amount
+    print(int(raw, 16))
+    sys.exit(0)
+
+try:
+    if any(c in raw for c in ".eE"):
+        getcontext().prec = 80
+        val = Decimal(raw)
+    else:
+        val = Decimal(int(raw, 10))
+except (InvalidOperation, ValueError):
+    print(f"Invalid STRK amount: {raw}", file=sys.stderr)
+    sys.exit(1)
+
+amt = int((val * mult).to_integral_value())
+print(amt)
 PY
 }
 
@@ -127,9 +157,13 @@ read -r NFT_NAME_C <<<"$(encode_bytearray "$NFT_NAME")"
 read -r NFT_SYMBOL_C <<<"$(encode_bytearray "$NFT_SYMBOL")"
 read -r NFT_BASEURI_C <<<"$(encode_bytearray "$NFT_BASE_URI")"
 read -r FIRST_LOW FIRST_HIGH <<<"$(u256 "$FIRST_TOKEN_ID")"
-read -r K_LOW K_HIGH <<<"$(u256 "$K_DEC")"
-read -r GP_LOW GP_HIGH <<<"$(u256 "$GENESIS_P_DEC")"
-read -r FL_LOW FL_HIGH <<<"$(u256 "$FLOOR_DEC")"
+K_FRI="$(to_fri "$K_DEC")"
+GP_FRI="$(to_fri "$GENESIS_P_DEC")"
+FL_FRI="$(to_fri "$FLOOR_DEC")"
+PTS_FRI="$(to_fri "$PTS")"
+read -r K_LOW K_HIGH <<<"$(u256 "$K_FRI")"
+read -r GP_LOW GP_HIGH <<<"$(u256 "$GP_FRI")"
+read -r FL_LOW FL_HIGH <<<"$(u256 "$FL_FRI")"
 
 # ---- deploy in order (no extra magic) ----
 deploy_one ADDR_NFT path_nft PathNFT "$CLASS_NFT" \
@@ -143,7 +177,7 @@ deploy_one ADDR_ADAPTER path_minter_adapter PathMinterAdapter "$CLASS_ADAPTER" \
 
 deploy_one ADDR_PULSE pulse_auction PulseAuction "$CLASS_PULSE" \
 	"$OPEN_DELAY" "$K_LOW" "$K_HIGH" "$GP_LOW" "$GP_HIGH" "$FL_LOW" "$FL_HIGH" \
-	"$PTS" "$PAYTOKEN" "$TREASURY" "$ADDR_ADAPTER"
+	"$PTS_FRI" "$PAYTOKEN" "$TREASURY" "$ADDR_ADAPTER"
 
 # ---- exports for your shell ----
 cat >"$ENV_FILE" <<EOF

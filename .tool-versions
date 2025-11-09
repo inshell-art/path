@@ -1,6 +1,6 @@
 scarb 2.12.0
 starknet-foundry 0.49.0
-starknet-devnet 0.5.1
+starknet-devnet 0.6.1
 cairo-profiler 0.8.2
 nodejs 22.16.0
 pnpm 10.14.0
