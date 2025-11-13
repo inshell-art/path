@@ -7,13 +7,14 @@ back into the frontend.
 ## 0) Start Starknet Devnet
 
 ```bash
-starknet-devnet --host 127.0.0.1 --port 5050 --seed 0 --allow-mint
+# Include --allow-mint only if your devnet build supports the faucet flag.
+starknet-devnet --host 127.0.0.1 --port 5050 --seed 0
 ```
 
 Any equivalent devnet command works; the important bits are:
 
 - RPC listening at `http://127.0.0.1:5050/rpc` (scripts default to this URL).
-- Faucet enabled (`--allow-mint`) if you want to fund bidder accounts via `/mint`.
+- Faucet endpoint (via `--allow-mint` or the flag your build provides) if you want to fund bidder accounts through `/mint`. On builds without that flag, fund via manual ERC-20 transfers instead.
 - Deterministic seed so addresses match `.accounts/devnet_oz_accounts.json`.
 
 ## 1) Declare classes (build → declare → class hashes)
