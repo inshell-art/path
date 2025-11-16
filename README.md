@@ -90,7 +90,7 @@ Constructor calldata is encoded (ByteArray/u256). Deployment order:
 # Runs only if the Pulse auction's genesis bid is still open.
 ```
 
-Fund the bidder before running the smoke script (10 000 STRK = `1e4 * 10^18` fri on devnet).
+Fund the bidder before running the smoke script (the genesis ask is ~10 000 STRK by default).
 If you’re running Starknet Devnet with the faucet enabled (`--allow-mint` or equivalent), you can use:
 
 ```bash

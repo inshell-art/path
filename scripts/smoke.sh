@@ -23,22 +23,8 @@ PROFILE_BIDDER="${BIDDER_PROFILE:-dev_bidder1}"
 : "${PULSE_AUCTION:?source output/addresses.env}"
 : "${PAYTOKEN:?source scripts/params.devnet.example}"
 
-COUNT="${COUNT:-1}"                                 # genesis smoke runs exactly once
 SLEEP_S="${SLEEP_S:-2}"                             # pause after bid (seconds)
 ALLOW_DEC="${ALLOW_DEC:-1000000000000000000000000}" # 1e24
-
-case "$COUNT" in
-	''|*[!0-9]*)
-		echo "COUNT must be a positive integer (got '$COUNT')." >&2
-		exit 1
-		;;
-	*)
-		if [ "$COUNT" -ne 1 ]; then
-			echo "Genesis smoke only supports COUNT=1; override via simulate-bids.sh for loops." >&2
-			exit 1
-		fi
-		;;
-esac
 
 OUT_DIR="output"
 mkdir -p "$OUT_DIR"
@@ -125,10 +111,10 @@ cat <<EOF
     PayToken: $PAYTOKEN
     Bidder  : $PROFILE_BIDDER ($BIDDER_ADDR)
     Allow   : $ALLOW_DEC
-    Count   : $COUNT
-    Sleep   : ${SLEEP_S}s
     Log     : $LOG_FILE
 EOF
+echo
+echo "Genesis-only smoke → ensure bidder balance covers the initial ask."
 echo
 
 # Genesis guard – skip if curve already active
@@ -161,28 +147,22 @@ read -r ABN AFS <<<"$(await_receipt "$TX_APPROVE")"
 echo "approve confirmed in block=$ABN finality=$AFS"
 echo
 
-# N bids
-for i in $(seq 1 "$COUNT"); do
-	read -r ASK_LO ASK_HI <<<"$(get_price_u256)"
-	printf "[%d/%d] bid (lo=%s hi=%s) … " "$i" "$COUNT" "$ASK_LO" "$ASK_HI"
+read -r ASK_LO ASK_HI <<<"$(get_price_u256)"
+printf "[genesis] bid (lo=%s hi=%s) … " "$ASK_LO" "$ASK_HI"
 
-	TX="$(invoke_json "$PROFILE_BIDDER" "$PULSE_AUCTION" bid "$ASK_LO" "$ASK_HI" | jq -r '.transaction_hash // empty')"
-	if [ -z "$TX" ]; then
-		echo "submit_error"
-		echo '{"error":"submit_error"}' >>"$LOG_FILE"
-		sleep "$SLEEP_S"
-		continue
-	fi
+TX="$(invoke_json "$PROFILE_BIDDER" "$PULSE_AUCTION" bid "$ASK_LO" "$ASK_HI" | jq -r '.transaction_hash // empty')"
+if [ -z "$TX" ]; then
+	echo "submit_error"
+	echo '{"error":"submit_error"}' >>"$LOG_FILE"
+	exit 1
+fi
 
-	read -r BN FIN <<<"$(await_receipt "$TX")"
-	echo "tx=$TX block=$BN finality=$FIN"
-	jq -nc --arg i "$i" --arg tx "$TX" --arg bn "$BN" --arg fin "$FIN" \
-		--arg lo "$ASK_LO" --arg hi "$ASK_HI" \
-		'{"i":($i|tonumber),"tx":$tx,"block":($bn|tonumber),"finality":$fin,"u256":{"low":$lo,"high":$hi}}' \
-		>>"$LOG_FILE"
-
-	sleep "$SLEEP_S"
-done
+read -r BN FIN <<<"$(await_receipt "$TX")"
+echo "tx=$TX block=$BN finality=$FIN"
+jq -nc --arg tx "$TX" --arg bn "$BN" --arg fin "$FIN" \
+	--arg lo "$ASK_LO" --arg hi "$ASK_HI" \
+	'{"tx":$tx,"block":($bn|tonumber),"finality":$fin,"u256":{"low":$lo,"high":$hi}}' \
+	>>"$LOG_FILE"
 
 echo
-echo "Smoke complete. JSONL log → $LOG_FILE"
+echo "Genesis smoke complete. JSONL log → $LOG_FILE"
