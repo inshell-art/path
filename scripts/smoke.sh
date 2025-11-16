@@ -60,7 +60,10 @@ call_json() { # call_json <profile> <addr> <fn> [calldata...]
 		argv+=(--calldata)
 		for w in "$@"; do argv+=("$w"); done
 	fi
-	"${argv[@]}"
+	local out last
+	out="$("${argv[@]}")"
+	last="$(printf '%s\n' "$out" | tail -n 1)"
+	printf '%s\n' "$last"
 }
 invoke_json() { # invoke_json <profile> <addr> <fn> [calldata...]
 	local prof="$1" addr="$2" fn="$3"
@@ -70,7 +73,10 @@ invoke_json() { # invoke_json <profile> <addr> <fn> [calldata...]
 		argv+=(--calldata)
 		for w in "$@"; do argv+=("$w"); done
 	fi
-	"${argv[@]}"
+	local out last
+	out="$("${argv[@]}")"
+	last="$(printf '%s\n' "$out" | tail -n 1)"
+	printf '%s\n' "$last"
 }
 await_receipt() { # await_receipt <tx_hash> -> "block_number finality"
 	local h="$1" tries=80
