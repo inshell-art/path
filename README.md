@@ -99,10 +99,19 @@ curl -X POST http://127.0.0.1:5050/mint \
   -d '{"address":"0x04f348398f859a55a0c80b1446c5fdc37edb3a8478a32f10764659fc241027d3","amount":"10000000000000000000000"}'
 ```
 
-**Seeder (quote-driven, one bid per block):**
+**Pulse bidding loop (trigger rule from the spec in `docs/specs/PULSE_Bid_Trigger_Spec.md`):**
 
 ```bash
-./scripts/seed-bids.sh
-# Produces JSONL log in output/seed_bids_*.jsonl
-# Uses get_current_price -> add premium bps -> ensure allowance -> bid
+# One-time approve (example amount = 1e25 wei) for the bidder profile
+source output/addresses.env
+export PAYTOKEN=$(awk -F= '/^PAYTOKEN=/{gsub(/"/,"");print $2}' scripts/params.devnet.example)
+sncast --profile dev_bidder1 invoke \
+  --contract-address "$PAYTOKEN" \
+  --function approve \
+  --calldata "$PULSE_AUCTION" 10000000000000000000000000 0
+
+# Run N triggered bids (θ sampled each bid from clipped Normal)
+./scripts/bid.sh 5
 ```
+
+The loop derives the last sale from on-chain events, computes τ/hammer from k/θ/floor/D, waits until the scheduled time, bids with a max_price guard, and logs pre/post curve checks plus settlement info to `output/pulse_runs.jsonl`. It aborts early if the devnet RPC is down or allowance is insufficient.
