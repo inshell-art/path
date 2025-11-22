@@ -217,26 +217,29 @@ lo=int(sys.argv[2],16) if str(sys.argv[2]).startswith(("0x","0X")) else int(sys.
 print((hi<<128)+lo)
 PY
 )"
-if python3 - "$current_ask_wei" "$max_price_wei" <<'PY'
+	max_before="$max_price_wei"
+	max_price_wei="$(python3 - "$current_ask_wei" "$max_price_wei" <<'PY'
 import sys
-a=int(sys.argv[1]); m=int(sys.argv[2]); sys.exit(0 if a<=m else 1)
+ask=int(sys.argv[1]); mp=int(sys.argv[2]); print(max(ask, mp))
 PY
-then
-		:
-	else
-		max_price_wei="$current_ask_wei"
-		max_lo="$(python3 - "$max_price_wei" <<'PY'
+)"
+	if python3 - "$max_before" "$max_price_wei" <<'PY'
+import sys
+a=int(sys.argv[1]); b=int(sys.argv[2]); sys.exit(0 if a!=b else 1)
+PY
+	then
+		echo "Raised max_price to current ask to avoid guard failure (ask wei=$current_ask_wei)."
+	fi
+	max_lo="$(python3 - "$max_price_wei" <<'PY'
 import sys
 w=int(sys.argv[1]); print(w & ((1<<128)-1))
 PY
 )"
-		max_hi="$(python3 - "$max_price_wei" <<'PY'
+	max_hi="$(python3 - "$max_price_wei" <<'PY'
 import sys
 w=int(sys.argv[1]); print(w>>128)
 PY
 )"
-		echo "Raised max_price to current ask to avoid guard failure (ask wei=$current_ask_wei)."
-	fi
 
 	if ! python3 - "$allow_dec" "$max_price_wei" <<'PY'
 import sys
@@ -244,6 +247,7 @@ allow=int(sys.argv[1]); need=int(sys.argv[2]); sys.exit(0 if allow>=need else 1)
 PY
 	then
 		echo "Allowance too low (have $allow_dec, need $max_price_wei); please approve before rerun."
+		echo "Needed u256: lo=$(python3 - \"$max_price_wei\" <<'PP'\nimport sys\nw=int(sys.argv[1]); print(w & ((1<<128)-1))\nPP\n) hi=$(python3 - \"$max_price_wei\" <<'PP'\nimport sys\nw=int(sys.argv[1]); print(w>>128)\nPP\n)"
 		exit 1
 	fi
 
