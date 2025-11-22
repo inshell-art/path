@@ -217,11 +217,13 @@ lo=int(sys.argv[2],16) if str(sys.argv[2]).startswith(("0x","0X")) else int(sys.
 print((hi<<128)+lo)
 PY
 )"
-	if python3 - "$current_ask_wei" "$max_price_wei" <<'PY'
+if python3 - "$current_ask_wei" "$max_price_wei" <<'PY'
 import sys
 a=int(sys.argv[1]); m=int(sys.argv[2]); sys.exit(0 if a<=m else 1)
 PY
-; then :; else
+; then
+		:
+	else
 		max_price_wei="$current_ask_wei"
 		max_lo="$(python3 - "$max_price_wei" <<'PY'
 import sys
