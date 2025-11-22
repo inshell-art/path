@@ -206,7 +206,41 @@ PY
 
 	echo "floor=$floor_strk θ_eff=$theta_eff τ_target=$tau premium=$premium hammer=$hammer"
 
-	if [ "$allow_dec" -lt "$max_price_wei" ]; then
+	# Fetch current ask to avoid max_price < ask (ASK_ABOVE_MAX_PRICE)
+	ask_json="$(sncast --profile "$PROFILE_BIDDER" --json call --contract-address "$PULSE_AUCTION" --function get_current_price)"
+	ask_lo="$(jq -r '.response_raw[0] // .response[0]' <<<"$ask_json")"
+	ask_hi="$(jq -r '.response_raw[1] // .response[1]' <<<"$ask_json")"
+	current_ask_wei="$(python3 - "$ask_hi" "$ask_lo" <<'PY'
+import sys
+hi=int(sys.argv[1],16) if str(sys.argv[1]).startswith(("0x","0X")) else int(sys.argv[1])
+lo=int(sys.argv[2],16) if str(sys.argv[2]).startswith(("0x","0X")) else int(sys.argv[2])
+print((hi<<128)+lo)
+PY
+)"
+	if python3 - "$current_ask_wei" "$max_price_wei" <<'PY'
+import sys
+a=int(sys.argv[1]); m=int(sys.argv[2]); sys.exit(0 if a<=m else 1)
+PY
+; then :; else
+		max_price_wei="$current_ask_wei"
+		max_lo="$(python3 - "$max_price_wei" <<'PY'
+import sys
+w=int(sys.argv[1]); print(w & ((1<<128)-1))
+PY
+)"
+		max_hi="$(python3 - "$max_price_wei" <<'PY'
+import sys
+w=int(sys.argv[1]); print(w>>128)
+PY
+)"
+		echo "Raised max_price to current ask to avoid guard failure (ask wei=$current_ask_wei)."
+	fi
+
+	if ! python3 - "$allow_dec" "$max_price_wei" <<'PY'
+import sys
+allow=int(sys.argv[1]); need=int(sys.argv[2]); sys.exit(0 if allow>=need else 1)
+PY
+	then
 		echo "Allowance too low (have $allow_dec, need $max_price_wei); please approve before rerun."
 		exit 1
 	fi
