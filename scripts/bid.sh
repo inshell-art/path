@@ -241,6 +241,19 @@ w=int(sys.argv[1]); print(w>>128)
 PY
 )"
 
+	# Pre-bid balance check
+	balance_json="$(sncast --profile "$PROFILE_BIDDER" --json call --contract-address "$PAYTOKEN" --function balance_of --calldata "$BIDDER_ADDR")"
+	balance_raw="$(jq -r '.response_raw[0] // .response[0] // "0x0"' <<<"$balance_json")"
+	balance_dec="$(dec_of_hex "$balance_raw")"
+	if ! python3 - "$balance_dec" "$max_price_wei" <<'PY'
+import sys
+bal=int(sys.argv[1]); need=int(sys.argv[2]); sys.exit(0 if bal>=need else 1)
+PY
+	then
+		echo "Balance too low (have $balance_dec wei, need $max_price_wei); skipping this bid."
+		continue
+	fi
+
 	if ! python3 - "$allow_dec" "$max_price_wei" <<'PY'
 import sys
 allow=int(sys.argv[1]); need=int(sys.argv[2]); sys.exit(0 if allow>=need else 1)
