@@ -259,8 +259,18 @@ import sys
 allow=int(sys.argv[1]); need=int(sys.argv[2]); sys.exit(0 if allow>=need else 1)
 PY
 	then
+		need_lo="$(python3 - "$max_price_wei" <<'PY'
+import sys
+w=int(sys.argv[1]); print(w & ((1<<128)-1))
+PY
+)"
+		need_hi="$(python3 - "$max_price_wei" <<'PY'
+import sys
+w=int(sys.argv[1]); print(w>>128)
+PY
+)"
 		echo "Allowance too low (have $allow_dec, need $max_price_wei); please approve before rerun."
-		echo "Needed u256: lo=$(python3 - \"$max_price_wei\" <<'PP'\nimport sys\nw=int(sys.argv[1]); print(w & ((1<<128)-1))\nPP\n) hi=$(python3 - \"$max_price_wei\" <<'PP'\nimport sys\nw=int(sys.argv[1]); print(w>>128)\nPP\n)"
+		echo "Needed u256: lo=$need_lo hi=$need_hi"
 		exit 1
 	fi
 
