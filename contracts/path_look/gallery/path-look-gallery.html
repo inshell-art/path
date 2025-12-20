@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Path-Look Devnet Grid</title>
+  <style>
+    :root {
+      --bg: #0b0c0f;
+      --card: #151821;
+      --accent: #59f8c3;
+      --text: #e9ecf2;
+      --muted: #8a90a3;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 20% 20%, #12203b, #0b0c0f 45%), radial-gradient(circle at 80% 0%, #1b2c46, transparent 40%);
+      color: var(--text);
+    }
+    h1 { margin: 0 0 4px 0; font-size: 24px; }
+    .subtitle { color: var(--muted); margin-bottom: 16px; }
+    .controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    button {
+      background: var(--accent);
+      color: #062e22;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.05); }
+    .status { color: var(--muted); font-size: 13px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .card {
+      background: linear-gradient(160deg, #181c27, #0f1119);
+      border: 1px solid #1f2533;
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .preview {
+      background: #0a0b0f;
+      border: 1px solid #1e2230;
+      border-radius: 6px;
+      min-height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .preview img {
+      width: 100%;
+      display: block;
+    }
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <h1>Path-Look Devnet Grid</h1>
+  <div class="subtitle">Quick visual sweep of 20 sample tokens (5x4)</div>
+  <div class="controls">
+    <button id="reload">Reload</button>
+    <div class="status" id="status">Idle</div>
+  </div>
+  <div class="status">RPC: http://127.0.0.1:5050 · PathLook: 0x03110f8ae3d48a079ca2a883926a38ea5e730ada70eccc9f9742dce9f102735e</div>
+  <div class="grid" id="grid"></div>
+
+  <script src="./vendor/starknet/index.global.js"></script>
+  <script>
+    const { RpcProvider } = window.starknet;
+
+    const RPC_URL = 'http://127.0.0.1:5050';
+    const CONTRACT_ADDRESS = '0x03110f8ae3d48a079ca2a883926a38ea5e730ada70eccc9f9742dce9f102735e';
+
+    // 20 samples with varied rank mixes.
+    // 20 distinct rank mixes.
+    // Build 100 deterministic samples across rank combinations.
+    const rankCombos = [];
+    for (let t = 0; t < 4; t++) {
+      for (let w = 0; w < 4; w++) {
+        for (let a = 0; a < 4; a++) {
+          rankCombos.push([t, w, a]);
+        }
+      }
+    }
+    while (rankCombos.length < 100) {
+      const idx = rankCombos.length % 64; // reuse pattern
+      rankCombos.push(rankCombos[idx]);
+    }
+
+    const provider = new RpcProvider({ nodeUrl: RPC_URL });
+    const gridEl = document.getElementById('grid');
+    const statusEl = document.getElementById('status');
+
+    function decodeByteArray(felts) {
+      if (!felts || felts.length < 3) return "";
+
+      let fullCount = Number(BigInt(felts[0]));
+      let fullWords = felts.slice(1, 1 + fullCount);
+      let lastWord = felts[1 + fullCount];
+      let lastLen = Number(BigInt(felts[2 + fullCount] ?? 0));
+
+      // Fallback for mismatched headers: treat everything but the last two as data.
+      if (felts.length !== fullCount + 3) {
+        fullCount = Math.max(0, felts.length - 3);
+        fullWords = felts.slice(1, 1 + fullCount);
+        lastWord = felts[felts.length - 2];
+        lastLen = Number(BigInt(felts[felts.length - 1] ?? 0));
+      }
+
+      const bytes = [];
+      for (let i = 0; i < fullWords.length; i++) {
+        const hex = BigInt(fullWords[i]).toString(16).padStart(62, "0");
+        for (let j = 0; j < 31; j++) {
+          bytes.push(parseInt(hex.slice(j * 2, j * 2 + 2), 16));
+        }
+      }
+
+      if (lastLen > 0 && lastWord !== undefined) {
+        const hex = BigInt(lastWord).toString(16).padStart(62, "0");
+        const start = hex.length - lastLen * 2;
+        for (let i = start; i < hex.length; i += 2) {
+          bytes.push(parseInt(hex.slice(i, i + 2), 16));
+        }
+      }
+
+      const raw = new TextDecoder().decode(new Uint8Array(bytes));
+      return raw;
+    }
+
+    async function fetchDataUri(tokenId, thought, will, awa) {
+      const call = {
+        contractAddress: CONTRACT_ADDRESS,
+        entrypoint: 'generate_svg_data_uri',
+        calldata: [tokenId.toString(), thought.toString(), will.toString(), awa.toString()],
+      };
+      const result = await provider.callContract(call, 'latest');
+      return decodeByteArray(result.result);
+    }
+
+    async function fetchMetadata(tokenId, thought, will, awa) {
+      const call = {
+        contractAddress: CONTRACT_ADDRESS,
+        entrypoint: 'get_token_metadata',
+        calldata: [tokenId.toString(), thought.toString(), will.toString(), awa.toString()],
+      };
+      const result = await provider.callContract(call, 'latest');
+      const raw = decodeByteArray(result.result);
+      try {
+        return { json: JSON.parse(raw), raw };
+      } catch (err) {
+        console.error('metadata parse failed', { tokenId, thought, will, awa, err, rawLen: raw.length, raw: raw.slice(0, 200) });
+        return { json: null, raw };
+      }
+    }
+
+    function dataUriToSvg(uri) {
+      if (!uri || !uri.startsWith('data:image/svg+xml')) return '';
+      const comma = uri.indexOf(',');
+      if (comma === -1) return '';
+      const encoded = uri.slice(comma + 1);
+      // Tolerate stray '%' by escaping invalid sequences before decode.
+      const sanitized = encoded.replace(/%(?![0-9a-fA-F]{2})/g, '%25');
+      return decodeURIComponent(sanitized);
+    }
+
+    function entryLabel(tokenId, thought, will, awa) {
+      return `#${tokenId} · T${thought} W${will} A${awa}`;
+    }
+
+    async function renderGrid() {
+      statusEl.textContent = 'Loading...';
+      gridEl.innerHTML = '';
+
+      const entries = rankCombos.map((combo, idx) => ({
+        tokenId: idx + 1,
+        thought: combo[0],
+        will: combo[1],
+        awa: combo[2],
+      }));
+
+      for (const entry of entries) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="meta">${entryLabel(entry.tokenId, entry.thought, entry.will, entry.awa)}</div>
+          <div class="preview"><span style="color: var(--muted); font-size: 12px;">Loading…</span></div>
+        `;
+        gridEl.appendChild(card);
+
+        try {
+          const uri = await fetchDataUri(entry.tokenId, entry.thought, entry.will, entry.awa);
+          const preview = card.querySelector('.preview');
+          // Render as an <img> to avoid any inline-SVG parsing quirks.
+          preview.innerHTML = `<img src="${uri}" alt="path look ${entry.tokenId}" />`;
+
+          const meta = await fetchMetadata(entry.tokenId, entry.thought, entry.will, entry.awa);
+          const traits = meta.json?.attributes ?? [];
+          const traitsHtml = traits.length > 0
+            ? traits.map(t => `<div class="trait"><span>${t.trait_type}</span><span>${t.value}</span></div>`).join('')
+            : `<div class="trait"><span>metadata</span><span>unavailable</span></div>`;
+          const traitsBox = document.createElement('div');
+          traitsBox.className = 'traits';
+          traitsBox.innerHTML = traitsHtml;
+          card.appendChild(traitsBox);
+        } catch (err) {
+          const preview = card.querySelector('.preview');
+          const msg = err && err.message ? err.message : String(err);
+          preview.textContent = 'Error loading';
+          preview.title = msg;
+          console.error('fetchDataUri failed', entry, err);
+        }
+      }
+
+      statusEl.textContent = 'Done';
+    }
+
+    document.getElementById('reload').addEventListener('click', renderGrid);
+    renderGrid();
+  </script>
+  <style>
+    .traits {
+      margin-top: 6px;
+      padding: 6px 8px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid #1f2533;
+      border-radius: 6px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .trait {
+      display: flex;
+      justify-content: space-between;
+    }
+    .trait span:last-child {
+      color: var(--text);
+    }
+  </style>
+</body>
+</html>

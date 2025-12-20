@@ -1,0 +1,10 @@
+# Starknet Foundry project configuration
+# For development on local devnet
+
+[sncast.devnet]
+url = "http://127.0.0.1:5050"
+account = "predeployed"
+accounts-file = "accounts.devnet.json"
+
+[sncast.default]
+account = "predeployed"

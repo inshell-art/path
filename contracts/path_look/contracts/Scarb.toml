@@ -1,0 +1,20 @@
+[package]
+name = "path_look"
+version = "0.1.0"
+edition = "2024_07"
+
+[dependencies]
+starknet = "2.8.2"
+glyph_pprf = { git = "https://github.com/inshell-art/pprf.git" }
+step_curve = { git = "https://github.com/inshell-art/step-curve", tag = "v0.1.1" }
+
+[[target.starknet-contract]]
+sierra = true
+casm = true
+
+[scripts]
+build = "scarb build"
+check = "scarb check"
+
+[dev-dependencies]
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry.git", tag = "v0.52.0" }
