@@ -35,6 +35,7 @@ Key knobs can be overridden via env vars before launching:
 | `DEVNET_ADDITIONAL_ARGS` | Extra flags passed verbatim to `starknet-devnet` (e.g. `--initial-balance` or `--allow-mint`). |
 | `DEVNET_LOAD_ON_START` | Set `0` to skip automatic `devnet_load`. |
 | `DEVNET_INIT_WAIT` | Seconds to wait before polling `/is_alive` (default `5`). |
+| `DEVNET_RPC_TRIES` | Number of `/is_alive` polls after `INIT_WAIT` (1/s, default `180`). |
 
 Watchdog logs: `output/devnet/devnet.log`. Stop it with `pkill -f scripts/devnet_watchdog.sh`.
 

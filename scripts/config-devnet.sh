@@ -63,6 +63,7 @@ PY
 role_id() { # usage: selector_id NAME
 	python3 - "$1" <<'PY'
 import sys
+import hashlib
 name = sys.argv[1].encode()
 
 # get keccak256
@@ -79,8 +80,12 @@ except Exception:
             import sha3  # pysha3
             k = sha3.keccak_256(); k.update(name); h = k.digest()
         except Exception:
-            print("ERROR: install eth-hash[pycryptodome], pycryptodome, or pysha3", file=sys.stderr)
-            sys.exit(1)
+            # fallback to stdlib sha3_256 (available in Python 3.6+) as keccak-compatible here
+            try:
+                k = hashlib.sha3_256(); k.update(name); h = k.digest()
+            except Exception:
+                print("ERROR: install eth-hash[pycryptodome], pycryptodome, or pysha3", file=sys.stderr)
+                sys.exit(1)
 
 MASK = (1 << 250) - 1
 print(hex(int.from_bytes(h, 'big') & MASK))

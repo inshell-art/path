@@ -19,6 +19,7 @@ DUMP_FILE="${DEVNET_DUMP_FILE:-$OUT_DIR/devnet.dump.json}"
 RESTART_DELAY="${DEVNET_RESTART_DELAY:-5}"
 LOAD_ON_START="${DEVNET_LOAD_ON_START:-1}"
 INIT_WAIT="${DEVNET_INIT_WAIT:-5}"
+RPC_TRIES="${DEVNET_RPC_TRIES:-180}"
 
 mkdir -p "$OUT_DIR"
 : >"$OUT_DIR/.gitkeep"
@@ -79,7 +80,7 @@ start_devnet_once() {
 
 wait_for_rpc() {
   sleep "$INIT_WAIT"
-  local tries=60
+  local tries="$RPC_TRIES"
   while [ $tries -gt 0 ]; do
     if curl -sf "http://$HOST:$PORT/is_alive" >/dev/null 2>&1; then
       return 0
