@@ -4,6 +4,7 @@
 pub use PathNFT::Event as PathNFTEvent;
 #[starknet::contract]
 mod PathNFT {
+    use core::array::SpanTrait;
     use core::num::traits::Zero;
     use core::panic_with_felt252;
     use openzeppelin::access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE};
@@ -15,9 +16,14 @@ mod PathNFT {
     use openzeppelin::token::erc721::{
         ERC721Component, ERC721HooksEmptyImpl, interface as ERC721Interface,
     };
-    use path_interfaces::IPathNFT;
+    use path_interfaces::{
+        IPathLookDispatcher, IPathLookDispatcherTrait, IPathNFT,
+    };
     use starknet::ContractAddress;
-    use starknet::storage::StoragePointerReadAccess;
+    use starknet::storage::{
+        Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess,
+        StoragePointerWriteAccess,
+    };
 
     const MINTER_ROLE: felt252 = selector!("MINTER_ROLE");
 
@@ -47,6 +53,10 @@ mod PathNFT {
         src5: SRC5Component::Storage,
         #[substorage(v0)]
         access_control: AccessControlComponent::Storage,
+        path_look_addr: ContractAddress,
+        thought_rank: Map<u256, u8>,
+        will_rank: Map<u256, u8>,
+        awa_rank: Map<u256, u8>,
     }
 
     #[event]
@@ -67,13 +77,18 @@ mod PathNFT {
         name: ByteArray,
         symbol: ByteArray,
         base_uri: ByteArray,
+        path_look_addr: ContractAddress,
     ) {
         self.erc721.initializer(name, symbol, base_uri);
         self.access_control.initializer();
         if initial_admin.is_zero() {
             panic_with_felt252('ZERO_ADMIN')
         }
+        if path_look_addr.is_zero() {
+            panic_with_felt252('ZERO_PATH_LOOK')
+        }
         self.access_control._grant_role(DEFAULT_ADMIN_ROLE, initial_admin);
+        self.path_look_addr.write(path_look_addr);
 
         SRC5InternalImpl::register_interface(ref self.src5, IERC721_ID);
         SRC5InternalImpl::register_interface(ref self.src5, IERC721_METADATA_ID);
@@ -98,6 +113,7 @@ mod PathNFT {
             data: Span<felt252>,
         ) {
             self.access_control.assert_only_role(MINTER_ROLE);
+            store_movement_ranks(ref self, token_id, data);
             self.erc721.safe_mint(recipient, token_id, data);
         }
 
@@ -105,6 +121,18 @@ mod PathNFT {
             ref self: ContractState, recipient: ContractAddress, tokenId: u256, data: Span<felt252>,
         ) {
             self.safe_mint(recipient, tokenId, data);
+        }
+
+        fn set_path_look(ref self: ContractState, path_look: ContractAddress) {
+            self.access_control.assert_only_role(DEFAULT_ADMIN_ROLE);
+            if path_look.is_zero() {
+                panic_with_felt252('ZERO_PATH_LOOK')
+            }
+            self.path_look_addr.write(path_look);
+        }
+
+        fn get_path_look(self: @ContractState) -> ContractAddress {
+            self.path_look_addr.read()
         }
     }
 
@@ -121,10 +149,18 @@ mod PathNFT {
 
         fn token_uri(self: @ContractState, token_id: u256) -> ByteArray {
             self.erc721._require_owned(token_id);
-            let svg: ByteArray = build_svg(token_id);
-            format!(
-                "data:application/json,{{\"name\":\"$PATH NFT\",\"description\":\"Inshell PATH.\",\"image\":\"data:image/svg+xml,{svg}\"}}",
-            )
+            let look_addr = self.path_look_addr.read();
+            if look_addr.is_zero() {
+                panic_with_felt252('ZERO_PATH_LOOK')
+            }
+            // PathLook expects felt252; use the low limb as a stable seed.
+            let token_seed = token_id.low.into();
+            let thought = self.thought_rank.read(token_id);
+            let will = self.will_rank.read(token_id);
+            let awa = self.awa_rank.read(token_id);
+            let look = IPathLookDispatcher { contract_address: look_addr };
+            let metadata = look.get_token_metadata(token_seed, thought, will, awa);
+            format!("data:application/json,{}", metadata)
         }
     }
 
@@ -135,12 +171,26 @@ mod PathNFT {
         }
     }
 
-    /// Builds: <svg …>$PATH NFT token_id: <id></text></svg>
-    fn build_svg(token_id: u256) -> ByteArray {
-        format!(
-            "<?xml version='1.0' encoding='UTF-8'?><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000'><text x='50' y='550' font-family='monospace' font-size='90'>$PATH NFT token_id: {}</text></svg>",
-            token_id,
-        )
+    fn store_movement_ranks(
+        ref self: ContractState, token_id: u256, data: Span<felt252>,
+    ) {
+        if data.len() < 3_usize {
+            return;
+        }
+        let thought = rank_from_felt(*data.at(0_usize));
+        let will = rank_from_felt(*data.at(1_usize));
+        let awa = rank_from_felt(*data.at(2_usize));
+        self.thought_rank.write(token_id, thought);
+        self.will_rank.write(token_id, will);
+        self.awa_rank.write(token_id, awa);
+    }
+
+    fn rank_from_felt(value: felt252) -> u8 {
+        let rank: u8 = value.try_into().unwrap();
+        if rank > 3_u8 {
+            panic_with_felt252('BAD_RANK')
+        }
+        rank
     }
     #[cfg(test)]
     mod unit {
@@ -151,4 +201,3 @@ mod PathNFT {
         }
     }
 }
-

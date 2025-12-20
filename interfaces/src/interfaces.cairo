@@ -1,3 +1,4 @@
+use core::byte_array::ByteArray;
 use core::integer::u256;
 use starknet::ContractAddress;
 
@@ -30,4 +31,37 @@ pub trait IPathNFT<TContractState> {
     fn safeMint(
         ref self: TContractState, recipient: ContractAddress, tokenId: u256, data: Span<felt252>,
     );
+
+    /// Update the PathLook contract used for token_uri rendering.
+    fn set_path_look(ref self: TContractState, path_look: ContractAddress);
+
+    /// Read the configured PathLook contract address.
+    fn get_path_look(self: @TContractState) -> ContractAddress;
+}
+
+#[starknet::interface]
+pub trait IPathLook<TContractState> {
+    fn generate_svg(
+        self: @TContractState,
+        token_id: felt252,
+        thought_rank: u8,
+        will_rank: u8,
+        awa_rank: u8,
+    ) -> ByteArray;
+
+    fn generate_svg_data_uri(
+        self: @TContractState,
+        token_id: felt252,
+        thought_rank: u8,
+        will_rank: u8,
+        awa_rank: u8,
+    ) -> ByteArray;
+
+    fn get_token_metadata(
+        self: @TContractState,
+        token_id: felt252,
+        thought_rank: u8,
+        will_rank: u8,
+        awa_rank: u8,
+    ) -> ByteArray;
 }

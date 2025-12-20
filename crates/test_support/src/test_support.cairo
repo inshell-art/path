@@ -110,9 +110,77 @@ mod TestERC721Receiver {
     }
 }
 
+#[starknet::contract]
+mod TestPathLook {
+    use core::byte_array::ByteArrayTrait;
+    use path_interfaces::interfaces::IPathLook;
+
+    #[storage]
+    struct Storage {}
+
+    #[constructor]
+    fn constructor(ref self: ContractState) {}
+
+    #[abi(embed_v0)]
+    impl TestPathLookImpl of IPathLook<ContractState> {
+        fn generate_svg(
+            self: @ContractState,
+            token_id: felt252,
+            thought_rank: u8,
+            will_rank: u8,
+            awa_rank: u8,
+        ) -> ByteArray {
+            format!(
+                "<svg data-token='{}' data-ranks='{}-{}-{}'/>",
+                token_id,
+                thought_rank,
+                will_rank,
+                awa_rank,
+            )
+        }
+
+        fn generate_svg_data_uri(
+            self: @ContractState,
+            token_id: felt252,
+            thought_rank: u8,
+            will_rank: u8,
+            awa_rank: u8,
+        ) -> ByteArray {
+            let svg = self.generate_svg(token_id, thought_rank, will_rank, awa_rank);
+            let mut out: ByteArray = Default::default();
+            out.append(@"data:image/svg+xml,");
+            out.append(@svg);
+            out
+        }
+
+        fn get_token_metadata(
+            self: @ContractState,
+            token_id: felt252,
+            thought_rank: u8,
+            will_rank: u8,
+            awa_rank: u8,
+        ) -> ByteArray {
+            format!(
+                "{{\"token\":{},\"thought\":{},\"will\":{},\"awa\":{}}}",
+                token_id,
+                thought_rank,
+                will_rank,
+                awa_rank,
+            )
+        }
+    }
+}
+
 /// Deploys the minimal ERC-721 receiver used in safe mints/transfers.
 pub fn deploy_receiver() -> ContractAddress {
     let class = declare("TestERC721Receiver").unwrap().contract_class();
+    let (addr, _) = class.deploy(@array![]).unwrap();
+    addr
+}
+
+/// Deploys the minimal PathLook mock used in PathNFT tests.
+pub fn deploy_path_look_mock() -> ContractAddress {
+    let class = declare("TestPathLook").unwrap().contract_class();
     let (addr, _) = class.deploy(@array![]).unwrap();
     addr
 }
@@ -137,9 +205,13 @@ pub struct NftHandles {
 
 /// Deploy PathNFT with explicit constructor args.
 /// PathNFT constructor *(as in your repo)*:
-/// (initial_admin, initial_minter, name, symbol, base_uri)
+/// (initial_admin, name, symbol, base_uri, path_look)
 pub fn deploy_path_nft_with(
-    initial_admin: ContractAddress, name: ByteArray, symbol: ByteArray, base_uri: ByteArray,
+    initial_admin: ContractAddress,
+    name: ByteArray,
+    symbol: ByteArray,
+    base_uri: ByteArray,
+    path_look: ContractAddress,
 ) -> NftHandles {
     let class = declare("PathNFT").unwrap().contract_class();
 
@@ -148,6 +220,7 @@ pub fn deploy_path_nft_with(
     name.serialize(ref calldata);
     symbol.serialize(ref calldata);
     base_uri.serialize(ref calldata);
+    path_look.serialize(ref calldata);
 
     let (addr, _) = class.deploy(@calldata).unwrap();
 
@@ -167,7 +240,8 @@ pub fn deploy_path_nft_with(
 
 /// Convenience: deploy PathNFT (admin = ADMIN, minter = ZERO, default name/symbol/base).
 pub fn deploy_path_nft_default() -> NftHandles {
-    deploy_path_nft_with(ADMIN(), NAME(), SYMBOL(), BASE_URI())
+    let look = deploy_path_look_mock();
+    deploy_path_nft_with(ADMIN(), NAME(), SYMBOL(), BASE_URI(), look)
 }
 
 /// Grant `MINTER_ROLE` on the NFT to `minter_addr` (uses cheat_caller as ADMIN).

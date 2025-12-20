@@ -22,6 +22,7 @@ name = "path_nft_unit"
 test-type = "unit"
 build-external-contracts = [
     "path_test_support::test_support::TestERC721Receiver",
+    "path_test_support::test_support::TestPathLook",
 ]
 
 [[target.lib]]

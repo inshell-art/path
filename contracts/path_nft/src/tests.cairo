@@ -1,4 +1,3 @@
 mod test_path_nft;
-//todo: add token_uri tests
-
+mod token_uri;
 

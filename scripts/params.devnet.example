@@ -12,6 +12,7 @@ SALES_ROLE_ID=""
 NFT_NAME="PATH"
 NFT_SYMBOL="PATH"
 NFT_BASE_URI=""
+PATH_LOOK="" # Address of deployed PathLook contract
 
 # ---- Minter constructor ----
 # FIRST_TOKEN_ID is u256 (decimal or 0x...). Script splits to (low, high).

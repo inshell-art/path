@@ -27,4 +27,5 @@ build-external-contracts = [
     "pulse_auction::pulse_auction::PulseAuction",
     "path_minter_adapter::path_minter_adapter::PathMinterAdapter",
     "path_test_support::test_support::TestERC721Receiver",
+    "path_test_support::test_support::TestPathLook",
 ]

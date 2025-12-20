@@ -118,6 +118,11 @@ fi
 	exit 1
 }
 
+[ -n "${PATH_LOOK:-}" ] || {
+	echo "PATH_LOOK is empty; set it in scripts/params.devnet.* to the PathLook contract address." >&2
+	exit 1
+}
+
 # deploy_one VAR_NAME package ContractName class_hash <calldata...>
 deploy_one() {
 	local envvar="$1" pkg="$2" cname="$3" class="$4"
@@ -167,7 +172,7 @@ read -r FL_LOW FL_HIGH <<<"$(u256 "$FL_FRI")"
 
 # ---- deploy in order (no extra magic) ----
 deploy_one ADDR_NFT path_nft PathNFT "$CLASS_NFT" \
-	"$ADMIN_ADDRESS" $NFT_NAME_C $NFT_SYMBOL_C $NFT_BASEURI_C
+	"$ADMIN_ADDRESS" $NFT_NAME_C $NFT_SYMBOL_C $NFT_BASEURI_C "$PATH_LOOK"
 
 deploy_one ADDR_MINTER path_minter PathMinter "$CLASS_MINTER" \
 	"$ADMIN_ADDRESS" "$ADDR_NFT" "$FIRST_LOW" "$FIRST_HIGH" "$RESERVED_CAP"
@@ -202,6 +207,7 @@ jq -n \
 	--arg name "$NFT_NAME" \
 	--arg sym "$NFT_SYMBOL" \
 	--arg base "$NFT_BASE_URI" \
+	--arg path_look "$PATH_LOOK" \
 	--argjson first_low "$FIRST_LOW" --argjson first_high "$FIRST_HIGH" \
 	--argjson k_low "$K_LOW" --argjson k_high "$K_HIGH" \
 	--argjson gp_low "$GP_LOW" --argjson gp_high "$GP_HIGH" \
@@ -213,7 +219,7 @@ jq -n \
 	--arg salt_pulse "${SALT_PULSE-}" \
 	'{
      admin: $admin,
-     nft:   { name:$name, symbol:$sym, base_uri:$base },
+     nft:   { name:$name, symbol:$sym, base_uri:$base, path_look:$path_look },
      minter:{ first_token_id:{low:$first_low, high:$first_high} },
      pulse: { k:{low:$k_low, high:$k_high},
               genesis_price:{low:$gp_low, high:$gp_high},
