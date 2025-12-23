@@ -116,9 +116,7 @@ mod TestPathLook {
     use core::to_byte_array::AppendFormattedToByteArray;
     use core::traits::TryInto;
     use core::zeroable::NonZero;
-    use path_interfaces::interfaces::{
-        IPathLook, IPathNFTDispatcher, IPathNFTDispatcherTrait,
-    };
+    use path_interfaces::interfaces::{IPathLook, IPathNFTDispatcher, IPathNFTDispatcherTrait};
     use starknet::ContractAddress;
 
     #[storage]

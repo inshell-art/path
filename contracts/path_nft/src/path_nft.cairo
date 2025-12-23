@@ -15,9 +15,7 @@ mod PathNFT {
     use openzeppelin::token::erc721::{
         ERC721Component, ERC721HooksEmptyImpl, interface as ERC721Interface,
     };
-    use path_interfaces::{
-        IPathLookDispatcher, IPathLookDispatcherTrait, IPathNFT,
-    };
+    use path_interfaces::{IPathLookDispatcher, IPathLookDispatcherTrait, IPathNFT};
     use starknet::ContractAddress;
     use starknet::storage::{
         Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePointerReadAccess,

@@ -5,8 +5,8 @@ use openzeppelin::token::erc721::interface::{
 };
 use path_interfaces::interfaces::IPathNFTDispatcherTrait;
 use path_test_support::prelude::*;
-use snforge_std::cheatcodes::CheatSpan;
 use snforge_std::cheat_caller_address;
+use snforge_std::cheatcodes::CheatSpan;
 
 const T0: u256 = 0_u256;
 
@@ -41,9 +41,7 @@ fn token_uri_nonexistent_reverts() {
     // Call via Safe dispatcher pattern by using the generic SafeDispatcher on ERC721 for owner_of
     match h.erc721_safe.owner_of(T0) {
         Result::Ok(_) => panic!("expected revert"),
-        Result::Err(panic_data) => {
-            assert_eq!(*panic_data.at(0), 'ERC721: invalid token ID');
-        },
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ERC721: invalid token ID'); },
     }
 }
 

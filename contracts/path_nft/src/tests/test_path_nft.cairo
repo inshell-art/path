@@ -500,9 +500,7 @@ fn movement_consume_requires_authorized_minter() {
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     match h.nft_safe.consume_movement(T1, 'THOUGHT', to) {
         Result::Ok(_) => panic!("expected unauthorized minter revert"),
-        Result::Err(panic_data) => {
-            assert_eq!(*panic_data.at(0), 'ERR_UNAUTHORIZED_MINTER');
-        },
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ERR_UNAUTHORIZED_MINTER'); },
     }
 }
 

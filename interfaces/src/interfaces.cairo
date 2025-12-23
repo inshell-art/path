@@ -39,9 +39,7 @@ pub trait IPathNFT<TContractState> {
     fn get_path_look(self: @TContractState) -> ContractAddress;
 
     /// Set the authorized movement minter for a movement tag.
-    fn set_authorized_minter(
-        ref self: TContractState, movement: felt252, minter: ContractAddress,
-    );
+    fn set_authorized_minter(ref self: TContractState, movement: felt252, minter: ContractAddress);
 
     /// Read the authorized movement minter for a movement tag.
     fn get_authorized_minter(self: @TContractState, movement: felt252) -> ContractAddress;
@@ -57,9 +55,7 @@ pub trait IPathNFT<TContractState> {
 
 #[starknet::interface]
 pub trait IPathLook<TContractState> {
-    fn generate_svg(
-        self: @TContractState, path_nft: ContractAddress, token_id: u256,
-    ) -> ByteArray;
+    fn generate_svg(self: @TContractState, path_nft: ContractAddress, token_id: u256) -> ByteArray;
 
     fn generate_svg_data_uri(
         self: @TContractState, path_nft: ContractAddress, token_id: u256,
