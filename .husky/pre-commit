@@ -1,2 +1,2 @@
+scarb fmt --check
 scarb lint
-scarb fmt
