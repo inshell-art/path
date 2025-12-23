@@ -37,31 +37,35 @@ pub trait IPathNFT<TContractState> {
 
     /// Read the configured PathLook contract address.
     fn get_path_look(self: @TContractState) -> ContractAddress;
+
+    /// Set the authorized movement minter for a movement tag.
+    fn set_authorized_minter(
+        ref self: TContractState, movement: felt252, minter: ContractAddress,
+    );
+
+    /// Read the authorized movement minter for a movement tag.
+    fn get_authorized_minter(self: @TContractState, movement: felt252) -> ContractAddress;
+
+    /// Read the current stage for a PATH token.
+    fn get_stage(self: @TContractState, token_id: u256) -> u8;
+
+    /// Consume a PATH token movement (called by authorized movement contracts).
+    fn consume_movement(
+        ref self: TContractState, path_token_id: u256, movement: felt252, claimer: ContractAddress,
+    );
 }
 
 #[starknet::interface]
 pub trait IPathLook<TContractState> {
     fn generate_svg(
-        self: @TContractState,
-        token_id: felt252,
-        thought_rank: u8,
-        will_rank: u8,
-        awa_rank: u8,
+        self: @TContractState, path_nft: ContractAddress, token_id: u256,
     ) -> ByteArray;
 
     fn generate_svg_data_uri(
-        self: @TContractState,
-        token_id: felt252,
-        thought_rank: u8,
-        will_rank: u8,
-        awa_rank: u8,
+        self: @TContractState, path_nft: ContractAddress, token_id: u256,
     ) -> ByteArray;
 
     fn get_token_metadata(
-        self: @TContractState,
-        token_id: felt252,
-        thought_rank: u8,
-        will_rank: u8,
-        awa_rank: u8,
+        self: @TContractState, path_nft: ContractAddress, token_id: u256,
     ) -> ByteArray;
 }

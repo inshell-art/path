@@ -1,7 +1,12 @@
 use core::array::ArrayTrait;
+use core::byte_array::ByteArrayTrait;
+use openzeppelin::token::erc721::interface::{
+    IERC721MetadataDispatcherTrait, IERC721SafeDispatcherTrait,
+};
+use path_interfaces::interfaces::IPathNFTDispatcherTrait;
 use path_test_support::prelude::*;
 use snforge_std::cheatcodes::CheatSpan;
-use snforge_std::{cheat_caller_address, try_deserialize_bytearray_error};
+use snforge_std::cheat_caller_address;
 
 const T0: u256 = 0_u256;
 
@@ -16,13 +21,14 @@ fn token_uri_wraps_path_look_metadata() {
 
     let uri = h.meta.token_uri(T0);
     assert!(
-        uri.starts_with("data:application/json,"),
+        starts_with_bytes(@uri, @"data:application/json,"),
     ); // OZ metadata returns JSON ByteArray. :contentReference[oaicite:6]{index=6}
 
-    assert!(uri.contains("\"token\":"));
-    assert!(uri.contains("\"thought\":1"));
-    assert!(uri.contains("\"will\":2"));
-    assert!(uri.contains("\"awa\":3"));
+    assert!(contains_bytes(@uri, @"\"token\":"));
+    assert!(contains_bytes(@uri, @"\"stage\":\"IDEAL\""));
+    assert!(contains_bytes(@uri, @"\"thought\":\"Latent\""));
+    assert!(contains_bytes(@uri, @"\"will\":\"Latent\""));
+    assert!(contains_bytes(@uri, @"\"awa\":\"Latent\""));
 }
 
 #[test]
@@ -36,8 +42,54 @@ fn token_uri_nonexistent_reverts() {
     match h.erc721_safe.owner_of(T0) {
         Result::Ok(_) => panic!("expected revert"),
         Result::Err(panic_data) => {
-            let msg = try_deserialize_bytearray_error(panic_data.span()).expect("non-string panic");
-            assert_eq!(msg, "ERC721: invalid token ID");
+            assert_eq!(*panic_data.at(0), 'ERC721: invalid token ID');
         },
     }
+}
+
+fn starts_with_bytes(haystack: @ByteArray, needle: @ByteArray) -> bool {
+    let hay_len = haystack.len();
+    let ned_len = needle.len();
+    if ned_len == 0_usize {
+        return true;
+    }
+    if ned_len > hay_len {
+        return false;
+    }
+    let mut i: usize = 0_usize;
+    while i < ned_len {
+        if haystack.at(i).unwrap() != needle.at(i).unwrap() {
+            return false;
+        }
+        i = i + 1_usize;
+    }
+    true
+}
+
+fn contains_bytes(haystack: @ByteArray, needle: @ByteArray) -> bool {
+    let hay_len = haystack.len();
+    let ned_len = needle.len();
+    if ned_len == 0_usize {
+        return true;
+    }
+    if ned_len > hay_len {
+        return false;
+    }
+    let mut i: usize = 0_usize;
+    while i + ned_len <= hay_len {
+        let mut j: usize = 0_usize;
+        let mut matched = true;
+        while j < ned_len {
+            if haystack.at(i + j).unwrap() != needle.at(j).unwrap() {
+                matched = false;
+                break;
+            }
+            j = j + 1_usize;
+        }
+        if matched {
+            return true;
+        }
+        i = i + 1_usize;
+    }
+    false
 }

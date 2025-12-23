@@ -1,6 +1,5 @@
 use core::array::{ArrayTrait, Span};
 use core::result::ResultTrait;
-use core::option::OptionTrait;
 use core::byte_array::ByteArrayTrait;
 use path_look::path_look::{IPathLookDispatcher, IPathLookDispatcherTrait};
 use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
@@ -34,6 +33,30 @@ mod StepCurveMock {
             let mut path: ByteArray = Default::default();
             path.append(@"M 0 0");
             path
+        }
+    }
+}
+
+#[starknet::contract]
+mod PathNFTMock {
+    use path_look::path_look::IPathNFTStage;
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+
+    #[storage]
+    struct Storage {
+        stage: u8,
+    }
+
+    #[constructor]
+    fn constructor(ref self: ContractState, stage: u8) {
+        self.stage.write(stage);
+    }
+
+    #[abi(embed_v0)]
+    impl MockImpl of IPathNFTStage<ContractState> {
+        fn get_stage(self: @ContractState, token_id: u256) -> u8 {
+            let _ = token_id;
+            self.stage.read()
         }
     }
 }
@@ -86,6 +109,14 @@ fn deploy_step_curve() -> ContractAddress {
     address
 }
 
+fn deploy_path_nft_mock(stage: u8) -> ContractAddress {
+    let class = declare("PathNFTMock").unwrap().contract_class();
+    let mut calldata = array![stage.into()];
+    let result = class.deploy(@calldata).unwrap();
+    let (address, _) = result;
+    address
+}
+
 fn deploy_path_look(
     pprf_address: ContractAddress, step_curve_address: ContractAddress,
 ) -> ContractAddress {
@@ -102,9 +133,10 @@ fn generate_svg_returns_payload() {
     let mock = deploy_mock_pprf(111_111_u32);
     let step_curve = deploy_step_curve();
     let contract = deploy_path_look(mock, step_curve);
+    let path_nft = deploy_path_nft_mock(0_u8);
     let dispatcher = IPathLookDispatcher { contract_address: contract };
 
-    let svg = dispatcher.generate_svg(1, 0, 0, 0);
+    let svg = dispatcher.generate_svg(path_nft, 1_u256);
     assert(svg.len() > 0_u32, 'svg empty');
 }
 
@@ -113,9 +145,10 @@ fn metadata_returns_payload() {
     let mock = deploy_mock_pprf(222_222_u32);
     let step_curve = deploy_step_curve();
     let contract = deploy_path_look(mock, step_curve);
+    let path_nft = deploy_path_nft_mock(1_u8);
     let dispatcher = IPathLookDispatcher { contract_address: contract };
 
-    let metadata = dispatcher.get_token_metadata(5, 1, 0, 0);
+    let metadata = dispatcher.get_token_metadata(path_nft, 5_u256);
     assert(metadata.len() > 0_u32, 'meta empty');
 }
 
@@ -167,13 +200,15 @@ fn svg_hides_minted_and_sigma_changes() {
     let dispatcher = IPathLookDispatcher { contract_address: contract };
 
     // No colored strands yet; only ideal
-    let svg_ideal = dispatcher.generate_svg(42, 0, 0, 0);
+    let path_nft_ideal = deploy_path_nft_mock(0_u8);
+    let svg_ideal = dispatcher.generate_svg(path_nft_ideal, 42_u256);
     assert(contains_bytes(@svg_ideal, @"id='ideal-src'"), 'ideal missing');
     assert(!contains_bytes(@svg_ideal, @"strand-"), 'unexpected strand');
     assert(!contains_bytes(@svg_ideal, @"stdDeviation='"), 'sigma should be absent');
 
-    // Mixed ranks: will=1 (bottom), thought=2, awa=3 (top)
-    let svg_layers = dispatcher.generate_svg(42, 2, 1, 3);
+    // Stage 3: all movements manifest in fixed order.
+    let path_nft_full = deploy_path_nft_mock(3_u8);
+    let svg_layers = dispatcher.generate_svg(path_nft_full, 42_u256);
     assert(contains_bytes(@svg_layers, @"id='ideal-src'"), 'ideal missing layered');
     assert(contains_bytes(@svg_layers, @"id='strand-thought'"), 'strand1 missing');
     assert(contains_bytes(@svg_layers, @"id='strand-will'"), 'strand2 missing');
@@ -186,13 +221,14 @@ fn metadata_reflects_flags() {
     let mock = deploy_mock_pprf(7_u32);
     let step_curve = deploy_step_curve();
     let contract = deploy_path_look(mock, step_curve);
+    let path_nft = deploy_path_nft_mock(2_u8);
     let dispatcher = IPathLookDispatcher { contract_address: contract };
 
-    let metadata = dispatcher.get_token_metadata(9, 2, 0, 1);
-    assert(contains_bytes(@metadata, @"\"Movement Order\",\"value\":\"AWA->THOUGHT->"), 'movement order');
+    let metadata = dispatcher.get_token_metadata(path_nft, 9_u256);
+    assert(contains_bytes(@metadata, @"\"Stage\",\"value\":\"WILL\""), 'stage');
     assert(contains_bytes(@metadata, @"\"THOUGHT\",\"value\":\"Manifested\""), 'thought status');
-    assert(contains_bytes(@metadata, @"\"WILL\",\"value\":\"Latent\""), 'will status');
-    assert(contains_bytes(@metadata, @"\"AWA\",\"value\":\"Manifested\""), 'awa status');
+    assert(contains_bytes(@metadata, @"\"WILL\",\"value\":\"Manifested\""), 'will status');
+    assert(contains_bytes(@metadata, @"\"AWA\",\"value\":\"Latent\""), 'awa status');
     assert(contains_bytes(@metadata, @"\"Breath\",\"value\":"), 'breath present');
 }
 
@@ -201,9 +237,10 @@ fn svg_has_no_newlines() {
     let mock = deploy_mock_pprf(1_u32);
     let step_curve = deploy_step_curve();
     let contract = deploy_path_look(mock, step_curve);
+    let path_nft = deploy_path_nft_mock(1_u8);
     let dispatcher = IPathLookDispatcher { contract_address: contract };
 
-    let svg = dispatcher.generate_svg(3, 1, 0, 0);
+    let svg = dispatcher.generate_svg(path_nft, 3_u256);
     assert(!has_byte(@svg, 10_u8), 'contains newline');
     assert(!has_byte(@svg, 13_u8), 'contains carriage');
 }
@@ -213,9 +250,10 @@ fn data_uri_is_percent_encoded() {
     let mock = deploy_mock_pprf(2_u32);
     let step_curve = deploy_step_curve();
     let contract = deploy_path_look(mock, step_curve);
+    let path_nft = deploy_path_nft_mock(0_u8);
     let dispatcher = IPathLookDispatcher { contract_address: contract };
 
-    let uri = dispatcher.generate_svg_data_uri(4, 0, 1, 0);
+    let uri = dispatcher.generate_svg_data_uri(path_nft, 4_u256);
     assert(contains_bytes(@uri, @"data:image/svg+xml;charset=UTF-8,"), 'missing prefix');
     assert(contains_bytes(@uri, @"%3Csvg"), 'missing encoded svg tag');
     assert(contains_bytes(@uri, @"%23lightUp"), 'missing encoded hash');

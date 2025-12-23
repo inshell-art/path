@@ -4,7 +4,6 @@
 pub use PathNFT::Event as PathNFTEvent;
 #[starknet::contract]
 mod PathNFT {
-    use core::array::SpanTrait;
     use core::num::traits::Zero;
     use core::panic_with_felt252;
     use openzeppelin::access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE};
@@ -26,6 +25,9 @@ mod PathNFT {
     };
 
     const MINTER_ROLE: felt252 = selector!("MINTER_ROLE");
+    const MOVEMENT_THOUGHT: felt252 = 'THOUGHT';
+    const MOVEMENT_WILL: felt252 = 'WILL';
+    const MOVEMENT_AWA: felt252 = 'AWA';
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     #[abi(embed_v0)]
@@ -54,9 +56,15 @@ mod PathNFT {
         #[substorage(v0)]
         access_control: AccessControlComponent::Storage,
         path_look_addr: ContractAddress,
-        thought_rank: Map<u256, u8>,
-        will_rank: Map<u256, u8>,
-        awa_rank: Map<u256, u8>,
+        stage: Map<u256, u8>,
+        authorized_minter: Map<felt252, ContractAddress>,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct MovementConsumed {
+        path_token_id: u256,
+        movement: felt252,
+        claimer: ContractAddress,
     }
 
     #[event]
@@ -68,6 +76,7 @@ mod PathNFT {
         SRC5Event: SRC5Component::Event,
         #[flat]
         AccessControlEvent: AccessControlComponent::Event,
+        MovementConsumed: MovementConsumed,
     }
 
     #[constructor]
@@ -113,8 +122,8 @@ mod PathNFT {
             data: Span<felt252>,
         ) {
             self.access_control.assert_only_role(MINTER_ROLE);
-            store_movement_ranks(ref self, token_id, data);
             self.erc721.safe_mint(recipient, token_id, data);
+            self.stage.write(token_id, 0_u8);
         }
 
         fn safeMint(
@@ -133,6 +142,50 @@ mod PathNFT {
 
         fn get_path_look(self: @ContractState) -> ContractAddress {
             self.path_look_addr.read()
+        }
+
+        fn set_authorized_minter(
+            ref self: ContractState, movement: felt252, minter: ContractAddress,
+        ) {
+            self.access_control.assert_only_role(DEFAULT_ADMIN_ROLE);
+            assert_valid_movement(movement);
+            if minter.is_zero() {
+                panic_with_felt252('ZERO_MINTER')
+            }
+            self.authorized_minter.write(movement, minter);
+        }
+
+        fn get_authorized_minter(self: @ContractState, movement: felt252) -> ContractAddress {
+            self.authorized_minter.read(movement)
+        }
+
+        fn get_stage(self: @ContractState, token_id: u256) -> u8 {
+            self.erc721._require_owned(token_id);
+            self.stage.read(token_id)
+        }
+
+        fn consume_movement(
+            ref self: ContractState,
+            path_token_id: u256,
+            movement: felt252,
+            claimer: ContractAddress,
+        ) {
+            assert_valid_movement(movement);
+            let authorized = self.authorized_minter.read(movement);
+            let caller = starknet::get_caller_address();
+            if authorized.is_zero() || caller != authorized {
+                panic_with_felt252('ERR_UNAUTHORIZED_MINTER');
+            }
+
+            let owner = self.erc721.owner_of(path_token_id);
+            if !self.erc721._is_authorized(owner, claimer, path_token_id) {
+                panic_with_felt252('ERR_NOT_OWNER');
+            }
+
+            let current = self.stage.read(path_token_id);
+            let next = next_stage(current, movement);
+            self.stage.write(path_token_id, next);
+            self.emit(MovementConsumed { path_token_id, movement, claimer });
         }
     }
 
@@ -153,13 +206,8 @@ mod PathNFT {
             if look_addr.is_zero() {
                 panic_with_felt252('ZERO_PATH_LOOK')
             }
-            // PathLook expects felt252; use the low limb as a stable seed.
-            let token_seed = token_id.low.into();
-            let thought = self.thought_rank.read(token_id);
-            let will = self.will_rank.read(token_id);
-            let awa = self.awa_rank.read(token_id);
             let look = IPathLookDispatcher { contract_address: look_addr };
-            let metadata = look.get_token_metadata(token_seed, thought, will, awa);
+            let metadata = look.get_token_metadata(starknet::get_contract_address(), token_id);
             format!("data:application/json,{}", metadata)
         }
     }
@@ -171,26 +219,32 @@ mod PathNFT {
         }
     }
 
-    fn store_movement_ranks(
-        ref self: ContractState, token_id: u256, data: Span<felt252>,
-    ) {
-        if data.len() < 3_usize {
-            return;
+    fn assert_valid_movement(movement: felt252) {
+        if movement != MOVEMENT_THOUGHT && movement != MOVEMENT_WILL && movement != MOVEMENT_AWA {
+            panic_with_felt252('BAD_MOVEMENT')
         }
-        let thought = rank_from_felt(*data.at(0_usize));
-        let will = rank_from_felt(*data.at(1_usize));
-        let awa = rank_from_felt(*data.at(2_usize));
-        self.thought_rank.write(token_id, thought);
-        self.will_rank.write(token_id, will);
-        self.awa_rank.write(token_id, awa);
     }
 
-    fn rank_from_felt(value: felt252) -> u8 {
-        let rank: u8 = value.try_into().unwrap();
-        if rank > 3_u8 {
-            panic_with_felt252('BAD_RANK')
+    fn next_stage(current: u8, movement: felt252) -> u8 {
+        if movement == MOVEMENT_THOUGHT {
+            if current != 0_u8 {
+                panic_with_felt252('BAD_STAGE')
+            }
+            return 1_u8;
         }
-        rank
+        if movement == MOVEMENT_WILL {
+            if current != 1_u8 {
+                panic_with_felt252('BAD_STAGE')
+            }
+            return 2_u8;
+        }
+        if movement == MOVEMENT_AWA {
+            if current != 2_u8 {
+                panic_with_felt252('BAD_STAGE')
+            }
+            return 3_u8;
+        }
+        panic_with_felt252('BAD_MOVEMENT')
     }
     #[cfg(test)]
     mod unit {

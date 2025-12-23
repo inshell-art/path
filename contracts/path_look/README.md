@@ -42,15 +42,13 @@ Generate an SVG with custom parameters:
 sncast call \
   --contract-address 0x04add2e03e6c61bde38205a88f2f0bc5da68f46d8d5c101bd3629d6d9436684c \
   --function generate_svg \
-  --calldata 1 1 0 0 \
+  --calldata 0x0123...PATH_NFT 1 0 \
   --url http://127.0.0.1:5050
 ```
 
 Parameters (calldata):
-- `token_id` (u32): Token identifier
-- `thought_rank` (u8): 0 if unminted, otherwise 1–3 (lower is earlier minted)
-- `will_rank` (u8): 0 if unminted, otherwise 1–3
-- `awa_rank` (u8): 0 if unminted, otherwise 1–3
+- `path_nft` (ContractAddress): PathNFT contract address (stage source of truth)
+- `token_id` (u256): Token identifier (`low`, `high`)
 
 ### Extract SVG Output
 
@@ -60,7 +58,7 @@ The contract returns an SVG string. Extract it from the response:
 sncast call \
   --contract-address 0x04add2e03e6c61bde38205a88f2f0bc5da68f46d8d5c101bd3629d6d9436684c \
   --function generate_svg \
-  --calldata 1 1 0 0 \
+  --calldata 0x0123...PATH_NFT 1 0 \
   --url http://127.0.0.1:5050 | \
   sed -n '/<svg/,/<\/svg>/p' | \
   sed -e '/Account address/d' -e '/Private key/d'

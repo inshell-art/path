@@ -113,7 +113,13 @@ mod TestERC721Receiver {
 #[starknet::contract]
 mod TestPathLook {
     use core::byte_array::ByteArrayTrait;
-    use path_interfaces::interfaces::IPathLook;
+    use core::to_byte_array::AppendFormattedToByteArray;
+    use core::traits::TryInto;
+    use core::zeroable::NonZero;
+    use path_interfaces::interfaces::{
+        IPathLook, IPathNFTDispatcher, IPathNFTDispatcherTrait,
+    };
+    use starknet::ContractAddress;
 
     #[storage]
     struct Storage {}
@@ -124,29 +130,23 @@ mod TestPathLook {
     #[abi(embed_v0)]
     impl TestPathLookImpl of IPathLook<ContractState> {
         fn generate_svg(
-            self: @ContractState,
-            token_id: felt252,
-            thought_rank: u8,
-            will_rank: u8,
-            awa_rank: u8,
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
-            format!(
-                "<svg data-token='{}' data-ranks='{}-{}-{}'/>",
-                token_id,
-                thought_rank,
-                will_rank,
-                awa_rank,
-            )
+            let stage = stage_from_nft(path_nft, token_id);
+            let token_id_str = u256_to_string(token_id);
+            let mut out: ByteArray = Default::default();
+            out.append(@"<svg data-token='");
+            out.append(@token_id_str);
+            out.append(@"' data-stage='");
+            out.append(@stage_label(stage));
+            out.append(@"'/>");
+            out
         }
 
         fn generate_svg_data_uri(
-            self: @ContractState,
-            token_id: felt252,
-            thought_rank: u8,
-            will_rank: u8,
-            awa_rank: u8,
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
-            let svg = self.generate_svg(token_id, thought_rank, will_rank, awa_rank);
+            let svg = self.generate_svg(path_nft, token_id);
             let mut out: ByteArray = Default::default();
             out.append(@"data:image/svg+xml,");
             out.append(@svg);
@@ -154,20 +154,59 @@ mod TestPathLook {
         }
 
         fn get_token_metadata(
-            self: @ContractState,
-            token_id: felt252,
-            thought_rank: u8,
-            will_rank: u8,
-            awa_rank: u8,
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
-            format!(
-                "{{\"token\":{},\"thought\":{},\"will\":{},\"awa\":{}}}",
-                token_id,
-                thought_rank,
-                will_rank,
-                awa_rank,
-            )
+            let stage = stage_from_nft(path_nft, token_id);
+            let (thought, will, awa) = stage_flags(stage);
+            let token_id_str = u256_to_string(token_id);
+            let mut out: ByteArray = Default::default();
+            out.append(@"{\"token\":");
+            out.append(@token_id_str);
+            out.append(@",\"stage\":\"");
+            out.append(@stage_label(stage));
+            out.append(@"\",\"thought\":\"");
+            out.append(@manifest_string(thought));
+            out.append(@"\",\"will\":\"");
+            out.append(@manifest_string(will));
+            out.append(@"\",\"awa\":\"");
+            out.append(@manifest_string(awa));
+            out.append(@"\"}");
+            out
         }
+    }
+
+    fn stage_from_nft(path_nft: ContractAddress, token_id: u256) -> u8 {
+        let nft = IPathNFTDispatcher { contract_address: path_nft };
+        nft.get_stage(token_id)
+    }
+
+    fn stage_flags(stage: u8) -> (bool, bool, bool) {
+        (stage >= 1_u8, stage >= 2_u8, stage >= 3_u8)
+    }
+
+    fn stage_label(stage: u8) -> ByteArray {
+        match stage {
+            0_u8 => "IDEAL",
+            1_u8 => "THOUGHT",
+            2_u8 => "WILL",
+            3_u8 => "AWA",
+            _ => "UNKNOWN",
+        }
+    }
+
+    fn manifest_string(minted: bool) -> ByteArray {
+        if minted {
+            "Manifested"
+        } else {
+            "Latent"
+        }
+    }
+
+    fn u256_to_string(value: u256) -> ByteArray {
+        let base: NonZero<u256> = 10_u256.try_into().unwrap();
+        let mut out: ByteArray = Default::default();
+        value.append_formatted_to_byte_array(ref out, base);
+        out
     }
 }
 

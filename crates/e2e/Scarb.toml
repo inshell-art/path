@@ -17,6 +17,7 @@ path_test_support.workspace = true
 
 [dev-dependencies]
 assert_macros.workspace = true
+cairo_test.workspace = true
 
 [[test]]
 name = "e2e_unit"

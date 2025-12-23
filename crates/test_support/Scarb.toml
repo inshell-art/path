@@ -14,5 +14,8 @@ path_minter_adapter.workspace = true
 pulse_adapter.workspace = true
 pulse_auction.workspace = true
 
+[dev-dependencies]
+cairo_test.workspace = true
+
 [tool.scarb]
 allow-prebuilt-plugins = ["snforge_std"]

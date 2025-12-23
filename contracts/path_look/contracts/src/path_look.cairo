@@ -2,8 +2,12 @@
 pub mod PathLook {
     use core::array::ArrayTrait;
     use core::byte_array::ByteArrayTrait;
-    use core::option::{Option, OptionTrait};
+    use core::pedersen::pedersen;
+    use core::to_byte_array::AppendFormattedToByteArray;
+    use core::traits::TryInto;
+    use core::zeroable::NonZero;
     use path_look::rng;
+    use super::{IPathNFTStageDispatcher, IPathNFTStageDispatcherTrait};
     use starknet::ContractAddress;
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
     use step_curve::StepCurve::StepCurve::{IStepCurveDispatcher, IStepCurveDispatcherTrait, Point};
@@ -19,9 +23,6 @@ pub mod PathLook {
     const LABEL_WILL_DY: felt252 = 'WIDY';
     const LABEL_AWA_DX: felt252 = 'AWDX';
     const LABEL_AWA_DY: felt252 = 'AWDY';
-    const RANK_SEED_T: felt252 = 100_u32.into();
-    const RANK_SEED_W: felt252 = 10_u32.into();
-    const RANK_SEED_A: felt252 = 1_u32.into();
 
     #[storage]
     struct Storage {
@@ -56,12 +57,14 @@ pub mod PathLook {
     #[abi(embed_v0)]
     impl PathLookImpl of super::IPathLook<ContractState> {
         fn generate_svg(
-            self: @ContractState, token_id: felt252, thought_rank: u8, will_rank: u8, awa_rank: u8,
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
             const WIDTH: u32 = 1024;
             const HEIGHT: u32 = 1024;
 
-            let rng_seed = self._rng_seed(token_id, thought_rank, will_rank, awa_rank);
+            let stage = self._stage_from_path_nft(path_nft, token_id);
+            let (thought_minted, will_minted, awa_minted) = self._stage_flags(stage);
+            let rng_seed = self._token_seed(token_id);
 
             let step_number = self._random_range(rng_seed, LABEL_STEP_COUNT, 0, 1, 50);
 
@@ -127,36 +130,20 @@ pub mod PathLook {
             let awa_path = self._strip_newlines(@raw_awa_path);
 
             let mut minted: Array<Strand> = array![];
-            let mut thought_opt = Option::Some(thought_path);
-            let mut will_opt = Option::Some(will_path);
-            let mut awa_opt = Option::Some(awa_path);
-            let mut r_loop: u8 = 1_u8;
-            while r_loop <= 3_u8 {
-                if thought_rank == r_loop {
-                    if let Option::Some(path_val) = thought_opt {
-                        let mut label: ByteArray = Default::default();
-                        label.append(@"thought");
-                        minted.append(Strand { rank: thought_rank, path: path_val, label, r: 0, g: 0, b: 255 });
-                    }
-                    thought_opt = Option::None;
-                }
-                if will_rank == r_loop {
-                    if let Option::Some(path_val) = will_opt {
-                        let mut label: ByteArray = Default::default();
-                        label.append(@"will");
-                        minted.append(Strand { rank: will_rank, path: path_val, label, r: 255, g: 0, b: 0 });
-                    }
-                    will_opt = Option::None;
-                }
-                if awa_rank == r_loop {
-                    if let Option::Some(path_val) = awa_opt {
-                        let mut label: ByteArray = Default::default();
-                        label.append(@"awa");
-                        minted.append(Strand { rank: awa_rank, path: path_val, label, r: 0, g: 255, b: 0 });
-                    }
-                    awa_opt = Option::None;
-                }
-                r_loop = r_loop + 1_u8;
+            if thought_minted {
+                let mut label: ByteArray = Default::default();
+                label.append(@"thought");
+                minted.append(Strand { rank: 1_u8, path: thought_path, label, r: 0, g: 0, b: 255 });
+            }
+            if will_minted {
+                let mut label: ByteArray = Default::default();
+                label.append(@"will");
+                minted.append(Strand { rank: 2_u8, path: will_path, label, r: 255, g: 0, b: 0 });
+            }
+            if awa_minted {
+                let mut label: ByteArray = Default::default();
+                label.append(@"awa");
+                minted.append(Strand { rank: 3_u8, path: awa_path, label, r: 0, g: 255, b: 0 });
             }
 
             let any_minted = minted.len() > 0_usize;
@@ -240,13 +227,9 @@ pub mod PathLook {
         }
 
         fn generate_svg_data_uri(
-            self: @ContractState,
-            token_id: felt252,
-            thought_rank: u8,
-            will_rank: u8,
-            awa_rank: u8,
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
-            let svg = self.generate_svg(token_id, thought_rank, will_rank, awa_rank);
+            let svg = self.generate_svg(path_nft, token_id);
             let encoded = self._percent_encode(@svg);
             let mut data_uri: ByteArray = Default::default();
             data_uri.append(@"data:image/svg+xml;charset=UTF-8,");
@@ -255,17 +238,12 @@ pub mod PathLook {
         }
 
         fn get_token_metadata(
-            self: @ContractState,
-            token_id: felt252,
-            thought_rank: u8,
-            will_rank: u8,
-            awa_rank: u8,
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
-            let rng_seed = self._rng_seed(token_id, thought_rank, will_rank, awa_rank);
-            let token_id_str = self._felt_to_string(token_id);
-            let thought_minted = thought_rank != 0_u8;
-            let will_minted = will_rank != 0_u8;
-            let awa_minted = awa_rank != 0_u8;
+            let stage = self._stage_from_path_nft(path_nft, token_id);
+            let (thought_minted, will_minted, awa_minted) = self._stage_flags(stage);
+            let rng_seed = self._token_seed(token_id);
+            let token_id_str = self._u256_to_string(token_id);
 
             const WIDTH: u32 = 1024;
             const HEIGHT: u32 = 1024;
@@ -283,11 +261,9 @@ pub mod PathLook {
             };
             let mut metadata: ByteArray = Default::default();
             let data_uri = self
-                .generate_svg_data_uri(token_id, thought_rank, will_rank, awa_rank);
+                .generate_svg_data_uri(path_nft, token_id);
 
-            let description: ByteArray = "**Steps** sets the cadence; **Voice** sets how loudly the strand speaks.  **Tension** controls how tightly the curve pulls between waypoints.  The **Ideal Path** is the reference trajectory drawn first, always beneath.  The token gains its living strands through three **Movements**: THOUGHT, WILL, and AWA.  **THOUGHT**, **WILL**, and **AWA** record which Movements have appeared (Manifested / Latent).  **Movement Order** preserves the chronology--earlier arrivals remain lower, later arrivals rest on top.  When the first Movement appears, **Breath** awakens as one shared atmosphere across every living strand.";
-
-            let movement_order = self._movement_order(thought_rank, will_rank, awa_rank);
+            let description: ByteArray = "**Steps** sets the cadence; **Voice** sets how loudly the strand speaks.  **Tension** controls how tightly the curve pulls between waypoints.  The **Ideal Path** is the reference trajectory drawn first, always beneath.  The token gains its living strands through three **Movements**: THOUGHT, WILL, and AWA.  **Stage** marks the current progression, while **THOUGHT**, **WILL**, and **AWA** record which Movements have appeared (Manifested / Latent).  When the first Movement appears, **Breath** awakens as one shared atmosphere across every living strand.";
 
             metadata.append(@"{\"name\":\"PATH #");
             metadata.append(@token_id_str);
@@ -323,6 +299,11 @@ pub mod PathLook {
             }
             metadata.append(@"},");
 
+            metadata.append(@"{\"trait_type\":\"Stage\",\"value\":\"");
+            metadata.append(@self._stage_label(stage));
+            metadata.append(@"\"}");
+            metadata.append(@",");
+
             metadata.append(@"{\"trait_type\":\"THOUGHT\",\"value\":\"");
             metadata.append(@self._manifest_string(thought_minted));
             metadata.append(@"\"},");
@@ -333,10 +314,6 @@ pub mod PathLook {
 
             metadata.append(@"{\"trait_type\":\"AWA\",\"value\":\"");
             metadata.append(@self._manifest_string(awa_minted));
-            metadata.append(@"\"},");
-
-            metadata.append(@"{\"trait_type\":\"Movement Order\",\"value\":\"");
-            metadata.append(@movement_order);
             metadata.append(@"\"}");
 
             metadata.append(@"]");
@@ -349,17 +326,34 @@ pub mod PathLook {
 
     #[generate_trait]
     impl InternalImpl of InternalTrait {
-        fn _rng_seed(
-            self: @ContractState, token_id: felt252, thought_rank: u8, will_rank: u8, awa_rank: u8,
-        ) -> felt252 {
-            let mut seed = token_id * 1000;
-            let th: felt252 = thought_rank.into();
-            let wi: felt252 = will_rank.into();
-            let aw: felt252 = awa_rank.into();
-            seed = seed + th * RANK_SEED_T;
-            seed = seed + wi * RANK_SEED_W;
-            seed = seed + aw * RANK_SEED_A;
-            seed
+        fn _token_seed(self: @ContractState, token_id: u256) -> felt252 {
+            let low: felt252 = token_id.low.into();
+            let high: felt252 = token_id.high.into();
+            pedersen(low, high)
+        }
+
+        fn _stage_from_path_nft(
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
+        ) -> u8 {
+            let dispatcher = IPathNFTStageDispatcher { contract_address: path_nft };
+            dispatcher.get_stage(token_id)
+        }
+
+        fn _stage_flags(self: @ContractState, stage: u8) -> (bool, bool, bool) {
+            let thought = stage >= 1_u8;
+            let will = stage >= 2_u8;
+            let awa = stage >= 3_u8;
+            (thought, will, awa)
+        }
+
+        fn _stage_label(self: @ContractState, stage: u8) -> ByteArray {
+            match stage {
+                0_u8 => "IDEAL",
+                1_u8 => "THOUGHT",
+                2_u8 => "WILL",
+                3_u8 => "AWA",
+                _ => "UNKNOWN",
+            }
         }
 
         fn _compute_padding(self: @ContractState, seed: felt252, width: u32) -> (u32, u32) {
@@ -530,31 +524,11 @@ pub mod PathLook {
             result
         }
 
-        fn _felt_to_string(self: @ContractState, value: felt252) -> ByteArray {
-            if value == 0 {
-                return "0";
-            }
-
-            let num_u256: u256 = value.into();
-            let mut num = num_u256;
-            let mut digits: Array<u8> = array![];
-
-            while num != 0 {
-                let digit: u8 = (num % 10).try_into().unwrap();
-                digits.append(digit);
-                num = num / 10;
-            }
-
-            let mut result: ByteArray = Default::default();
-            let mut i = digits.len();
-            while i > 0 {
-                i -= 1;
-                let digit = *digits.at(i);
-                let digit_char = digit + 48;
-                result.append_byte(digit_char);
-            }
-
-            result
+        fn _u256_to_string(self: @ContractState, value: u256) -> ByteArray {
+            let base: NonZero<u256> = 10_u256.try_into().unwrap();
+            let mut out: ByteArray = Default::default();
+            value.append_formatted_to_byte_array(ref out, base);
+            out
         }
 
         fn _u32_to_string(self: @ContractState, value: u32) -> ByteArray {
@@ -589,55 +563,6 @@ pub mod PathLook {
             } else {
                 "Latent"
             }
-        }
-
-        fn _movement_order(self: @ContractState, thought_rank: u8, will_rank: u8, awa_rank: u8) -> ByteArray {
-            let mut parts: Array<ByteArray> = array![];
-            let mut r: u8 = 1_u8;
-            while r <= 3_u8 {
-                if thought_rank == r {
-                    let label: ByteArray = "THOUGHT";
-                    parts.append(label);
-                }
-                if will_rank == r {
-                    let label: ByteArray = "WILL";
-                    parts.append(label);
-                }
-                if awa_rank == r {
-                    let label: ByteArray = "AWA";
-                    parts.append(label);
-                }
-                r = r + 1_u8;
-            }
-
-            let mut order: ByteArray = Default::default();
-            let mut i: usize = 0_usize;
-            match parts.len() {
-                0_usize => {
-                    order.append(@"--");
-                },
-                1_usize => {
-                    // Single manifests end with an arrow to imply order start.
-                    order.append(parts.at(0_usize));
-                    order.append(@"->");
-                },
-                2_usize => {
-                    order.append(parts.at(0_usize));
-                    order.append(@"->");
-                    order.append(parts.at(1_usize));
-                    order.append(@"->");
-                },
-                _ => {
-                    while i < parts.len() {
-                        if i > 0_usize {
-                            order.append(@"->");
-                        }
-                        order.append(parts.at(i));
-                        i = i + 1_usize;
-                    }
-                },
-            }
-            order
         }
 
         fn _strip_newlines(self: @ContractState, svg: @ByteArray) -> ByteArray {
@@ -701,29 +626,25 @@ pub mod PathLook {
     }
 }
 
+use core::integer::u256;
+use starknet::ContractAddress;
+
+#[starknet::interface]
+pub trait IPathNFTStage<TContractState> {
+    fn get_stage(self: @TContractState, token_id: u256) -> u8;
+}
+
 #[starknet::interface]
 pub trait IPathLook<TContractState> {
     fn generate_svg(
-        self: @TContractState,
-        token_id: felt252,
-        thought_rank: u8,
-        will_rank: u8,
-        awa_rank: u8,
+        self: @TContractState, path_nft: ContractAddress, token_id: u256,
     ) -> ByteArray;
 
     fn generate_svg_data_uri(
-        self: @TContractState,
-        token_id: felt252,
-        thought_rank: u8,
-        will_rank: u8,
-        awa_rank: u8,
+        self: @TContractState, path_nft: ContractAddress, token_id: u256,
     ) -> ByteArray;
 
     fn get_token_metadata(
-        self: @TContractState,
-        token_id: felt252,
-        thought_rank: u8,
-        will_rank: u8,
-        awa_rank: u8,
+        self: @TContractState, path_nft: ContractAddress, token_id: u256,
     ) -> ByteArray;
 }

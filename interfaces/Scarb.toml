@@ -5,3 +5,6 @@ edition.workspace = true
 
 [dependencies]
 starknet.workspace = true
+
+[dev-dependencies]
+cairo_test.workspace = true
