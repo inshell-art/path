@@ -32,6 +32,28 @@ fn token_uri_wraps_path_look_metadata() {
 }
 
 #[test]
+fn token_uri_reflects_stage_after_movement() {
+    let h = deploy_path_nft_default();
+    let to = deploy_receiver();
+
+    grant_minter_on_nft(@h, MINTER());
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.nft.set_authorized_minter('THOUGHT', ALICE());
+
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T0, array![].span());
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    h.nft.consume_movement(T0, 'THOUGHT', to);
+
+    let uri = h.meta.token_uri(T0);
+    assert!(contains_bytes(@uri, @"\"stage\":\"THOUGHT\""));
+    assert!(contains_bytes(@uri, @"\"thought\":\"Manifested\""));
+    assert!(contains_bytes(@uri, @"\"will\":\"Latent\""));
+    assert!(contains_bytes(@uri, @"\"awa\":\"Latent\""));
+}
+
+#[test]
 #[feature("safe_dispatcher")]
 fn token_uri_nonexistent_reverts() {
     let h = deploy_path_nft_default();

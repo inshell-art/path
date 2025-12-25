@@ -171,6 +171,54 @@ fn ac_non_admin_cannot_grant_or_revoke_minter() {
 }
 
 //
+// cfg_* (config)
+//
+
+#[test]
+#[feature("safe_dispatcher")]
+fn cfg_set_path_look_admin_only_and_rejects_zero() {
+    let h = deploy_path_nft_default();
+
+    cheat_caller_address(h.addr, BOB(), CheatSpan::TargetCalls(1));
+    match h.nft_safe.set_path_look(ALICE()) {
+        Result::Ok(_) => panic!("non-admin set_path_look should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'Caller is missing role'); },
+    }
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    match h.nft_safe.set_path_look(ZERO_ADDR()) {
+        Result::Ok(_) => panic!("zero path_look should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ZERO_PATH_LOOK'); },
+    }
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.nft.set_path_look(ALICE());
+    assert_eq!(h.nft.get_path_look(), ALICE());
+}
+
+#[test]
+#[feature("safe_dispatcher")]
+fn cfg_set_authorized_minter_admin_only_and_rejects_zero() {
+    let h = deploy_path_nft_default();
+
+    cheat_caller_address(h.addr, BOB(), CheatSpan::TargetCalls(1));
+    match h.nft_safe.set_authorized_minter('THOUGHT', ALICE()) {
+        Result::Ok(_) => panic!("non-admin set_authorized_minter should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'Caller is missing role'); },
+    }
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    match h.nft_safe.set_authorized_minter('THOUGHT', ZERO_ADDR()) {
+        Result::Ok(_) => panic!("zero minter should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ZERO_MINTER'); },
+    }
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.nft.set_authorized_minter('THOUGHT', ALICE());
+    assert_eq!(h.nft.get_authorized_minter('THOUGHT'), ALICE());
+}
+
+//
 // mint_* (minting)
 //
 
@@ -501,6 +549,97 @@ fn movement_consume_requires_authorized_minter() {
     match h.nft_safe.consume_movement(T1, 'THOUGHT', to) {
         Result::Ok(_) => panic!("expected unauthorized minter revert"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ERR_UNAUTHORIZED_MINTER'); },
+    }
+}
+
+#[test]
+#[feature("safe_dispatcher")]
+fn movement_consume_invalid_movement_reverts() {
+    let h = deploy_path_nft_default();
+    let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(2));
+    h.ac.grant_role(MINTER_ROLE, MINTER());
+    h.nft.set_authorized_minter('THOUGHT', ALICE());
+
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T1, array![].span());
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    match h.nft_safe.consume_movement(T1, 'DREAM', to) {
+        Result::Ok(_) => panic!("invalid movement should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'BAD_MOVEMENT'); },
+    }
+}
+
+#[test]
+#[feature("safe_dispatcher")]
+fn movement_consume_requires_owner_or_approved_claimer() {
+    let h = deploy_path_nft_default();
+    let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(2));
+    h.ac.grant_role(MINTER_ROLE, MINTER());
+    h.nft.set_authorized_minter('THOUGHT', ALICE());
+
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T1, array![].span());
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    match h.nft_safe.consume_movement(T1, 'THOUGHT', BOB()) {
+        Result::Ok(_) => panic!("unapproved claimer should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ERR_NOT_OWNER'); },
+    }
+}
+
+#[test]
+fn movement_consume_allows_approved_claimer() {
+    let h = deploy_path_nft_default();
+    let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(2));
+    h.ac.grant_role(MINTER_ROLE, MINTER());
+    h.nft.set_authorized_minter('THOUGHT', ALICE());
+
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T1, array![].span());
+
+    cheat_caller_address(h.addr, to, CheatSpan::TargetCalls(1));
+    h.erc721.approve(BOB(), T1);
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    h.nft.consume_movement(T1, 'THOUGHT', BOB());
+    assert_eq!(h.nft.get_stage(T1), 1_u8);
+}
+
+#[test]
+#[feature("safe_dispatcher")]
+fn movement_consume_rejects_wrong_stage() {
+    let h = deploy_path_nft_default();
+    let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(3));
+    h.ac.grant_role(MINTER_ROLE, MINTER());
+    h.nft.set_authorized_minter('THOUGHT', ALICE());
+    h.nft.set_authorized_minter('WILL', ALICE());
+
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T1, array![].span());
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    match h.nft_safe.consume_movement(T1, 'WILL', to) {
+        Result::Ok(_) => panic!("wrong stage should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'BAD_STAGE'); },
+    }
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    h.nft.consume_movement(T1, 'THOUGHT', to);
+    assert_eq!(h.nft.get_stage(T1), 1_u8);
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    match h.nft_safe.consume_movement(T1, 'THOUGHT', to) {
+        Result::Ok(_) => panic!("repeat movement should revert"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'BAD_STAGE'); },
     }
 }
 
