@@ -22,7 +22,15 @@
     }
     h1 { margin: 0 0 4px 0; font-size: 24px; }
     .subtitle { color: var(--muted); margin-bottom: 16px; }
-    .controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .controls input {
+      background: #0f1119;
+      border: 1px solid #1f2533;
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 6px;
+      min-width: 220px;
+    }
     button {
       background: var(--accent);
       color: #062e22;
@@ -70,6 +78,17 @@
       width: 100%;
       display: block;
     }
+    .preview-stack {
+      display: grid;
+      gap: 8px;
+    }
+    .preview-title {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
     @media (max-width: 1100px) {
       .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     }
@@ -83,12 +102,13 @@
 </head>
 <body>
   <h1>Path-Look Devnet Grid</h1>
-  <div class="subtitle">Quick visual sweep of 20 sample tokens (5x4)</div>
+  <div class="subtitle">Rendering from PathLook via the IGlyph interface. Tokens must exist in PathNFT.</div>
   <div class="controls">
     <button id="reload">Reload</button>
+    <input id="tokenIds" type="text" value="1-20" aria-label="Token IDs" />
     <div class="status" id="status">Idle</div>
   </div>
-  <div class="status">RPC: http://127.0.0.1:5050 · PathLook: 0x03110f8ae3d48a079ca2a883926a38ea5e730ada70eccc9f9742dce9f102735e</div>
+  <div class="status">RPC: http://127.0.0.1:5050 · PathLook: 0x01082c3250672f65942ceb2283bdd27ec495b2d61b13d601b65c781c36706f09 · PathNFT: 0x0388aafe5db65e6bbafb10def6bea631d338f2edde2a8f763b7821d12d7e95de</div>
   <div class="grid" id="grid"></div>
 
   <script src="./vendor/starknet/index.global.js"></script>
@@ -96,27 +116,13 @@
     const { RpcProvider } = window.starknet;
 
     const RPC_URL = 'http://127.0.0.1:5050';
-    const CONTRACT_ADDRESS = '0x03110f8ae3d48a079ca2a883926a38ea5e730ada70eccc9f9742dce9f102735e';
-
-    // 20 samples with varied rank mixes.
-    // 20 distinct rank mixes.
-    // Build 100 deterministic samples across rank combinations.
-    const rankCombos = [];
-    for (let t = 0; t < 4; t++) {
-      for (let w = 0; w < 4; w++) {
-        for (let a = 0; a < 4; a++) {
-          rankCombos.push([t, w, a]);
-        }
-      }
-    }
-    while (rankCombos.length < 100) {
-      const idx = rankCombos.length % 64; // reuse pattern
-      rankCombos.push(rankCombos[idx]);
-    }
+    const CONTRACT_ADDRESS = '0x01082c3250672f65942ceb2283bdd27ec495b2d61b13d601b65c781c36706f09';
+    const PATH_NFT_ADDRESS = '0x0388aafe5db65e6bbafb10def6bea631d338f2edde2a8f763b7821d12d7e95de';
 
     const provider = new RpcProvider({ nodeUrl: RPC_URL });
     const gridEl = document.getElementById('grid');
     const statusEl = document.getElementById('status');
+    const tokenInput = document.getElementById('tokenIds');
 
     function decodeByteArray(felts) {
       if (!felts || felts.length < 3) return "";
@@ -154,28 +160,58 @@
       return raw;
     }
 
-    async function fetchDataUri(tokenId, thought, will, awa) {
+    function parseTokenIds(raw) {
+      const tokens = raw.split(/[\s,]+/).filter(Boolean);
+      const ids = [];
+      for (const token of tokens) {
+        if (token.includes('-')) {
+          const [startRaw, endRaw] = token.split('-');
+          const start = Number(startRaw);
+          const end = Number(endRaw);
+          if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+          const step = start <= end ? 1 : -1;
+          for (let i = start; i !== end + step; i += step) {
+            if (i > 0) ids.push(i);
+          }
+        } else {
+          const value = Number(token);
+          if (Number.isFinite(value) && value > 0) {
+            ids.push(value);
+          }
+        }
+      }
+      return Array.from(new Set(ids)).slice(0, 100);
+    }
+
+    function toU256(value) {
+      const big = BigInt(value);
+      const low = big & ((1n << 128n) - 1n);
+      const high = big >> 128n;
+      return [low.toString(), high.toString()];
+    }
+
+    async function fetchDataUri(tokenId, entrypoint) {
       const call = {
         contractAddress: CONTRACT_ADDRESS,
-        entrypoint: 'generate_svg_data_uri',
-        calldata: [tokenId.toString(), thought.toString(), will.toString(), awa.toString()],
+        entrypoint,
+        calldata: [PATH_NFT_ADDRESS, ...toU256(tokenId)],
       };
       const result = await provider.callContract(call, 'latest');
       return decodeByteArray(result.result);
     }
 
-    async function fetchMetadata(tokenId, thought, will, awa) {
+    async function fetchMetadata(tokenId, entrypoint) {
       const call = {
         contractAddress: CONTRACT_ADDRESS,
-        entrypoint: 'get_token_metadata',
-        calldata: [tokenId.toString(), thought.toString(), will.toString(), awa.toString()],
+        entrypoint,
+        calldata: [PATH_NFT_ADDRESS, ...toU256(tokenId)],
       };
       const result = await provider.callContract(call, 'latest');
       const raw = decodeByteArray(result.result);
       try {
         return { json: JSON.parse(raw), raw };
       } catch (err) {
-        console.error('metadata parse failed', { tokenId, thought, will, awa, err, rawLen: raw.length, raw: raw.slice(0, 200) });
+        console.error('metadata parse failed', { tokenId, entrypoint, err, rawLen: raw.length, raw: raw.slice(0, 200) });
         return { json: null, raw };
       }
     }
@@ -190,37 +226,38 @@
       return decodeURIComponent(sanitized);
     }
 
-    function entryLabel(tokenId, thought, will, awa) {
-      return `#${tokenId} · T${thought} W${will} A${awa}`;
+    function entryLabel(tokenId) {
+      return `#${tokenId}`;
     }
 
     async function renderGrid() {
       statusEl.textContent = 'Loading...';
       gridEl.innerHTML = '';
 
-      const entries = rankCombos.map((combo, idx) => ({
-        tokenId: idx + 1,
-        thought: combo[0],
-        will: combo[1],
-        awa: combo[2],
-      }));
+      const tokenIds = parseTokenIds(tokenInput.value);
+      const entries = tokenIds.map((tokenId) => ({ tokenId }));
 
       for (const entry of entries) {
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-          <div class="meta">${entryLabel(entry.tokenId, entry.thought, entry.will, entry.awa)}</div>
-          <div class="preview"><span style="color: var(--muted); font-size: 12px;">Loading…</span></div>
+          <div class="meta">${entryLabel(entry.tokenId)}</div>
+          <div class="preview-stack">
+            <div>
+              <div class="preview-title">path</div>
+              <div class="preview" data-preview="svg"><span style="color: var(--muted); font-size: 12px;">Loading…</span></div>
+            </div>
+          </div>
         `;
         gridEl.appendChild(card);
 
         try {
-          const uri = await fetchDataUri(entry.tokenId, entry.thought, entry.will, entry.awa);
-          const preview = card.querySelector('.preview');
-          // Render as an <img> to avoid any inline-SVG parsing quirks.
-          preview.innerHTML = `<img src="${uri}" alt="path look ${entry.tokenId}" />`;
+          const svgUri = await fetchDataUri(entry.tokenId, 'generate_svg_data_uri');
 
-          const meta = await fetchMetadata(entry.tokenId, entry.thought, entry.will, entry.awa);
+          const preview = card.querySelector('[data-preview="svg"]');
+          preview.innerHTML = `<img src="${svgUri}" alt="path look ${entry.tokenId}" />`;
+
+          const meta = await fetchMetadata(entry.tokenId, 'get_token_metadata');
           const traits = meta.json?.attributes ?? [];
           const traitsHtml = traits.length > 0
             ? traits.map(t => `<div class="trait"><span>${t.trait_type}</span><span>${t.value}</span></div>`).join('')
@@ -230,7 +267,7 @@
           traitsBox.innerHTML = traitsHtml;
           card.appendChild(traitsBox);
         } catch (err) {
-          const preview = card.querySelector('.preview');
+          const preview = card.querySelector('[data-preview="svg"]');
           const msg = err && err.message ? err.message : String(err);
           preview.textContent = 'Error loading';
           preview.title = msg;

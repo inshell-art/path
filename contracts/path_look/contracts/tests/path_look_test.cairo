@@ -4,35 +4,27 @@ use core::byte_array::ByteArrayTrait;
 use path_look::path_look::{IPathLookDispatcher, IPathLookDispatcherTrait};
 use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
 use starknet::ContractAddress;
-use step_curve::StepCurve::StepCurve;
 
 #[starknet::contract]
 mod StepCurveMock {
-    use super::StepCurve::IStepCurve;
+    use step_curve::glyph_interface::IGlyph;
 
     #[storage]
     struct Storage {}
 
     #[abi(embed_v0)]
-    impl MockImpl of IStepCurve<ContractState> {
-        fn d_from_nodes(
-            self: @ContractState, nodes: Span<super::StepCurve::Point>, handle_scale: u32,
-        ) -> ByteArray {
-            let _ = nodes;
-            let _ = handle_scale;
+    impl GlyphMockImpl of IGlyph<ContractState> {
+        fn render(self: @ContractState, params: Span<felt252>) -> Array<felt252> {
+            let _ = params;
             let mut path: ByteArray = Default::default();
             path.append(@"M 0 0");
-            path
+            let mut out: Array<felt252> = array![];
+            path.serialize(ref out);
+            out
         }
 
-        fn d_from_flattened_xy(
-            self: @ContractState, nodes_xy: Span<felt252>, handle_scale: u32,
-        ) -> ByteArray {
-            let _ = nodes_xy;
-            let _ = handle_scale;
-            let mut path: ByteArray = Default::default();
-            path.append(@"M 0 0");
-            path
+        fn metadata(self: @ContractState) -> Span<felt252> {
+            array![].span()
         }
     }
 }
@@ -256,6 +248,6 @@ fn data_uri_is_percent_encoded() {
     let uri = dispatcher.generate_svg_data_uri(path_nft, 4_u256);
     assert(contains_bytes(@uri, @"data:image/svg+xml;charset=UTF-8,"), 'missing prefix');
     assert(contains_bytes(@uri, @"%3Csvg"), 'missing encoded svg tag');
-    assert(contains_bytes(@uri, @"%23lightUp"), 'missing encoded hash');
+    assert(contains_bytes(@uri, @"%23ideal-src"), 'missing encoded hash');
     assert(!contains_bytes(@uri, @"<svg"), 'raw svg present');
 }

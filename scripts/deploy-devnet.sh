@@ -118,11 +118,6 @@ fi
 	exit 1
 }
 
-[ -n "${PATH_LOOK:-}" ] || {
-	echo "PATH_LOOK is empty; set it in scripts/params.devnet.* to the PathLook contract address." >&2
-	exit 1
-}
-
 # deploy_one VAR_NAME package ContractName class_hash <calldata...>
 deploy_one() {
 	local envvar="$1" pkg="$2" cname="$3" class="$4"
@@ -132,13 +127,23 @@ deploy_one() {
 	ts="$(date +%F-%H%M%S)"
 	out="$OUT_DIR/deploy_${cname}_${ts}.json"
 
-	addr="$(
-		sncast --profile "$PROFILE" --json deploy \
-			--class-hash "$class" --constructor-calldata "$@" |
-			tee "$out" |
-			jq -r '.. | objects | (.contract_address? // .deploy?.contract_address? // empty)' |
-			head -n1
-	)"
+	if [ "$#" -gt 0 ]; then
+		addr="$(
+			sncast --profile "$PROFILE" --json deploy \
+				--class-hash "$class" --constructor-calldata "$@" |
+				tee "$out" |
+				jq -r '.. | objects | (.contract_address? // .deploy?.contract_address? // empty)' |
+				head -n1
+		)"
+	else
+		addr="$(
+			sncast --profile "$PROFILE" --json deploy \
+				--class-hash "$class" |
+				tee "$out" |
+				jq -r '.. | objects | (.contract_address? // .deploy?.contract_address? // empty)' |
+				head -n1
+		)"
+	fi
 
 	[ -n "$addr" ] || {
 		echo "!! No contract_address parsed for ${pkg}::${cname} (see $out)" >&2
@@ -156,6 +161,18 @@ deploy_one() {
 : "${CLASS_MINTER:?source output/classes.env first (missing CLASS_MINTER)}"
 : "${CLASS_ADAPTER:?source output/classes.env first (missing CLASS_ADAPTER)}"
 : "${CLASS_PULSE:?source output/classes.env first (missing CLASS_PULSE)}"
+: "${CLASS_PPRF:?source output/classes.env first (missing CLASS_PPRF)}"
+: "${CLASS_STEP_CURVE:?source output/classes.env first (missing CLASS_STEP_CURVE)}"
+: "${CLASS_PATH_LOOK:?source output/classes.env first (missing CLASS_PATH_LOOK)}"
+
+if [ -n "${PATH_LOOK:-}" ]; then
+	echo "NOTE: PATH_LOOK is set in params, but deploy-devnet.sh now deploys PathLook; ignoring PATH_LOOK=${PATH_LOOK}"
+fi
+
+deploy_one ADDR_PPRF glyph_pprf Pprf "$CLASS_PPRF"
+deploy_one ADDR_STEP_CURVE step_curve StepCurve "$CLASS_STEP_CURVE"
+deploy_one ADDR_LOOK path_look PathLook "$CLASS_PATH_LOOK" "$ADDR_PPRF" "$ADDR_STEP_CURVE"
+PATH_LOOK="$ADDR_LOOK"
 
 # ---- encode calldata ----
 read -r NFT_NAME_C <<<"$(encode_bytearray "$NFT_NAME")"
@@ -191,6 +208,9 @@ export PATH_NFT=${ADDR_NFT}
 export PATH_MINTER=${ADDR_MINTER}
 export PATH_ADAPTER=${ADDR_ADAPTER}
 export PULSE_AUCTION=${ADDR_PULSE}
+export PATH_LOOK=${PATH_LOOK}
+export PATH_PPRF=${ADDR_PPRF-}
+export PATH_STEP_CURVE=${ADDR_STEP_CURVE-}
 export RPC_URL=${RPC}
 export PROFILE=${PROFILE}
 EOF

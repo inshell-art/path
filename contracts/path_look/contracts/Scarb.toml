@@ -6,7 +6,7 @@ edition = "2024_07"
 [dependencies]
 starknet = "2.8.2"
 glyph_pprf = { git = "https://github.com/inshell-art/pprf.git" }
-step_curve = { git = "https://github.com/inshell-art/step-curve", tag = "v0.1.1" }
+step_curve = { path = "../../../../step-curve" }
 
 [[target.starknet-contract]]
 sierra = true
@@ -17,4 +17,5 @@ build = "scarb build"
 check = "scarb check"
 
 [dev-dependencies]
+cairo_test = "2.12.0"
 snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry.git", tag = "v0.52.0" }

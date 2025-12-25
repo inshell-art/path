@@ -3,6 +3,7 @@ pub mod PathLook {
     use core::array::ArrayTrait;
     use core::byte_array::ByteArrayTrait;
     use core::pedersen::pedersen;
+    use core::serde::Serde;
     use core::to_byte_array::AppendFormattedToByteArray;
     use core::traits::TryInto;
     use core::zeroable::NonZero;
@@ -10,7 +11,7 @@ pub mod PathLook {
     use super::{IPathNFTStageDispatcher, IPathNFTStageDispatcherTrait};
     use starknet::ContractAddress;
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
-    use step_curve::StepCurve::StepCurve::{IStepCurveDispatcher, IStepCurveDispatcherTrait, Point};
+    use step_curve::glyph_interface::{IGlyphDispatcher, IGlyphDispatcherTrait};
 
     const LABEL_STEP_COUNT: felt252 = 'STEP';
     const LABEL_SHARPNESS: felt252 = 'SHRP';
@@ -59,6 +60,27 @@ pub mod PathLook {
         fn generate_svg(
             self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
+            self._generate_svg(path_nft, token_id)
+        }
+
+        fn generate_svg_data_uri(
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
+        ) -> ByteArray {
+            self._generate_svg_data_uri(path_nft, token_id)
+        }
+
+        fn get_token_metadata(
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
+        ) -> ByteArray {
+            self._get_token_metadata(path_nft, token_id)
+        }
+    }
+
+    #[generate_trait]
+    impl InternalImpl of InternalTrait {
+        fn _generate_svg(
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
+        ) -> ByteArray {
             const WIDTH: u32 = 1024;
             const HEIGHT: u32 = 1024;
 
@@ -67,9 +89,7 @@ pub mod PathLook {
             let rng_seed = self._token_seed(token_id);
 
             let step_number = self._random_range(rng_seed, LABEL_STEP_COUNT, 0, 1, 50);
-
             let sharpness = self._random_range(rng_seed, LABEL_SHARPNESS, 0, 1, 20);
-
             let stroke_w = self._max_u32(1, self._round_div(100, step_number));
 
             let (padding, _) = self._compute_padding(rng_seed, WIDTH);
@@ -90,8 +110,9 @@ pub mod PathLook {
             let ideal_path = self._strip_newlines(@raw_ideal_path);
             let ideal_stroke_w = 1_u32;
 
-            let thought_core =
-                self._find_steps(rng_seed, @targets, WIDTH, HEIGHT, LABEL_THOUGHT_DX, LABEL_THOUGHT_DY);
+            let thought_core = self._find_steps(
+                rng_seed, @targets, WIDTH, HEIGHT, LABEL_THOUGHT_DX, LABEL_THOUGHT_DY,
+            );
             let mut thought_nodes: Array<Step> = array![];
             thought_nodes.append(start);
             let mut ti: usize = 0_usize;
@@ -103,8 +124,9 @@ pub mod PathLook {
             let raw_thought_path = self._curve_d(@thought_nodes, sharpness);
             let thought_path = self._strip_newlines(@raw_thought_path);
 
-            let will_core =
-                self._find_steps(rng_seed, @targets, WIDTH, HEIGHT, LABEL_WILL_DX, LABEL_WILL_DY);
+            let will_core = self._find_steps(
+                rng_seed, @targets, WIDTH, HEIGHT, LABEL_WILL_DX, LABEL_WILL_DY,
+            );
             let mut will_nodes: Array<Step> = array![];
             will_nodes.append(start);
             let mut wi_i: usize = 0_usize;
@@ -116,8 +138,9 @@ pub mod PathLook {
             let raw_will_path = self._curve_d(@will_nodes, sharpness);
             let will_path = self._strip_newlines(@raw_will_path);
 
-            let awa_core =
-                self._find_steps(rng_seed, @targets, WIDTH, HEIGHT, LABEL_AWA_DX, LABEL_AWA_DY);
+            let awa_core = self._find_steps(
+                rng_seed, @targets, WIDTH, HEIGHT, LABEL_AWA_DX, LABEL_AWA_DY,
+            );
             let mut awa_nodes: Array<Step> = array![];
             awa_nodes.append(start);
             let mut aw_i: usize = 0_usize;
@@ -226,10 +249,10 @@ pub mod PathLook {
             svg
         }
 
-        fn generate_svg_data_uri(
+        fn _generate_svg_data_uri(
             self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
-            let svg = self.generate_svg(path_nft, token_id);
+            let svg = self._generate_svg(path_nft, token_id);
             let encoded = self._percent_encode(@svg);
             let mut data_uri: ByteArray = Default::default();
             data_uri.append(@"data:image/svg+xml;charset=UTF-8,");
@@ -237,7 +260,7 @@ pub mod PathLook {
             data_uri
         }
 
-        fn get_token_metadata(
+        fn _get_token_metadata(
             self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
             let stage = self._stage_from_path_nft(path_nft, token_id);
@@ -260,8 +283,7 @@ pub mod PathLook {
                 0_u32
             };
             let mut metadata: ByteArray = Default::default();
-            let data_uri = self
-                .generate_svg_data_uri(path_nft, token_id);
+            let data_uri = self._generate_svg_data_uri(path_nft, token_id);
 
             let description: ByteArray = "**Steps** sets the cadence; **Voice** sets how loudly the strand speaks.  **Tension** controls how tightly the curve pulls between waypoints.  The **Ideal Path** is the reference trajectory drawn first, always beneath.  The token gains its living strands through three **Movements**: THOUGHT, WILL, and AWA.  **Stage** marks the current progression, while **THOUGHT**, **WILL**, and **AWA** record which Movements have appeared (Manifested / Latent).  When the first Movement appears, **Breath** awakens as one shared atmosphere across every living strand.";
 
@@ -322,10 +344,7 @@ pub mod PathLook {
 
             metadata
         }
-    }
 
-    #[generate_trait]
-    impl InternalImpl of InternalTrait {
         fn _token_seed(self: @ContractState, token_id: u256) -> felt252 {
             let low: felt252 = token_id.low.into();
             let high: felt252 = token_id.high.into();
@@ -471,17 +490,25 @@ pub mod PathLook {
             result
         }
 
-        fn _curve_d(self: @ContractState, steps: @Array<Step>, sharpness: u32) -> ByteArray {
+        fn _curve_d(
+            self: @ContractState, steps: @Array<Step>, sharpness: u32,
+        ) -> ByteArray {
             let addr = self.step_curve_address.read();
-            let mut nodes: Array<Point> = array![];
+            let mut params: Array<felt252> = array![];
+            params.append(sharpness.into());
             let mut i: usize = 0_usize;
             while i < steps.len() {
                 let s = *steps.at(i);
-                nodes.append(Point { x: s.x, y: s.y });
+                let x: felt252 = s.x.try_into().unwrap();
+                let y: felt252 = s.y.try_into().unwrap();
+                params.append(x);
+                params.append(y);
                 i = i + 1_usize;
             }
-            let dispatcher = IStepCurveDispatcher { contract_address: addr };
-            dispatcher.d_from_nodes(nodes.span(), sharpness)
+            let dispatcher = IGlyphDispatcher { contract_address: addr };
+            let rendered = dispatcher.render(params.span());
+            let mut rendered_span = rendered.span();
+            Serde::deserialize(ref rendered_span).unwrap()
         }
 
         fn _u128_to_string(self: @ContractState, value: u128) -> ByteArray {

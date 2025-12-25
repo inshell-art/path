@@ -51,23 +51,23 @@ Watchdog logs: `output/devnet/devnet.log`. Stop it with `pkill -f scripts/devnet
 source output/classes.env
 ```
 
-Declares four packages: `path_nft`, `path_minter`, `path_minter_adapter`,
-`pulse_auction` and records class hashes.
+Declares packages: `path_nft`, `path_minter`, `path_minter_adapter`, `pulse_auction`,
+plus `glyph_pprf`, `step_curve`, and `path_look` (PathLook + deps).
 
 ## 2) Deploy contracts (uses class hashes + params)
 
 ```bash
 ./scripts/deploy-devnet.sh
 # Outputs:
-#   output/addresses.devnet.json # { "path_nft": "<addr>", "path_minter": "...", "path_minter_adapter": "...", "pulse_auction": "..." }
-#   output/addresses.env         # export PATH_NFT, PATH_MINTER, PATH_ADAPTER, PULSE_AUCTION, RPC_URL, PROFILE
+#   output/addresses.devnet.json # { "path_nft": "<addr>", "path_minter": "...", "path_minter_adapter": "...", "pulse_auction": "...", "path_look": "...", "glyph_pprf": "...", "step_curve": "..." }
+#   output/addresses.env         # export PATH_NFT, PATH_MINTER, PATH_ADAPTER, PULSE_AUCTION, PATH_LOOK, PATH_PPRF, PATH_STEP_CURVE, RPC_URL, PROFILE
 
 # Next: load addresses & profile into the shell
 source output/addresses.env
 ```
 
 Constructor calldata is encoded (ByteArray/u256). Deployment order:
-`PathNFT` → `PathMinter` → `PathMinterAdapter` → `PulseAuction`.
+`Pprf` → `StepCurve` → `PathLook` → `PathNFT` → `PathMinter` → `PathMinterAdapter` → `PulseAuction`.
 
 ## 3) Configure roles & wiring (idempotent-friendly)
 

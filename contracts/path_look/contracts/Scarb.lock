@@ -31,4 +31,3 @@ dependencies = [
 [[package]]
 name = "step_curve"
 version = "0.1.1"
-source = "git+https://github.com/inshell-art/step-curve?tag=v0.1.1#5a21b7a2f9741e8b4226a45e09ed26aa7b153b99"
