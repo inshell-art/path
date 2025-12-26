@@ -9,6 +9,7 @@ abi.json
 node_modules/
 .husky/_/
 tmp_tx.json
+tmp/
 .DS_Store
 .vscode/
 output/
