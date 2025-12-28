@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,3 L0,6 Z" fill="#222" />
+    </marker>
+    <style>
+      .box { fill: #f8f8f8; stroke: #222; stroke-width: 2; rx: 8; }
+      .title { font-family: monospace; font-size: 16px; fill: #111; }
+      .label { font-family: monospace; font-size: 13px; fill: #111; }
+      .edge { stroke: #222; stroke-width: 2; marker-end: url(#arrow); }
+      .note { font-family: monospace; font-size: 12px; fill: #333; }
+    </style>
+  </defs>
+
+  <!-- Boxes -->
+  <rect class="box" x="480" y="30" width="240" height="60" />
+  <text class="title" x="600" y="65" text-anchor="middle">Admin / Owner</text>
+
+  <rect class="box" x="60" y="120" width="160" height="50" />
+  <text class="title" x="140" y="150" text-anchor="middle">User</text>
+
+  <rect class="box" x="300" y="160" width="200" height="70" />
+  <text class="title" x="400" y="195" text-anchor="middle">PulseAuction</text>
+
+  <rect class="box" x="580" y="160" width="220" height="70" />
+  <text class="title" x="690" y="195" text-anchor="middle">PathMinterAdapter</text>
+
+  <rect class="box" x="580" y="300" width="220" height="70" />
+  <text class="title" x="690" y="335" text-anchor="middle">PathMinter</text>
+
+  <rect class="box" x="580" y="440" width="220" height="70" />
+  <text class="title" x="690" y="475" text-anchor="middle">PathNFT</text>
+
+  <rect class="box" x="900" y="440" width="220" height="70" />
+  <text class="title" x="1010" y="475" text-anchor="middle">MovementMinter</text>
+
+  <rect class="box" x="900" y="300" width="220" height="70" />
+  <text class="title" x="1010" y="335" text-anchor="middle">Sparker</text>
+
+  <!-- Main flow -->
+  <line class="edge" x1="220" y1="145" x2="300" y2="195" />
+  <text class="label" x="250" y="135">bid()</text>
+
+  <line class="edge" x1="500" y1="195" x2="580" y2="195" />
+  <text class="label" x="510" y="180">settle()</text>
+  <text class="note" x="510" y="200">require msg.sender == auction</text>
+
+  <line class="edge" x1="690" y1="230" x2="690" y2="300" />
+  <text class="label" x="700" y="270">mint_public()</text>
+  <text class="note" x="705" y="285">requires SALES_ROLE</text>
+
+  <line class="edge" x1="690" y1="370" x2="690" y2="440" />
+  <text class="label" x="700" y="410">safe_mint()</text>
+  <text class="note" x="705" y="425">requires MINTER_ROLE</text>
+
+  <!-- Reserved mint flow -->
+  <line class="edge" x1="900" y1="335" x2="800" y2="335" />
+  <text class="label" x="830" y="320">mint_sparker()</text>
+  <text class="note" x="835" y="350">requires RESERVED_ROLE</text>
+
+  <!-- Movement flow -->
+  <line class="edge" x1="900" y1="475" x2="800" y2="475" />
+  <text class="label" x="835" y="460">consume_movement()</text>
+  <text class="note" x="835" y="495">caller == authorized_minter</text>
+
+  <!-- Admin wiring -->
+  <line class="edge" x1="600" y1="90" x2="690" y2="160" />
+  <text class="note" x="700" y="120">Ownable: set_auction/set_minter</text>
+
+  <line class="edge" x1="600" y1="90" x2="600" y2="300" />
+  <text class="note" x="610" y="230">AccessControl: grant SALES_ROLE to adapter</text>
+
+  <line class="edge" x1="600" y1="90" x2="600" y2="440" />
+  <text class="note" x="610" y="380">AccessControl: grant MINTER_ROLE to PathMinter</text>
+
+  <line class="edge" x1="720" y1="90" x2="910" y2="440" />
+  <text class="note" x="915" y="420">set_authorized_minter</text>
+
+  <!-- Legend -->
+  <text class="label" x="60" y="640">Legend:</text>
+  <text class="note" x="60" y="660">AccessControl applies to PathNFT and PathMinter. Ownable applies to PathMinterAdapter.</text>
+</svg>
