@@ -35,7 +35,7 @@ PathNFT token minted + stage=0
 MovementMinter (authorized via PathNFT admin)
   |
   v
-PathNFT.consume_movement(...)   [caller == authorized minter, claimer is owner/approved]
+PathNFT.consume_movement_unit(...)   [caller == authorized minter, claimer is tx sender + owner/approved]
   |
   v
 PathNFT stage advanced
@@ -90,9 +90,9 @@ PathNFT.safe_mint(...)          [requires MINTER_ROLE]
   - `set_path_look(path_look)`
   - `set_authorized_minter(movement, minter)`
 - Movement gating (not AccessControl):
-  - `consume_movement(...)` requires caller == `authorized_minter[movement]` and
-    `claimer` must be owner/approved for the PathNFT token.
-- Stage is advanced inside PathNFT when `consume_movement` succeeds.
+  - `consume_movement_unit(...)` requires caller == `authorized_minter[movement]`,
+    `claimer == tx sender`, and `claimer` must be owner/approved for the PathNFT token.
+- Stage is advanced inside PathNFT when `consume_movement_unit` succeeds.
 
 ## Orchestration path (typical sale)
 
@@ -112,9 +112,9 @@ PathNFT.safe_mint(...)          [requires MINTER_ROLE]
    - PulseAuction calls `PathMinterAdapter.settle(buyer, data)`.
    - Adapter checks `msg.sender == auction` then calls `PathMinter.mint_public`.
    - PathMinter checks `SALES_ROLE` and calls `PathNFT.safe_mint`.
-   - PathNFT checks `MINTER_ROLE`, mints token, sets stage = 0 (IDEAL).
+   - PathNFT checks `MINTER_ROLE`, mints token, sets stage = 0 (THOUGHT active).
 
 ## Notes
 - There is no PathNFT adapter in this repo.
 - Movement minters are registered in PathNFT via `set_authorized_minter`; they are distinct from
-  the minting flow and are used to advance stage through `consume_movement`.
+  the minting flow and are used to advance stage through `consume_movement_unit`.

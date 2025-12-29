@@ -34,26 +34,27 @@ It maps each `trait_type` to its value type and the logic used to derive it.
 - If no movement minted: `"Dormant"`.
 - If any movement minted: numeric sigma value in 3..30.
 - Logic:
-  - `any_minted = thought_minted || will_minted || awa_minted`
+  - `any_minted = thought_minted > 0 || will_minted > 0 || awa_minted > 0`
   - If `any_minted` then `sigma = random_range(seed, LABEL_SHARPNESS, 1, 3, 30)`
 
 ### Stage (string)
 - Label derived from PathNFT stage:
-  - `0` -> `"IDEAL"`
-  - `1` -> `"THOUGHT"`
-  - `2` -> `"WILL"`
-  - `3` -> `"AWA"`
+  - `0` -> `"THOUGHT"`
+  - `1` -> `"WILL"`
+  - `2` -> `"AWA"`
+  - `3` -> `"COMPLETE"`
   - otherwise `"UNKNOWN"`
 
 ### THOUGHT / WILL / AWA (string)
-- Each of these is a movement flag:
-  - `"Manifested"` if the movement is considered minted.
-  - `"Latent"` otherwise.
-- Logic from stage:
-  - thought_minted = stage >= 1
-  - will_minted   = stage >= 2
-  - awa_minted    = stage >= 3
+- Each of these is a movement progress string: `Manifested(x/N)`.
+- Quotas are read from PathNFT for each movement.
+- Logic from stage + stage_minted:
+  - THOUGHT: `x_T = (stage > 0 ? N_T : stage_minted)`
+  - WILL: `x_W = (stage > 1 ? N_W : stage == 1 ? stage_minted : 0)`
+  - AWA: `x_A = (stage > 2 ? N_A : stage == 2 ? stage_minted : 0)`
 
 ## Data source notes
 - Stage is read from `PathNFT.get_stage(token_id)`.
-- PathLook does not store stage or movement flags; it derives them at read time.
+- Stage minted count is read from `PathNFT.get_stage_minted(token_id)`.
+- Quotas are read from `PathNFT.get_movement_quota(movement)`.
+- PathLook does not store stage or movement progress; it derives them at read time.

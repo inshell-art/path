@@ -60,8 +60,8 @@
 
   <!-- Movement flow -->
   <line class="edge" x1="900" y1="475" x2="800" y2="475" />
-  <text class="label" x="835" y="460">consume_movement()</text>
-  <text class="note" x="835" y="495">caller == authorized_minter</text>
+  <text class="label" x="835" y="460">consume_movement_unit()</text>
+  <text class="note" x="835" y="495">caller == authorized_minter; claimer == tx sender</text>
 
   <!-- Admin wiring -->
   <line class="edge" x1="600" y1="90" x2="690" y2="160" />

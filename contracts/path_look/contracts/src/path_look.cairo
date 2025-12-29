@@ -45,16 +45,6 @@ pub mod PathLook {
         y: i128,
     }
 
-    #[derive(Drop)]
-    struct Strand {
-        rank: u8,
-        path: ByteArray,
-        label: ByteArray,
-        r: felt252,
-        g: felt252,
-        b: felt252,
-    }
-
     #[abi(embed_v0)]
     impl PathLookImpl of super::IPathLook<ContractState> {
         fn generate_svg(
@@ -85,7 +75,12 @@ pub mod PathLook {
             const HEIGHT: u32 = 1024;
 
             let stage = self._stage_from_path_nft(path_nft, token_id);
-            let (thought_minted, will_minted, awa_minted) = self._stage_flags(stage);
+            let stage_minted = self._stage_minted_from_path_nft(path_nft, token_id);
+            let quota_thought = self._movement_quota_from_path_nft(path_nft, 'THOUGHT');
+            let quota_will = self._movement_quota_from_path_nft(path_nft, 'WILL');
+            let quota_awa = self._movement_quota_from_path_nft(path_nft, 'AWA');
+            let (thought_minted, will_minted, awa_minted) = self
+                ._progress_counts(stage, stage_minted, quota_thought, quota_will, quota_awa);
             let rng_seed = self._token_seed(token_id);
 
             let step_number = self._random_range(rng_seed, LABEL_STEP_COUNT, 0, 1, 50);
@@ -121,8 +116,6 @@ pub mod PathLook {
                 ti = ti + 1_usize;
             }
             thought_nodes.append(end);
-            let raw_thought_path = self._curve_d(@thought_nodes, sharpness);
-            let thought_path = self._strip_newlines(@raw_thought_path);
 
             let will_core = self._find_steps(
                 rng_seed, @targets, WIDTH, HEIGHT, LABEL_WILL_DX, LABEL_WILL_DY,
@@ -135,8 +128,6 @@ pub mod PathLook {
                 wi_i = wi_i + 1_usize;
             }
             will_nodes.append(end);
-            let raw_will_path = self._curve_d(@will_nodes, sharpness);
-            let will_path = self._strip_newlines(@raw_will_path);
 
             let awa_core = self._find_steps(
                 rng_seed, @targets, WIDTH, HEIGHT, LABEL_AWA_DX, LABEL_AWA_DY,
@@ -149,27 +140,8 @@ pub mod PathLook {
                 aw_i = aw_i + 1_usize;
             }
             awa_nodes.append(end);
-            let raw_awa_path = self._curve_d(@awa_nodes, sharpness);
-            let awa_path = self._strip_newlines(@raw_awa_path);
 
-            let mut minted: Array<Strand> = array![];
-            if thought_minted {
-                let mut label: ByteArray = Default::default();
-                label.append(@"thought");
-                minted.append(Strand { rank: 1_u8, path: thought_path, label, r: 0, g: 0, b: 255 });
-            }
-            if will_minted {
-                let mut label: ByteArray = Default::default();
-                label.append(@"will");
-                minted.append(Strand { rank: 2_u8, path: will_path, label, r: 255, g: 0, b: 0 });
-            }
-            if awa_minted {
-                let mut label: ByteArray = Default::default();
-                label.append(@"awa");
-                minted.append(Strand { rank: 3_u8, path: awa_path, label, r: 0, g: 255, b: 0 });
-            }
-
-            let any_minted = minted.len() > 0_usize;
+            let any_minted = thought_minted > 0_u32 || will_minted > 0_u32 || awa_minted > 0_u32;
             let sigma = if any_minted {
                 self._random_range(rng_seed, LABEL_SHARPNESS, 1, 3, 30)
             } else {
@@ -184,30 +156,6 @@ pub mod PathLook {
             defs.append(@"' fill='none' stroke-linecap='round' stroke-linejoin='round' /></g>");
 
             if any_minted {
-                let mut k: usize = 0_usize;
-                while k < minted.len() {
-                    let strand = minted.at(k);
-                    let path = strand.path;
-                    let id = strand.label;
-                    let r: u32 = (*strand.r).try_into().unwrap();
-                    let g: u32 = (*strand.g).try_into().unwrap();
-                    let b: u32 = (*strand.b).try_into().unwrap();
-                    defs.append(@"<g id='strand-");
-                    defs.append(id);
-                    defs.append(@"' filter='url(#lightUp)'><path d='");
-                    defs.append(path);
-                    defs.append(@"' stroke='rgb(");
-                    defs.append(@self._u32_to_string(r));
-                    defs.append(@",");
-                    defs.append(@self._u32_to_string(g));
-                    defs.append(@",");
-                    defs.append(@self._u32_to_string(b));
-                    defs.append(@"' stroke-width='");
-                    defs.append(@self._u32_to_string(stroke_w));
-                    defs.append(@"' fill='none' stroke-linecap='round' stroke-linejoin='round' /></g>");
-                    k = k + 1_usize;
-                }
-
                 defs.append(
                     @"<filter id='lightUp' filterUnits='userSpaceOnUse' x='-100%' y='-100%' width='200%' height='200%' color-interpolation-filters='sRGB'>",
                 );
@@ -235,14 +183,47 @@ pub mod PathLook {
             // Draw ideal first so it stays beneath any minted strands.
             svg.append(@"<use href='#ideal-src' style='mix-blend-mode:lighten;'/>");
             if any_minted {
-                let mut u: usize = 0_usize;
-                while u < minted.len() {
-                    let id = minted.at(u).label;
-                    svg.append(@"<use href='#strand-");
-                    svg.append(id);
-                    svg.append(@"' style='mix-blend-mode:lighten;'/>");
-                    u = u + 1_usize;
-                }
+                let mut thought_label: ByteArray = Default::default();
+                thought_label.append(@"thought");
+                self._append_segments(
+                    ref svg,
+                    @thought_label,
+                    0_u32,
+                    0_u32,
+                    255_u32,
+                    stroke_w,
+                    @thought_nodes,
+                    quota_thought,
+                    thought_minted,
+                );
+
+                let mut will_label: ByteArray = Default::default();
+                will_label.append(@"will");
+                self._append_segments(
+                    ref svg,
+                    @will_label,
+                    255_u32,
+                    0_u32,
+                    0_u32,
+                    stroke_w,
+                    @will_nodes,
+                    quota_will,
+                    will_minted,
+                );
+
+                let mut awa_label: ByteArray = Default::default();
+                awa_label.append(@"awa");
+                self._append_segments(
+                    ref svg,
+                    @awa_label,
+                    0_u32,
+                    255_u32,
+                    0_u32,
+                    stroke_w,
+                    @awa_nodes,
+                    quota_awa,
+                    awa_minted,
+                );
             }
             svg.append(@"</g></svg>");
 
@@ -264,7 +245,12 @@ pub mod PathLook {
             self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
             let stage = self._stage_from_path_nft(path_nft, token_id);
-            let (thought_minted, will_minted, awa_minted) = self._stage_flags(stage);
+            let stage_minted = self._stage_minted_from_path_nft(path_nft, token_id);
+            let quota_thought = self._movement_quota_from_path_nft(path_nft, 'THOUGHT');
+            let quota_will = self._movement_quota_from_path_nft(path_nft, 'WILL');
+            let quota_awa = self._movement_quota_from_path_nft(path_nft, 'AWA');
+            let (thought_minted, will_minted, awa_minted) = self
+                ._progress_counts(stage, stage_minted, quota_thought, quota_will, quota_awa);
             let rng_seed = self._token_seed(token_id);
             let token_id_str = self._u256_to_string(token_id);
 
@@ -276,7 +262,7 @@ pub mod PathLook {
             let _targets_ignore = self._find_targets(rng_seed, WIDTH, HEIGHT, step_number, padding);
             let stroke_w = self._max_u32(1, self._round_div(100, step_number));
             let sharpness = self._random_range(rng_seed, LABEL_SHARPNESS, 0, 1, 20);
-            let any_minted = thought_minted || will_minted || awa_minted;
+            let any_minted = thought_minted > 0_u32 || will_minted > 0_u32 || awa_minted > 0_u32;
             let sigma_val = if any_minted {
                 self._random_range(rng_seed, LABEL_SHARPNESS, 1, 3, 30)
             } else {
@@ -285,7 +271,7 @@ pub mod PathLook {
             let mut metadata: ByteArray = Default::default();
             let data_uri = self._generate_svg_data_uri(path_nft, token_id);
 
-            let description: ByteArray = "**Steps** sets the cadence; **Voice** sets how loudly the strand speaks.  **Tension** controls how tightly the curve pulls between waypoints.  The **Ideal Path** is the reference trajectory drawn first, always beneath.  The token gains its living strands through three **Movements**: THOUGHT, WILL, and AWA.  **Stage** marks the current progression, while **THOUGHT**, **WILL**, and **AWA** record which Movements have appeared (Manifested / Latent).  When the first Movement appears, **Breath** awakens as one shared atmosphere across every living strand.";
+            let description: ByteArray = "**Steps** sets the cadence; **Voice** sets how loudly the strand speaks.  **Tension** controls how tightly the curve pulls between waypoints.  The **Ideal Path** is the reference trajectory drawn first, always beneath.  The token gains its living strands through three **Movements**: THOUGHT, WILL, and AWA.  **Stage** marks the current progression, while **THOUGHT**, **WILL**, and **AWA** record progress as Manifested(x/N).  When the first Movement appears, **Breath** awakens as one shared atmosphere across every living strand.";
 
             metadata.append(@"{\"name\":\"PATH #");
             metadata.append(@token_id_str);
@@ -327,15 +313,15 @@ pub mod PathLook {
             metadata.append(@",");
 
             metadata.append(@"{\"trait_type\":\"THOUGHT\",\"value\":\"");
-            metadata.append(@self._manifest_string(thought_minted));
+            metadata.append(@self._manifest_progress(thought_minted, quota_thought));
             metadata.append(@"\"},");
 
             metadata.append(@"{\"trait_type\":\"WILL\",\"value\":\"");
-            metadata.append(@self._manifest_string(will_minted));
+            metadata.append(@self._manifest_progress(will_minted, quota_will));
             metadata.append(@"\"},");
 
             metadata.append(@"{\"trait_type\":\"AWA\",\"value\":\"");
-            metadata.append(@self._manifest_string(awa_minted));
+            metadata.append(@self._manifest_progress(awa_minted, quota_awa));
             metadata.append(@"\"}");
 
             metadata.append(@"]");
@@ -358,19 +344,52 @@ pub mod PathLook {
             dispatcher.get_stage(token_id)
         }
 
-        fn _stage_flags(self: @ContractState, stage: u8) -> (bool, bool, bool) {
-            let thought = stage >= 1_u8;
-            let will = stage >= 2_u8;
-            let awa = stage >= 3_u8;
+        fn _stage_minted_from_path_nft(
+            self: @ContractState, path_nft: ContractAddress, token_id: u256,
+        ) -> u32 {
+            let dispatcher = IPathNFTStageDispatcher { contract_address: path_nft };
+            dispatcher.get_stage_minted(token_id)
+        }
+
+        fn _movement_quota_from_path_nft(
+            self: @ContractState, path_nft: ContractAddress, movement: felt252,
+        ) -> u32 {
+            let dispatcher = IPathNFTStageDispatcher { contract_address: path_nft };
+            dispatcher.get_movement_quota(movement)
+        }
+
+        fn _progress_counts(
+            self: @ContractState,
+            stage: u8,
+            stage_minted: u32,
+            quota_thought: u32,
+            quota_will: u32,
+            quota_awa: u32,
+        ) -> (u32, u32, u32) {
+            let thought = if stage > 0_u8 { quota_thought } else { stage_minted };
+            let will = if stage > 1_u8 {
+                quota_will
+            } else if stage == 1_u8 {
+                stage_minted
+            } else {
+                0_u32
+            };
+            let awa = if stage > 2_u8 {
+                quota_awa
+            } else if stage == 2_u8 {
+                stage_minted
+            } else {
+                0_u32
+            };
             (thought, will, awa)
         }
 
         fn _stage_label(self: @ContractState, stage: u8) -> ByteArray {
             match stage {
-                0_u8 => "IDEAL",
-                1_u8 => "THOUGHT",
-                2_u8 => "WILL",
-                3_u8 => "AWA",
+                0_u8 => "THOUGHT",
+                1_u8 => "WILL",
+                2_u8 => "AWA",
+                3_u8 => "COMPLETE",
                 _ => "UNKNOWN",
             }
         }
@@ -511,6 +530,203 @@ pub mod PathLook {
             Serde::deserialize(ref rendered_span).unwrap()
         }
 
+        fn _append_segments(
+            self: @ContractState,
+            ref svg: ByteArray,
+            label: @ByteArray,
+            r: u32,
+            g: u32,
+            b: u32,
+            stroke_w: u32,
+            steps: @Array<Step>,
+            quota: u32,
+            minted: u32,
+        ) {
+            if minted == 0_u32 || steps.len() < 2_usize {
+                return;
+            }
+
+            let segments = if quota == 0_u32 { 1_u32 } else { quota };
+            let points = self._segment_points(steps, segments);
+            if points.len() < 2_usize {
+                return;
+            }
+
+            let mut filled: usize = minted.try_into().unwrap();
+            let total_segments = points.len() - 1_usize;
+            if filled > total_segments {
+                filled = total_segments;
+            }
+            if filled == 0_usize {
+                return;
+            }
+
+            svg.append(@"<g id='segments-");
+            svg.append(label);
+            svg.append(@"' filter='url(#lightUp)' style='mix-blend-mode:lighten;'>");
+
+            let mut i: usize = 0_usize;
+            while i < filled {
+                let start = *points.at(i);
+                let end = *points.at(i + 1_usize);
+                let idx: u32 = i.try_into().unwrap();
+
+                svg.append(@"<path id='segment-");
+                svg.append(label);
+                svg.append(@"-");
+                svg.append(@self._u32_to_string(idx));
+                svg.append(@"' d='M ");
+                svg.append(@self._i128_to_string(start.x));
+                svg.append(@" ");
+                svg.append(@self._i128_to_string(start.y));
+                svg.append(@" L ");
+                svg.append(@self._i128_to_string(end.x));
+                svg.append(@" ");
+                svg.append(@self._i128_to_string(end.y));
+                svg.append(@"' stroke='rgb(");
+                svg.append(@self._u32_to_string(r));
+                svg.append(@",");
+                svg.append(@self._u32_to_string(g));
+                svg.append(@",");
+                svg.append(@self._u32_to_string(b));
+                svg.append(@"' stroke-width='");
+                svg.append(@self._u32_to_string(stroke_w));
+                svg.append(@"' fill='none' stroke-linecap='round' stroke-linejoin='round'/>");
+
+                i = i + 1_usize;
+            }
+
+            svg.append(@"</g>");
+        }
+
+        fn _segment_points(self: @ContractState, steps: @Array<Step>, segments: u32) -> Array<Step> {
+            let mut out: Array<Step> = array![];
+            if steps.len() < 2_usize || segments == 0_u32 {
+                return out;
+            }
+
+            let total = self._polyline_length(steps);
+            let last_idx = steps.len() - 1_usize;
+            if total == 0_u32 {
+                let start = *steps.at(0_usize);
+                let mut i: u32 = 0_u32;
+                while i <= segments {
+                    out.append(start);
+                    i = i + 1_u32;
+                }
+                return out;
+            }
+
+            let mut seg_idx: usize = 0_usize;
+            let mut seg_start = *steps.at(seg_idx);
+            let mut seg_end = *steps.at(seg_idx + 1_usize);
+            let mut seg_len = self._segment_length(seg_start, seg_end);
+            let mut walked: u32 = 0_u32;
+            let total_u64: u64 = total.into();
+            let segments_u64: u64 = segments.into();
+
+            let mut i: u32 = 0_u32;
+            while i <= segments {
+                if i == segments {
+                    out.append(*steps.at(last_idx));
+                    break;
+                }
+                let target_u64 = (total_u64 * i.into()) / segments_u64;
+                let target: u32 = target_u64.try_into().unwrap();
+
+                while walked + seg_len < target {
+                    walked = walked + seg_len;
+                    if seg_idx + 1_usize >= last_idx {
+                        break;
+                    }
+                    seg_idx = seg_idx + 1_usize;
+                    seg_start = *steps.at(seg_idx);
+                    seg_end = *steps.at(seg_idx + 1_usize);
+                    seg_len = self._segment_length(seg_start, seg_end);
+                    if seg_len == 0_u32 {
+                        continue;
+                    }
+                }
+
+                if seg_len == 0_u32 {
+                    out.append(seg_end);
+                } else {
+                    let rem = target - walked;
+                    out.append(self._interpolate(seg_start, seg_end, rem, seg_len));
+                }
+                i = i + 1_u32;
+            }
+
+            out
+        }
+
+        fn _polyline_length(self: @ContractState, steps: @Array<Step>) -> u32 {
+            let mut total: u64 = 0_u64;
+            let mut i: usize = 0_usize;
+            while i + 1_usize < steps.len() {
+                let a = *steps.at(i);
+                let b = *steps.at(i + 1_usize);
+                let seg_len = self._segment_length(a, b);
+                total = total + seg_len.into();
+                i = i + 1_usize;
+            }
+            total.try_into().unwrap()
+        }
+
+        fn _segment_length(self: @ContractState, a: Step, b: Step) -> u32 {
+            let dx = a.x - b.x;
+            let dy = a.y - b.y;
+            let dx_u: u128 = self._abs_i128(dx);
+            let dy_u: u128 = self._abs_i128(dy);
+            let sum: u128 = dx_u * dx_u + dy_u * dy_u;
+            let len = self._sqrt_u128(sum);
+            len.try_into().unwrap()
+        }
+
+        fn _interpolate(self: @ContractState, a: Step, b: Step, num: u32, den: u32) -> Step {
+            if den == 0_u32 {
+                return a;
+            }
+            let num_i: i128 = num.into();
+            let den_i: i128 = den.into();
+            let dx = b.x - a.x;
+            let dy = b.y - a.y;
+            let x = a.x + (dx * num_i) / den_i;
+            let y = a.y + (dy * num_i) / den_i;
+            Step { x, y }
+        }
+
+        fn _abs_i128(self: @ContractState, value: i128) -> u128 {
+            if value >= 0_i128 {
+                value.try_into().unwrap()
+            } else {
+                (0_i128 - value).try_into().unwrap()
+            }
+        }
+
+        fn _sqrt_u128(self: @ContractState, value: u128) -> u128 {
+            if value == 0_u128 {
+                return 0_u128;
+            }
+            let mut low: u128 = 1_u128;
+            let mut high: u128 = value;
+            let mut ans: u128 = 0_u128;
+            while low <= high {
+                let mid = (low + high) / 2_u128;
+                let sq = mid * mid;
+                if sq == value {
+                    return mid;
+                }
+                if sq < value {
+                    ans = mid;
+                    low = mid + 1_u128;
+                } else {
+                    high = mid - 1_u128;
+                }
+            }
+            ans
+        }
+
         fn _u128_to_string(self: @ContractState, value: u128) -> ByteArray {
             if value == 0_u128 {
                 return "0";
@@ -584,12 +800,14 @@ pub mod PathLook {
             result
         }
 
-        fn _manifest_string(self: @ContractState, minted: bool) -> ByteArray {
-            if minted {
-                "Manifested"
-            } else {
-                "Latent"
-            }
+        fn _manifest_progress(self: @ContractState, minted: u32, quota: u32) -> ByteArray {
+            let mut out: ByteArray = Default::default();
+            out.append(@"Manifested(");
+            out.append(@self._u32_to_string(minted));
+            out.append(@"/");
+            out.append(@self._u32_to_string(quota));
+            out.append(@")");
+            out
         }
 
         fn _strip_newlines(self: @ContractState, svg: @ByteArray) -> ByteArray {
@@ -659,6 +877,8 @@ use starknet::ContractAddress;
 #[starknet::interface]
 pub trait IPathNFTStage<TContractState> {
     fn get_stage(self: @TContractState, token_id: u256) -> u8;
+    fn get_stage_minted(self: @TContractState, token_id: u256) -> u32;
+    fn get_movement_quota(self: @TContractState, movement: felt252) -> u32;
 }
 
 #[starknet::interface]

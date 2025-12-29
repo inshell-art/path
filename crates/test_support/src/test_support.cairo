@@ -112,6 +112,7 @@ mod TestERC721Receiver {
 
 #[starknet::contract]
 mod TestPathLook {
+    use core::array::{Array, ArrayTrait};
     use core::byte_array::ByteArrayTrait;
     use core::to_byte_array::AppendFormattedToByteArray;
     use core::traits::TryInto;
@@ -155,7 +156,13 @@ mod TestPathLook {
             self: @ContractState, path_nft: ContractAddress, token_id: u256,
         ) -> ByteArray {
             let stage = stage_from_nft(path_nft, token_id);
-            let (thought, will, awa) = stage_flags(stage);
+            let stage_minted = stage_minted_from_nft(path_nft, token_id);
+            let quota_thought = quota_from_nft(path_nft, 'THOUGHT');
+            let quota_will = quota_from_nft(path_nft, 'WILL');
+            let quota_awa = quota_from_nft(path_nft, 'AWA');
+            let (thought, will, awa) = progress_counts(
+                stage, stage_minted, quota_thought, quota_will, quota_awa,
+            );
             let token_id_str = u256_to_string(token_id);
             let mut out: ByteArray = Default::default();
             out.append(@"{\"token\":");
@@ -163,11 +170,11 @@ mod TestPathLook {
             out.append(@",\"stage\":\"");
             out.append(@stage_label(stage));
             out.append(@"\",\"thought\":\"");
-            out.append(@manifest_string(thought));
+            out.append(@manifest_progress(thought, quota_thought));
             out.append(@"\",\"will\":\"");
-            out.append(@manifest_string(will));
+            out.append(@manifest_progress(will, quota_will));
             out.append(@"\",\"awa\":\"");
-            out.append(@manifest_string(awa));
+            out.append(@manifest_progress(awa, quota_awa));
             out.append(@"\"}");
             out
         }
@@ -178,26 +185,85 @@ mod TestPathLook {
         nft.get_stage(token_id)
     }
 
-    fn stage_flags(stage: u8) -> (bool, bool, bool) {
-        (stage >= 1_u8, stage >= 2_u8, stage >= 3_u8)
+    fn stage_minted_from_nft(path_nft: ContractAddress, token_id: u256) -> u32 {
+        let nft = IPathNFTDispatcher { contract_address: path_nft };
+        nft.get_stage_minted(token_id)
+    }
+
+    fn quota_from_nft(path_nft: ContractAddress, movement: felt252) -> u32 {
+        let nft = IPathNFTDispatcher { contract_address: path_nft };
+        nft.get_movement_quota(movement)
+    }
+
+    fn progress_counts(
+        stage: u8, stage_minted: u32, quota_thought: u32, quota_will: u32, quota_awa: u32,
+    ) -> (u32, u32, u32) {
+        let thought = if stage > 0_u8 {
+            quota_thought
+        } else {
+            stage_minted
+        };
+        let will = if stage > 1_u8 {
+            quota_will
+        } else if stage == 1_u8 {
+            stage_minted
+        } else {
+            0_u32
+        };
+        let awa = if stage > 2_u8 {
+            quota_awa
+        } else if stage == 2_u8 {
+            stage_minted
+        } else {
+            0_u32
+        };
+        (thought, will, awa)
     }
 
     fn stage_label(stage: u8) -> ByteArray {
         match stage {
-            0_u8 => "IDEAL",
-            1_u8 => "THOUGHT",
-            2_u8 => "WILL",
-            3_u8 => "AWA",
+            0_u8 => "THOUGHT",
+            1_u8 => "WILL",
+            2_u8 => "AWA",
+            3_u8 => "COMPLETE",
             _ => "UNKNOWN",
         }
     }
 
-    fn manifest_string(minted: bool) -> ByteArray {
-        if minted {
-            "Manifested"
-        } else {
-            "Latent"
+    fn manifest_progress(minted: u32, quota: u32) -> ByteArray {
+        let mut out: ByteArray = Default::default();
+        out.append(@"Manifested(");
+        out.append(@u32_to_string(minted));
+        out.append(@"/");
+        out.append(@u32_to_string(quota));
+        out.append(@")");
+        out
+    }
+
+    fn u32_to_string(value: u32) -> ByteArray {
+        if value == 0_u32 {
+            return "0";
         }
+
+        let mut num = value;
+        let mut digits: Array<u8> = array![];
+
+        while num != 0_u32 {
+            let digit: u8 = (num % 10_u32).try_into().unwrap();
+            digits.append(digit);
+            num = num / 10_u32;
+        }
+
+        let mut result: ByteArray = Default::default();
+        let mut i = digits.len();
+        while i > 0_usize {
+            i = i - 1_usize;
+            let digit = *digits.at(i);
+            let digit_char = digit + 48_u8;
+            result.append_byte(digit_char);
+        }
+
+        result
     }
 
     fn u256_to_string(value: u256) -> ByteArray {

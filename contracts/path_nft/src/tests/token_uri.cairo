@@ -5,8 +5,8 @@ use openzeppelin::token::erc721::interface::{
 };
 use path_interfaces::interfaces::IPathNFTDispatcherTrait;
 use path_test_support::prelude::*;
-use snforge_std::cheat_caller_address;
 use snforge_std::cheatcodes::CheatSpan;
+use snforge_std::{cheat_account_contract_address, cheat_caller_address};
 
 const T0: u256 = 0_u256;
 
@@ -16,6 +16,11 @@ fn token_uri_wraps_path_look_metadata() {
     let to = deploy_receiver();
 
     grant_minter_on_nft(@h, MINTER());
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(3));
+    h.nft.set_movement_quota('THOUGHT', 1_u32);
+    h.nft.set_movement_quota('WILL', 1_u32);
+    h.nft.set_movement_quota('AWA', 1_u32);
+
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T0, array![1, 2, 3].span());
 
@@ -25,10 +30,10 @@ fn token_uri_wraps_path_look_metadata() {
     ); // OZ metadata returns JSON ByteArray. :contentReference[oaicite:6]{index=6}
 
     assert!(contains_bytes(@uri, @"\"token\":"));
-    assert!(contains_bytes(@uri, @"\"stage\":\"IDEAL\""));
-    assert!(contains_bytes(@uri, @"\"thought\":\"Latent\""));
-    assert!(contains_bytes(@uri, @"\"will\":\"Latent\""));
-    assert!(contains_bytes(@uri, @"\"awa\":\"Latent\""));
+    assert!(contains_bytes(@uri, @"\"stage\":\"THOUGHT\""));
+    assert!(contains_bytes(@uri, @"\"thought\":\"Manifested(0/1)\""));
+    assert!(contains_bytes(@uri, @"\"will\":\"Manifested(0/1)\""));
+    assert!(contains_bytes(@uri, @"\"awa\":\"Manifested(0/1)\""));
 }
 
 #[test]
@@ -37,20 +42,24 @@ fn token_uri_reflects_stage_after_movement() {
     let to = deploy_receiver();
 
     grant_minter_on_nft(@h, MINTER());
-    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(4));
     h.nft.set_authorized_minter('THOUGHT', ALICE());
+    h.nft.set_movement_quota('THOUGHT', 1_u32);
+    h.nft.set_movement_quota('WILL', 1_u32);
+    h.nft.set_movement_quota('AWA', 1_u32);
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T0, array![].span());
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
-    h.nft.consume_movement(T0, 'THOUGHT', to);
+    cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
+    h.nft.consume_movement_unit(T0, 'THOUGHT', to);
 
     let uri = h.meta.token_uri(T0);
-    assert!(contains_bytes(@uri, @"\"stage\":\"THOUGHT\""));
-    assert!(contains_bytes(@uri, @"\"thought\":\"Manifested\""));
-    assert!(contains_bytes(@uri, @"\"will\":\"Latent\""));
-    assert!(contains_bytes(@uri, @"\"awa\":\"Latent\""));
+    assert!(contains_bytes(@uri, @"\"stage\":\"WILL\""));
+    assert!(contains_bytes(@uri, @"\"thought\":\"Manifested(1/1)\""));
+    assert!(contains_bytes(@uri, @"\"will\":\"Manifested(0/1)\""));
+    assert!(contains_bytes(@uri, @"\"awa\":\"Manifested(0/1)\""));
 }
 
 #[test]

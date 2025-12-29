@@ -47,10 +47,20 @@ pub trait IPathNFT<TContractState> {
     /// Read the current stage for a PATH token.
     fn get_stage(self: @TContractState, token_id: u256) -> u8;
 
-    /// Consume a PATH token movement (called by authorized movement contracts).
-    fn consume_movement(
+    /// Read the minted count in the current stage for a PATH token.
+    fn get_stage_minted(self: @TContractState, token_id: u256) -> u32;
+
+    /// Set the quota for a movement step.
+    fn set_movement_quota(ref self: TContractState, movement: felt252, quota: u32);
+
+    /// Read the quota for a movement step.
+    fn get_movement_quota(self: @TContractState, movement: felt252) -> u32;
+
+    /// Consume one unit of movement progress (called by authorized movement contracts).
+    /// Returns a 0-based serial for the current movement step.
+    fn consume_movement_unit(
         ref self: TContractState, path_token_id: u256, movement: felt252, claimer: ContractAddress,
-    );
+    ) -> u32;
 }
 
 #[starknet::interface]

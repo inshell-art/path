@@ -55,6 +55,9 @@ mod PathNFT {
         access_control: AccessControlComponent::Storage,
         path_look_addr: ContractAddress,
         stage: Map<u256, u8>,
+        stage_minted: Map<u256, u32>,
+        movement_quota: Map<felt252, u32>,
+        movement_frozen: Map<felt252, bool>,
         authorized_minter: Map<felt252, ContractAddress>,
     }
 
@@ -63,6 +66,12 @@ mod PathNFT {
         path_token_id: u256,
         movement: felt252,
         claimer: ContractAddress,
+        serial: u32,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct MovementFrozen {
+        movement: felt252,
     }
 
     #[event]
@@ -75,6 +84,7 @@ mod PathNFT {
         #[flat]
         AccessControlEvent: AccessControlComponent::Event,
         MovementConsumed: MovementConsumed,
+        MovementFrozen: MovementFrozen,
     }
 
     #[constructor]
@@ -122,6 +132,7 @@ mod PathNFT {
             self.access_control.assert_only_role(MINTER_ROLE);
             self.erc721.safe_mint(recipient, token_id, data);
             self.stage.write(token_id, 0_u8);
+            self.stage_minted.write(token_id, 0_u32);
         }
 
         fn safeMint(
@@ -147,6 +158,9 @@ mod PathNFT {
         ) {
             self.access_control.assert_only_role(DEFAULT_ADMIN_ROLE);
             assert_valid_movement(movement);
+            if self.movement_frozen.read(movement) {
+                panic_with_felt252('MOVEMENT_FROZEN')
+            }
             if minter.is_zero() {
                 panic_with_felt252('ZERO_MINTER')
             }
@@ -162,17 +176,43 @@ mod PathNFT {
             self.stage.read(token_id)
         }
 
-        fn consume_movement(
+        fn get_stage_minted(self: @ContractState, token_id: u256) -> u32 {
+            self.erc721._require_owned(token_id);
+            self.stage_minted.read(token_id)
+        }
+
+        fn set_movement_quota(ref self: ContractState, movement: felt252, quota: u32) {
+            self.access_control.assert_only_role(DEFAULT_ADMIN_ROLE);
+            assert_valid_movement(movement);
+            if self.movement_frozen.read(movement) {
+                panic_with_felt252('MOVEMENT_FROZEN')
+            }
+            if quota == 0_u32 {
+                panic_with_felt252('ZERO_QUOTA')
+            }
+            self.movement_quota.write(movement, quota);
+        }
+
+        fn get_movement_quota(self: @ContractState, movement: felt252) -> u32 {
+            self.movement_quota.read(movement)
+        }
+
+        fn consume_movement_unit(
             ref self: ContractState,
             path_token_id: u256,
             movement: felt252,
             claimer: ContractAddress,
-        ) {
+        ) -> u32 {
             assert_valid_movement(movement);
             let authorized = self.authorized_minter.read(movement);
             let caller = starknet::get_caller_address();
             if authorized.is_zero() || caller != authorized {
                 panic_with_felt252('ERR_UNAUTHORIZED_MINTER');
+            }
+
+            let tx = starknet::get_tx_info().unbox();
+            if claimer != tx.account_contract_address {
+                panic_with_felt252('BAD_CLAIMER');
             }
 
             let owner = self.erc721.owner_of(path_token_id);
@@ -181,9 +221,37 @@ mod PathNFT {
             }
 
             let current = self.stage.read(path_token_id);
-            let next = next_stage(current, movement);
-            self.stage.write(path_token_id, next);
-            self.emit(MovementConsumed { path_token_id, movement, claimer });
+            let expected = expected_movement_for_stage(current);
+            if movement != expected {
+                panic_with_felt252('BAD_MOVEMENT_ORDER');
+            }
+
+            if !self.movement_frozen.read(movement) {
+                self.movement_frozen.write(movement, true);
+                self.emit(MovementFrozen { movement });
+            }
+
+            let quota = self.movement_quota.read(movement);
+            if quota == 0_u32 {
+                panic_with_felt252('ZERO_QUOTA');
+            }
+
+            let minted = self.stage_minted.read(path_token_id);
+            if minted >= quota {
+                panic_with_felt252('QUOTA_EXHAUSTED');
+            }
+
+            let serial = minted;
+            let minted_next = minted + 1_u32;
+            if minted_next == quota {
+                self.stage.write(path_token_id, current + 1_u8);
+                self.stage_minted.write(path_token_id, 0_u32);
+            } else {
+                self.stage_minted.write(path_token_id, minted_next);
+            }
+
+            self.emit(MovementConsumed { path_token_id, movement, claimer, serial });
+            serial
         }
     }
 
@@ -223,26 +291,17 @@ mod PathNFT {
         }
     }
 
-    fn next_stage(current: u8, movement: felt252) -> u8 {
-        if movement == MOVEMENT_THOUGHT {
-            if current != 0_u8 {
-                panic_with_felt252('BAD_STAGE')
-            }
-            return 1_u8;
+    fn expected_movement_for_stage(stage: u8) -> felt252 {
+        if stage == 0_u8 {
+            return MOVEMENT_THOUGHT;
         }
-        if movement == MOVEMENT_WILL {
-            if current != 1_u8 {
-                panic_with_felt252('BAD_STAGE')
-            }
-            return 2_u8;
+        if stage == 1_u8 {
+            return MOVEMENT_WILL;
         }
-        if movement == MOVEMENT_AWA {
-            if current != 2_u8 {
-                panic_with_felt252('BAD_STAGE')
-            }
-            return 3_u8;
+        if stage == 2_u8 {
+            return MOVEMENT_AWA;
         }
-        panic_with_felt252('BAD_MOVEMENT')
+        panic_with_felt252('BAD_STAGE')
     }
     #[cfg(test)]
     mod unit {
