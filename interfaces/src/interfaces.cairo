@@ -38,8 +38,10 @@ pub trait IPathNFT<TContractState> {
     /// Read the configured PathLook contract address.
     fn get_path_look(self: @TContractState) -> ContractAddress;
 
-    /// Set the authorized movement minter for a movement tag.
-    fn set_authorized_minter(ref self: TContractState, movement: felt252, minter: ContractAddress);
+    /// Set the authorized movement minter and fixed quota for a movement.
+    fn set_movement_config(
+        ref self: TContractState, movement: felt252, minter: ContractAddress, quota: u32,
+    );
 
     /// Read the authorized movement minter for a movement tag.
     fn get_authorized_minter(self: @TContractState, movement: felt252) -> ContractAddress;
@@ -50,16 +52,13 @@ pub trait IPathNFT<TContractState> {
     /// Read the minted count in the current stage for a PATH token.
     fn get_stage_minted(self: @TContractState, token_id: u256) -> u32;
 
-    /// Set the quota for a movement step.
-    fn set_movement_quota(ref self: TContractState, movement: felt252, quota: u32);
-
     /// Read the quota for a movement step.
     fn get_movement_quota(self: @TContractState, movement: felt252) -> u32;
 
     /// Consume one unit of movement progress (called by authorized movement contracts).
     /// Returns a 0-based serial for the current movement step.
-    fn consume_movement_unit(
-        ref self: TContractState, path_token_id: u256, movement: felt252, claimer: ContractAddress,
+    fn consume_unit(
+        ref self: TContractState, path_id: u256, movement: felt252, claimer: ContractAddress,
     ) -> u32;
 }
 

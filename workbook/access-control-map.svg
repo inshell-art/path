@@ -60,7 +60,7 @@
 
   <!-- Movement flow -->
   <line class="edge" x1="900" y1="475" x2="800" y2="475" />
-  <text class="label" x="835" y="460">consume_movement_unit()</text>
+  <text class="label" x="835" y="460">consume_unit()</text>
   <text class="note" x="835" y="495">caller == authorized_minter; claimer == tx sender</text>
 
   <!-- Admin wiring -->
@@ -74,7 +74,7 @@
   <text class="note" x="610" y="380">AccessControl: grant MINTER_ROLE to PathMinter</text>
 
   <line class="edge" x1="720" y1="90" x2="910" y2="440" />
-  <text class="note" x="915" y="420">set_authorized_minter</text>
+  <text class="note" x="915" y="420">set_movement_config</text>
 
   <!-- Legend -->
   <text class="label" x="60" y="640">Legend:</text>

@@ -32,10 +32,10 @@ PathNFT.safe_mint(...)          [require MINTER_ROLE]
   v
 PathNFT token minted + stage=0
 
-MovementMinter (authorized via PathNFT admin)
+MovementMinter (configured via PathNFT admin)
   |
   v
-PathNFT.consume_movement_unit(...)   [caller == authorized minter, claimer is tx sender + owner/approved]
+PathNFT.consume_unit(...)   [caller == authorized minter, claimer is tx sender + owner/approved]
   |
   v
 PathNFT stage advanced
@@ -88,11 +88,11 @@ PathNFT.safe_mint(...)          [requires MINTER_ROLE]
   - `MINTER_ROLE`: required for `safe_mint`.
 - Admin-only setters (DEFAULT_ADMIN_ROLE):
   - `set_path_look(path_look)`
-  - `set_authorized_minter(movement, minter)`
+  - `set_movement_config(movement, minter, quota)`
 - Movement gating (not AccessControl):
-  - `consume_movement_unit(...)` requires caller == `authorized_minter[movement]`,
+  - `consume_unit(...)` requires caller == `authorized_minter[movement]`,
     `claimer == tx sender`, and `claimer` must be owner/approved for the PathNFT token.
-- Stage is advanced inside PathNFT when `consume_movement_unit` succeeds.
+- Stage is advanced inside PathNFT when `consume_unit` succeeds.
 
 ## Orchestration path (typical sale)
 
@@ -116,5 +116,5 @@ PathNFT.safe_mint(...)          [requires MINTER_ROLE]
 
 ## Notes
 - There is no PathNFT adapter in this repo.
-- Movement minters are registered in PathNFT via `set_authorized_minter`; they are distinct from
-  the minting flow and are used to advance stage through `consume_movement_unit`.
+- Movement minters are registered in PathNFT via `set_movement_config`; they are distinct from
+  the minting flow and are used to advance stage through `consume_unit`.

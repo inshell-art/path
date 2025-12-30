@@ -200,45 +200,30 @@ fn cfg_set_path_look_admin_only_and_rejects_zero() {
 
 #[test]
 #[feature("safe_dispatcher")]
-fn cfg_set_authorized_minter_admin_only_and_rejects_zero() {
+fn cfg_set_movement_config_admin_only_and_rejects_zero() {
     let h = deploy_path_nft_default();
 
     cheat_caller_address(h.addr, BOB(), CheatSpan::TargetCalls(1));
-    match h.nft_safe.set_authorized_minter('THOUGHT', ALICE()) {
-        Result::Ok(_) => panic!("non-admin set_authorized_minter should revert"),
+    match h.nft_safe.set_movement_config('THOUGHT', ALICE(), 3_u32) {
+        Result::Ok(_) => panic!("non-admin set_movement_config should revert"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'Caller is missing role'); },
     }
 
     cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
-    match h.nft_safe.set_authorized_minter('THOUGHT', ZERO_ADDR()) {
+    match h.nft_safe.set_movement_config('THOUGHT', ZERO_ADDR(), 3_u32) {
         Result::Ok(_) => panic!("zero minter should revert"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ZERO_MINTER'); },
     }
 
     cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
-    h.nft.set_authorized_minter('THOUGHT', ALICE());
-    assert_eq!(h.nft.get_authorized_minter('THOUGHT'), ALICE());
-}
-
-#[test]
-#[feature("safe_dispatcher")]
-fn cfg_set_movement_quota_admin_only_and_rejects_zero() {
-    let h = deploy_path_nft_default();
-
-    cheat_caller_address(h.addr, BOB(), CheatSpan::TargetCalls(1));
-    match h.nft_safe.set_movement_quota('THOUGHT', 3_u32) {
-        Result::Ok(_) => panic!("non-admin set_movement_quota should revert"),
-        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'Caller is missing role'); },
-    }
-
-    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
-    match h.nft_safe.set_movement_quota('THOUGHT', 0_u32) {
+    match h.nft_safe.set_movement_config('THOUGHT', ALICE(), 0_u32) {
         Result::Ok(_) => panic!("zero quota should revert"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ZERO_QUOTA'); },
     }
 
     cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
-    h.nft.set_movement_quota('THOUGHT', 3_u32);
+    h.nft.set_movement_config('THOUGHT', ALICE(), 3_u32);
+    assert_eq!(h.nft.get_authorized_minter('THOUGHT'), ALICE());
     assert_eq!(h.nft.get_movement_quota('THOUGHT'), 3_u32);
 }
 
@@ -570,7 +555,7 @@ fn movement_consume_requires_authorized_minter() {
     h.nft.safe_mint(to, T1, array![].span());
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
-    match h.nft_safe.consume_movement_unit(T1, 'THOUGHT', to) {
+    match h.nft_safe.consume_unit(T1, 'THOUGHT', to) {
         Result::Ok(_) => panic!("expected unauthorized minter revert"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ERR_UNAUTHORIZED_MINTER'); },
     }
@@ -582,16 +567,15 @@ fn movement_consume_invalid_movement_reverts() {
     let h = deploy_path_nft_default();
     let to = deploy_receiver();
 
-    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(3));
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(2));
     h.ac.grant_role(MINTER_ROLE, MINTER());
-    h.nft.set_authorized_minter('THOUGHT', ALICE());
-    h.nft.set_movement_quota('THOUGHT', 1_u32);
+    h.nft.set_movement_config('THOUGHT', ALICE(), 1_u32);
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
-    match h.nft_safe.consume_movement_unit(T1, 'DREAM', to) {
+    match h.nft_safe.consume_unit(T1, 'DREAM', to) {
         Result::Ok(_) => panic!("invalid movement should revert"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'BAD_MOVEMENT'); },
     }
@@ -603,17 +587,16 @@ fn movement_consume_requires_owner_or_approved_claimer() {
     let h = deploy_path_nft_default();
     let to = deploy_receiver();
 
-    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(5));
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(2));
     h.ac.grant_role(MINTER_ROLE, MINTER());
-    h.nft.set_authorized_minter('THOUGHT', ALICE());
-    h.nft.set_movement_quota('THOUGHT', 1_u32);
+    h.nft.set_movement_config('THOUGHT', ALICE(), 1_u32);
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, BOB(), CheatSpan::TargetCalls(1));
-    match h.nft_safe.consume_movement_unit(T1, 'THOUGHT', BOB()) {
+    match h.nft_safe.consume_unit(T1, 'THOUGHT', BOB()) {
         Result::Ok(_) => panic!("unapproved claimer should revert"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ERR_NOT_OWNER'); },
     }
@@ -624,10 +607,9 @@ fn movement_consume_allows_approved_claimer() {
     let h = deploy_path_nft_default();
     let to = deploy_receiver();
 
-    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(3));
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(2));
     h.ac.grant_role(MINTER_ROLE, MINTER());
-    h.nft.set_authorized_minter('THOUGHT', ALICE());
-    h.nft.set_movement_quota('THOUGHT', 1_u32);
+    h.nft.set_movement_config('THOUGHT', ALICE(), 1_u32);
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
@@ -637,7 +619,7 @@ fn movement_consume_allows_approved_claimer() {
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, BOB(), CheatSpan::TargetCalls(1));
-    let serial = h.nft.consume_movement_unit(T1, 'THOUGHT', BOB());
+    let serial = h.nft.consume_unit(T1, 'THOUGHT', BOB());
     assert_eq!(serial, 0_u32);
     assert_eq!(h.nft.get_stage(T1), 1_u8);
     assert_eq!(h.nft.get_stage_minted(T1), 0_u32);
@@ -649,40 +631,18 @@ fn movement_consume_requires_claimer_matches_tx_sender() {
     let h = deploy_path_nft_default();
     let to = deploy_receiver();
 
-    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(3));
-    h.ac.grant_role(MINTER_ROLE, MINTER());
-    h.nft.set_authorized_minter('THOUGHT', ALICE());
-    h.nft.set_movement_quota('THOUGHT', 1_u32);
-
-    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
-    h.nft.safe_mint(to, T1, array![].span());
-
-    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
-    cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    match h.nft_safe.consume_movement_unit(T1, 'THOUGHT', BOB()) {
-        Result::Ok(_) => panic!("expected BAD_CLAIMER"),
-        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'BAD_CLAIMER'); },
-    }
-}
-
-#[test]
-#[feature("safe_dispatcher")]
-fn movement_consume_rejects_zero_quota() {
-    let h = deploy_path_nft_default();
-    let to = deploy_receiver();
-
     cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(2));
     h.ac.grant_role(MINTER_ROLE, MINTER());
-    h.nft.set_authorized_minter('THOUGHT', ALICE());
+    h.nft.set_movement_config('THOUGHT', ALICE(), 1_u32);
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    match h.nft_safe.consume_movement_unit(T1, 'THOUGHT', to) {
-        Result::Ok(_) => panic!("expected ZERO_QUOTA"),
-        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'ZERO_QUOTA'); },
+    match h.nft_safe.consume_unit(T1, 'THOUGHT', BOB()) {
+        Result::Ok(_) => panic!("expected BAD_CLAIMER"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'BAD_CLAIMER'); },
     }
 }
 
@@ -692,26 +652,19 @@ fn movement_freeze_blocks_config_updates() {
     let h = deploy_path_nft_default();
     let to = deploy_receiver();
 
-    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(3));
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(2));
     h.ac.grant_role(MINTER_ROLE, MINTER());
-    h.nft.set_authorized_minter('THOUGHT', ALICE());
-    h.nft.set_movement_quota('THOUGHT', 1_u32);
+    h.nft.set_movement_config('THOUGHT', ALICE(), 1_u32);
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    let _ = h.nft.consume_movement_unit(T1, 'THOUGHT', to);
+    let _ = h.nft.consume_unit(T1, 'THOUGHT', to);
 
     cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
-    match h.nft_safe.set_movement_quota('THOUGHT', 2_u32) {
-        Result::Ok(_) => panic!("expected MOVEMENT_FROZEN"),
-        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'MOVEMENT_FROZEN'); },
-    }
-
-    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
-    match h.nft_safe.set_authorized_minter('THOUGHT', BOB()) {
+    match h.nft_safe.set_movement_config('THOUGHT', BOB(), 2_u32) {
         Result::Ok(_) => panic!("expected MOVEMENT_FROZEN"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'MOVEMENT_FROZEN'); },
     }
@@ -723,31 +676,29 @@ fn movement_consume_rejects_wrong_stage() {
     let h = deploy_path_nft_default();
     let to = deploy_receiver();
 
-    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(5));
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(3));
     h.ac.grant_role(MINTER_ROLE, MINTER());
-    h.nft.set_authorized_minter('THOUGHT', ALICE());
-    h.nft.set_authorized_minter('WILL', ALICE());
-    h.nft.set_movement_quota('THOUGHT', 1_u32);
-    h.nft.set_movement_quota('WILL', 1_u32);
+    h.nft.set_movement_config('THOUGHT', ALICE(), 1_u32);
+    h.nft.set_movement_config('WILL', ALICE(), 1_u32);
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    match h.nft_safe.consume_movement_unit(T1, 'WILL', to) {
+    match h.nft_safe.consume_unit(T1, 'WILL', to) {
         Result::Ok(_) => panic!("wrong stage should revert"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'BAD_MOVEMENT_ORDER'); },
     }
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    h.nft.consume_movement_unit(T1, 'THOUGHT', to);
+    h.nft.consume_unit(T1, 'THOUGHT', to);
     assert_eq!(h.nft.get_stage(T1), 1_u8);
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    match h.nft_safe.consume_movement_unit(T1, 'THOUGHT', to) {
+    match h.nft_safe.consume_unit(T1, 'THOUGHT', to) {
         Result::Ok(_) => panic!("repeat movement should revert"),
         Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'BAD_MOVEMENT_ORDER'); },
     }
@@ -758,14 +709,11 @@ fn movement_consume_advances_stage_in_order() {
     let h = deploy_path_nft_default();
     let to = deploy_receiver();
 
-    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(7));
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(4));
     h.ac.grant_role(MINTER_ROLE, MINTER());
-    h.nft.set_authorized_minter('THOUGHT', ALICE());
-    h.nft.set_authorized_minter('WILL', ALICE());
-    h.nft.set_authorized_minter('AWA', ALICE());
-    h.nft.set_movement_quota('THOUGHT', 2_u32);
-    h.nft.set_movement_quota('WILL', 2_u32);
-    h.nft.set_movement_quota('AWA', 1_u32);
+    h.nft.set_movement_config('THOUGHT', ALICE(), 2_u32);
+    h.nft.set_movement_config('WILL', ALICE(), 2_u32);
+    h.nft.set_movement_config('AWA', ALICE(), 1_u32);
 
     cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
     h.nft.safe_mint(to, T1, array![].span());
@@ -774,31 +722,31 @@ fn movement_consume_advances_stage_in_order() {
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    h.nft.consume_movement_unit(T1, 'THOUGHT', to);
+    h.nft.consume_unit(T1, 'THOUGHT', to);
     assert_eq!(h.nft.get_stage(T1), 0_u8);
     assert_eq!(h.nft.get_stage_minted(T1), 1_u32);
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    h.nft.consume_movement_unit(T1, 'THOUGHT', to);
+    h.nft.consume_unit(T1, 'THOUGHT', to);
     assert_eq!(h.nft.get_stage(T1), 1_u8);
     assert_eq!(h.nft.get_stage_minted(T1), 0_u32);
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    h.nft.consume_movement_unit(T1, 'WILL', to);
+    h.nft.consume_unit(T1, 'WILL', to);
     assert_eq!(h.nft.get_stage(T1), 1_u8);
     assert_eq!(h.nft.get_stage_minted(T1), 1_u32);
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    h.nft.consume_movement_unit(T1, 'WILL', to);
+    h.nft.consume_unit(T1, 'WILL', to);
     assert_eq!(h.nft.get_stage(T1), 2_u8);
     assert_eq!(h.nft.get_stage_minted(T1), 0_u32);
 
     cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
     cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
-    h.nft.consume_movement_unit(T1, 'AWA', to);
+    h.nft.consume_unit(T1, 'AWA', to);
     assert_eq!(h.nft.get_stage(T1), 3_u8);
     assert_eq!(h.nft.get_stage_minted(T1), 0_u32);
 }
