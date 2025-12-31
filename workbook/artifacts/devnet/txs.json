@@ -1,0 +1,14 @@
+{
+  "glyph_pprf_deploy": "0x023fc7769ff8d0aacab9cb475ecfffbb36afebc36413af833d7d4125e4e838be",
+  "path_look_declare": "0x061a58edb34f38eca384e434a47d659dcbb2324ed20898801b583891db7cfa4c",
+  "path_look_deploy": "0x022e833899bf53a7b4909dfa3148fbff9ad6ebfb79a1ef27335c1db6f3d0c071",
+  "path_minter_adapter_declare": "0x05c5f24426245f79ef775b6b676e11dfe78746e8019807ca624492f8059af308",
+  "path_minter_adapter_deploy": "0x0221e5dadcd682a5bd4ca8d598218db8a1a82996a527a8dfc315e8e17e8d3788",
+  "path_minter_declare": "0x01c23d4129b012d284784f00f4c675bf1b8a24097e636a3fedc49bba0ee156d6",
+  "path_minter_deploy": "0x04e7641604f94ec5b8e0795f05a50427358b59927a57d6678fc17d1a42e9712d",
+  "path_nft_declare": "0x0415c614a09f859b87a88d5e78f471073c260bad2e05b7c112f97bd9360017f4",
+  "path_nft_deploy": "0x01e17983e38ff77aae2be86d685dfca4016acdddd5ccec826d1fcf6ad50bae39",
+  "pulse_auction_declare": "0x071be0a999a67f5c5c973b5e7be6e33a5344700ac358aa059a59fc2bd8f1ce4a",
+  "pulse_auction_deploy": "0x02ad1b087256466bd1b384029f0b10a8d9ffd9a8152e119f6bef0c2573f7955e",
+  "step_curve_deploy": "0x02a1bad176cf3ab01f61cf598ede3c64752ddc58bb51c243a1b63c0d72d6f582"
+}

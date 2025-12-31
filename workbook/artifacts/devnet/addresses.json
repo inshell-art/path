@@ -1,0 +1,16 @@
+{
+  "glyph_pprf": "0x03d7571dd9b64e34c1f6a1977809cacd9b70ee0cb237620ef62cd8f5242a944a",
+  "glyph_pprf_class_hash": "0x04db25300db2a6f90893136e20cda25274c87e8409efaf8ed650c2ac7c146097",
+  "path_look": "0x05ce0374e505a9e7848dd7193574044831ce9fa4fa6895042803945b9bd12705",
+  "path_look_class_hash": "0x018486857e17f861cc3573c2965877e6f9b6dc922ab131595fedf197476e12b8",
+  "path_minter": "0x017a34ca213c561e3526d4de344316d713c8a9d8001c103e1aace6b15b4dc1eb",
+  "path_minter_adapter": "0x07acdb3d718457ac5352acc98d4f4198de754292170c6fe57e1af51051b39d33",
+  "path_minter_adapter_class_hash": "0x076d8956c0a617964d8ee1b3cd82bbad74a0884caa6dca8f5b722c6dd7e5c431",
+  "path_minter_class_hash": "0x01edeb426417b5e46cef89a3c8ea520c6f86c85cd1a3647dd7cb55374c87f5fc",
+  "path_nft": "0x07abfa68b9961e6d6570ddde353571624aafca576802e2418b12ce1c497bcc6b",
+  "path_nft_class_hash": "0x03a8f82ba26d7713f33f71089806d5bc464ce22dddf4d6f66bbccc982749ddf5",
+  "pulse_auction": "0x021bd4b2e8efe65354d43f6094d206243781a64e6fb1e330f1e0a259a886d93e",
+  "pulse_auction_class_hash": "0x078e68bc1f02fdadb21bebfa5041b30a53c6e0245e69623a715dd5429934ac91",
+  "step_curve": "0x02802968531aa79ad9922f0d50f38a336e95464c1ddc6ac31ba7f0f205f7375f",
+  "step_curve_class_hash": "0x05fe38120788a277d3da91e7992560fc8484576452ab3c4d5dd35a228575f855"
+}
