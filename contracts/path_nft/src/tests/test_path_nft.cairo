@@ -750,3 +750,56 @@ fn movement_consume_advances_stage_in_order() {
     assert_eq!(h.nft.get_stage(T1), 3_u8);
     assert_eq!(h.nft.get_stage_minted(T1), 0_u32);
 }
+
+#[test]
+#[feature("safe_dispatcher")]
+fn movement_consume_after_final_stage_reverts() {
+    let h = deploy_path_nft_default();
+    let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(4));
+    h.ac.grant_role(MINTER_ROLE, MINTER());
+    h.nft.set_movement_config('THOUGHT', ALICE(), 1_u32);
+    h.nft.set_movement_config('WILL', ALICE(), 1_u32);
+    h.nft.set_movement_config('AWA', ALICE(), 1_u32);
+
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T1, array![].span());
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(3));
+    cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(3));
+    h.nft.consume_unit(T1, 'THOUGHT', to);
+    h.nft.consume_unit(T1, 'WILL', to);
+    h.nft.consume_unit(T1, 'AWA', to);
+    assert_eq!(h.nft.get_stage(T1), 3_u8);
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
+    match h.nft_safe.consume_unit(T1, 'AWA', to) {
+        Result::Ok(_) => panic!("expected BAD_STAGE"),
+        Result::Err(panic_data) => { assert_eq!(*panic_data.at(0), 'BAD_STAGE'); },
+    }
+}
+
+#[test]
+fn movement_freeze_is_per_movement() {
+    let h = deploy_path_nft_default();
+    let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(3));
+    h.ac.grant_role(MINTER_ROLE, MINTER());
+    h.nft.set_movement_config('THOUGHT', ALICE(), 1_u32);
+    h.nft.set_movement_config('WILL', BOB(), 2_u32);
+
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T1, array![].span());
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
+    h.nft.consume_unit(T1, 'THOUGHT', to);
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(1));
+    h.nft.set_movement_config('WILL', ALICE(), 3_u32);
+    assert_eq!(h.nft.get_authorized_minter('WILL'), ALICE());
+    assert_eq!(h.nft.get_movement_quota('WILL'), 3_u32);
+}
