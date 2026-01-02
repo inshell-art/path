@@ -183,47 +183,59 @@ pub mod PathLook {
             // Draw ideal first so it stays beneath any minted strands.
             svg.append(@"<use href='#ideal-src' style='mix-blend-mode:lighten;'/>");
             if any_minted {
-                let mut thought_label: ByteArray = Default::default();
-                thought_label.append(@"thought");
-                self._append_segments(
-                    ref svg,
-                    @thought_label,
-                    0_u32,
-                    0_u32,
-                    255_u32,
-                    stroke_w,
-                    @thought_nodes,
-                    quota_thought,
-                    thought_minted,
-                );
+                if thought_minted > 0_u32 {
+                    let raw_thought_path = self._curve_d(@thought_nodes, sharpness);
+                    let thought_path = self._strip_newlines(@raw_thought_path);
+                    let mut thought_label: ByteArray = Default::default();
+                    thought_label.append(@"thought");
+                    self._append_segments(
+                        ref svg,
+                        @thought_label,
+                        0_u32,
+                        0_u32,
+                        255_u32,
+                        stroke_w,
+                        @thought_path,
+                        quota_thought,
+                        thought_minted,
+                    );
+                }
 
-                let mut will_label: ByteArray = Default::default();
-                will_label.append(@"will");
-                self._append_segments(
-                    ref svg,
-                    @will_label,
-                    255_u32,
-                    0_u32,
-                    0_u32,
-                    stroke_w,
-                    @will_nodes,
-                    quota_will,
-                    will_minted,
-                );
+                if will_minted > 0_u32 {
+                    let raw_will_path = self._curve_d(@will_nodes, sharpness);
+                    let will_path = self._strip_newlines(@raw_will_path);
+                    let mut will_label: ByteArray = Default::default();
+                    will_label.append(@"will");
+                    self._append_segments(
+                        ref svg,
+                        @will_label,
+                        255_u32,
+                        0_u32,
+                        0_u32,
+                        stroke_w,
+                        @will_path,
+                        quota_will,
+                        will_minted,
+                    );
+                }
 
-                let mut awa_label: ByteArray = Default::default();
-                awa_label.append(@"awa");
-                self._append_segments(
-                    ref svg,
-                    @awa_label,
-                    0_u32,
-                    255_u32,
-                    0_u32,
-                    stroke_w,
-                    @awa_nodes,
-                    quota_awa,
-                    awa_minted,
-                );
+                if awa_minted > 0_u32 {
+                    let raw_awa_path = self._curve_d(@awa_nodes, sharpness);
+                    let awa_path = self._strip_newlines(@raw_awa_path);
+                    let mut awa_label: ByteArray = Default::default();
+                    awa_label.append(@"awa");
+                    self._append_segments(
+                        ref svg,
+                        @awa_label,
+                        0_u32,
+                        255_u32,
+                        0_u32,
+                        stroke_w,
+                        @awa_path,
+                        quota_awa,
+                        awa_minted,
+                    );
+                }
             }
             svg.append(@"</g></svg>");
 
@@ -538,26 +550,20 @@ pub mod PathLook {
             g: u32,
             b: u32,
             stroke_w: u32,
-            steps: @Array<Step>,
+            path_d: @ByteArray,
             quota: u32,
             minted: u32,
         ) {
-            if minted == 0_u32 || steps.len() < 2_usize {
+            if minted == 0_u32 || path_d.len() == 0_usize {
                 return;
             }
 
             let segments = if quota == 0_u32 { 1_u32 } else { quota };
-            let points = self._segment_points(steps, segments);
-            if points.len() < 2_usize {
-                return;
+            let mut filled: u32 = minted;
+            if filled > segments {
+                filled = segments;
             }
-
-            let mut filled: usize = minted.try_into().unwrap();
-            let total_segments = points.len() - 1_usize;
-            if filled > total_segments {
-                filled = total_segments;
-            }
-            if filled == 0_usize {
+            if filled == 0_u32 {
                 return;
             }
 
@@ -565,24 +571,17 @@ pub mod PathLook {
             svg.append(label);
             svg.append(@"' filter='url(#lightUp)' style='mix-blend-mode:lighten;'>");
 
-            let mut i: usize = 0_usize;
+            let mut i: u32 = 0_u32;
             while i < filled {
-                let start = *points.at(i);
-                let end = *points.at(i + 1_usize);
-                let idx: u32 = i.try_into().unwrap();
+                let idx: u32 = i;
+                let offset: i128 = 0_i128 - i.into();
 
                 svg.append(@"<path id='segment-");
                 svg.append(label);
                 svg.append(@"-");
                 svg.append(@self._u32_to_string(idx));
-                svg.append(@"' d='M ");
-                svg.append(@self._i128_to_string(start.x));
-                svg.append(@" ");
-                svg.append(@self._i128_to_string(start.y));
-                svg.append(@" L ");
-                svg.append(@self._i128_to_string(end.x));
-                svg.append(@" ");
-                svg.append(@self._i128_to_string(end.y));
+                svg.append(@"' d='");
+                svg.append(path_d);
                 svg.append(@"' stroke='rgb(");
                 svg.append(@self._u32_to_string(r));
                 svg.append(@",");
@@ -591,141 +590,24 @@ pub mod PathLook {
                 svg.append(@self._u32_to_string(b));
                 svg.append(@"' stroke-width='");
                 svg.append(@self._u32_to_string(stroke_w));
-                svg.append(@"' fill='none' stroke-linecap='round' stroke-linejoin='round'/>");
+                svg.append(@"' fill='none' stroke-linecap='round' stroke-linejoin='round' pathLength='");
+                svg.append(@self._u32_to_string(segments));
+                svg.append(@"'");
+                if segments > 1_u32 {
+                    svg.append(@" stroke-dasharray='1 ");
+                    svg.append(@self._u32_to_string(segments - 1_u32));
+                    svg.append(@"' stroke-dashoffset='");
+                    svg.append(@self._i128_to_string(offset));
+                    svg.append(@"'");
+                }
+                svg.append(@"/>");
 
-                i = i + 1_usize;
+                i = i + 1_u32;
             }
 
             svg.append(@"</g>");
         }
 
-        fn _segment_points(self: @ContractState, steps: @Array<Step>, segments: u32) -> Array<Step> {
-            let mut out: Array<Step> = array![];
-            if steps.len() < 2_usize || segments == 0_u32 {
-                return out;
-            }
-
-            let total = self._polyline_length(steps);
-            let last_idx = steps.len() - 1_usize;
-            if total == 0_u32 {
-                let start = *steps.at(0_usize);
-                let mut i: u32 = 0_u32;
-                while i <= segments {
-                    out.append(start);
-                    i = i + 1_u32;
-                }
-                return out;
-            }
-
-            let mut seg_idx: usize = 0_usize;
-            let mut seg_start = *steps.at(seg_idx);
-            let mut seg_end = *steps.at(seg_idx + 1_usize);
-            let mut seg_len = self._segment_length(seg_start, seg_end);
-            let mut walked: u32 = 0_u32;
-            let total_u64: u64 = total.into();
-            let segments_u64: u64 = segments.into();
-
-            let mut i: u32 = 0_u32;
-            while i <= segments {
-                if i == segments {
-                    out.append(*steps.at(last_idx));
-                    break;
-                }
-                let target_u64 = (total_u64 * i.into()) / segments_u64;
-                let target: u32 = target_u64.try_into().unwrap();
-
-                while walked + seg_len < target {
-                    walked = walked + seg_len;
-                    if seg_idx + 1_usize >= last_idx {
-                        break;
-                    }
-                    seg_idx = seg_idx + 1_usize;
-                    seg_start = *steps.at(seg_idx);
-                    seg_end = *steps.at(seg_idx + 1_usize);
-                    seg_len = self._segment_length(seg_start, seg_end);
-                    if seg_len == 0_u32 {
-                        continue;
-                    }
-                }
-
-                if seg_len == 0_u32 {
-                    out.append(seg_end);
-                } else {
-                    let rem = target - walked;
-                    out.append(self._interpolate(seg_start, seg_end, rem, seg_len));
-                }
-                i = i + 1_u32;
-            }
-
-            out
-        }
-
-        fn _polyline_length(self: @ContractState, steps: @Array<Step>) -> u32 {
-            let mut total: u64 = 0_u64;
-            let mut i: usize = 0_usize;
-            while i + 1_usize < steps.len() {
-                let a = *steps.at(i);
-                let b = *steps.at(i + 1_usize);
-                let seg_len = self._segment_length(a, b);
-                total = total + seg_len.into();
-                i = i + 1_usize;
-            }
-            total.try_into().unwrap()
-        }
-
-        fn _segment_length(self: @ContractState, a: Step, b: Step) -> u32 {
-            let dx = a.x - b.x;
-            let dy = a.y - b.y;
-            let dx_u: u128 = self._abs_i128(dx);
-            let dy_u: u128 = self._abs_i128(dy);
-            let sum: u128 = dx_u * dx_u + dy_u * dy_u;
-            let len = self._sqrt_u128(sum);
-            len.try_into().unwrap()
-        }
-
-        fn _interpolate(self: @ContractState, a: Step, b: Step, num: u32, den: u32) -> Step {
-            if den == 0_u32 {
-                return a;
-            }
-            let num_i: i128 = num.into();
-            let den_i: i128 = den.into();
-            let dx = b.x - a.x;
-            let dy = b.y - a.y;
-            let x = a.x + (dx * num_i) / den_i;
-            let y = a.y + (dy * num_i) / den_i;
-            Step { x, y }
-        }
-
-        fn _abs_i128(self: @ContractState, value: i128) -> u128 {
-            if value >= 0_i128 {
-                value.try_into().unwrap()
-            } else {
-                (0_i128 - value).try_into().unwrap()
-            }
-        }
-
-        fn _sqrt_u128(self: @ContractState, value: u128) -> u128 {
-            if value == 0_u128 {
-                return 0_u128;
-            }
-            let mut low: u128 = 1_u128;
-            let mut high: u128 = value;
-            let mut ans: u128 = 0_u128;
-            while low <= high {
-                let mid = (low + high) / 2_u128;
-                let sq = mid * mid;
-                if sq == value {
-                    return mid;
-                }
-                if sq < value {
-                    ans = mid;
-                    low = mid + 1_u128;
-                } else {
-                    high = mid - 1_u128;
-                }
-            }
-            ans
-        }
 
         fn _u128_to_string(self: @ContractState, value: u128) -> ByteArray {
             if value == 0_u128 {
