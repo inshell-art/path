@@ -33,6 +33,13 @@
 - `scripts/devnet/04_deploy_pulse.sh`.
 - `scripts/devnet/05_smoke_e2e.sh`.
 
+## Sepolia local deploy (no CI/CD)
+- Create `scripts/.env.sepolia.local` with `RPC_URL`, `SNCAST_ACCOUNTS_FILE`, `SNCAST_ACCOUNTS_NAMESPACE`, and `DECLARE_PROFILE/DEPLOY_PROFILE`.
+- Create `scripts/params.sepolia.local` with `PAYTOKEN`, `TREASURY`, and any constructor overrides.
+- Declare: `./scripts/declare-sepolia.sh` (build + declare).
+- Deploy: `./scripts/deploy-sepolia.sh`.
+- Artifacts live under `output/sepolia/` (`classes.sepolia.json`, `addresses.sepolia.json`, `addresses.sepolia.env`, `deploy.params.sepolia.json`, and per-contract declare/deploy JSON logs).
+
 ## Definition of done
 - Relevant builds/tests pass.
 - `scarb fmt` and `scarb lint` run for touched packages.
