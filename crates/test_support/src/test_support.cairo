@@ -232,7 +232,7 @@ mod TestPathLook {
 
     fn manifest_progress(minted: u32, quota: u32) -> ByteArray {
         let mut out: ByteArray = Default::default();
-        out.append(@"Manifested(");
+        out.append(@"Minted(");
         out.append(@u32_to_string(minted));
         out.append(@"/");
         out.append(@u32_to_string(quota));

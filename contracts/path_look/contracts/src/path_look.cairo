@@ -283,7 +283,7 @@ pub mod PathLook {
             let mut metadata: ByteArray = Default::default();
             let data_uri = self._generate_svg_data_uri(path_nft, token_id);
 
-            let description: ByteArray = "**Steps** sets the cadence; **Voice** sets how loudly the strand speaks.  **Tension** controls how tightly the curve pulls between waypoints.  The **Ideal Path** is the reference trajectory drawn first, always beneath.  The token gains its living strands through three **Movements**: THOUGHT, WILL, and AWA.  **Stage** marks the current progression, while **THOUGHT**, **WILL**, and **AWA** record progress as Manifested(x/N).  When the first Movement appears, **Breath** awakens as one shared atmosphere across every living strand.";
+            let description: ByteArray = "**segments** sets the cadence; **stroke-width** sets how loudly the strand speaks.  **sharpness** controls how tightly the curve pulls between waypoints.  **padding-pct** sets the margin of the field.  The **Ideal Path** is the reference trajectory drawn first, always beneath.  The token gains its living strands through three **Movements**: THOUGHT, WILL, and AWA.  **Stage** marks the current progression, while **THOUGHT**, **WILL**, and **AWA** record progress as Minted(x/N).  When the first Movement appears, **sigma** awakens as one shared atmosphere across every living strand.";
 
             metadata.append(@"{\"name\":\"PATH #");
             metadata.append(@token_id_str);
@@ -295,23 +295,23 @@ pub mod PathLook {
             metadata.append(@token_id_str);
             metadata.append(@"\",\"attributes\":[");
 
-            metadata.append(@"{\"trait_type\":\"Steps\",\"value\":");
+            metadata.append(@"{\"trait_type\":\"segments\",\"value\":");
             metadata.append(@self._u32_to_string(step_number));
             metadata.append(@"},");
 
-            metadata.append(@"{\"trait_type\":\"Voice\",\"value\":");
+            metadata.append(@"{\"trait_type\":\"stroke-width\",\"value\":");
             metadata.append(@self._u32_to_string(stroke_w));
             metadata.append(@"},");
 
-            metadata.append(@"{\"trait_type\":\"Tension\",\"value\":");
+            metadata.append(@"{\"trait_type\":\"sharpness\",\"value\":");
             metadata.append(@self._u32_to_string(sharpness));
             metadata.append(@"},");
 
-            metadata.append(@"{\"trait_type\":\"Margin\",\"value\":");
+            metadata.append(@"{\"trait_type\":\"padding-pct\",\"value\":");
             metadata.append(@self._u32_to_string(pad_pct));
             metadata.append(@"},");
 
-            metadata.append(@"{\"trait_type\":\"Breath\",\"value\":");
+            metadata.append(@"{\"trait_type\":\"sigma\",\"value\":");
             if sigma_val == 0_u32 {
                 metadata.append(@"\"Dormant\"");
             } else {
@@ -684,7 +684,7 @@ pub mod PathLook {
 
         fn _manifest_progress(self: @ContractState, minted: u32, quota: u32) -> ByteArray {
             let mut out: ByteArray = Default::default();
-            out.append(@"Manifested(");
+            out.append(@"Minted(");
             out.append(@self._u32_to_string(minted));
             out.append(@"/");
             out.append(@self._u32_to_string(quota));

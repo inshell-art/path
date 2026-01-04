@@ -31,9 +31,9 @@ fn token_uri_wraps_path_look_metadata() {
 
     assert!(contains_bytes(@uri, @"\"token\":"));
     assert!(contains_bytes(@uri, @"\"stage\":\"THOUGHT\""));
-    assert!(contains_bytes(@uri, @"\"thought\":\"Manifested(0/1)\""));
-    assert!(contains_bytes(@uri, @"\"will\":\"Manifested(0/1)\""));
-    assert!(contains_bytes(@uri, @"\"awa\":\"Manifested(0/1)\""));
+    assert!(contains_bytes(@uri, @"\"thought\":\"Minted(0/1)\""));
+    assert!(contains_bytes(@uri, @"\"will\":\"Minted(0/1)\""));
+    assert!(contains_bytes(@uri, @"\"awa\":\"Minted(0/1)\""));
 }
 
 #[test]
@@ -56,9 +56,9 @@ fn token_uri_reflects_stage_after_movement() {
 
     let uri = h.meta.token_uri(T0);
     assert!(contains_bytes(@uri, @"\"stage\":\"WILL\""));
-    assert!(contains_bytes(@uri, @"\"thought\":\"Manifested(1/1)\""));
-    assert!(contains_bytes(@uri, @"\"will\":\"Manifested(0/1)\""));
-    assert!(contains_bytes(@uri, @"\"awa\":\"Manifested(0/1)\""));
+    assert!(contains_bytes(@uri, @"\"thought\":\"Minted(1/1)\""));
+    assert!(contains_bytes(@uri, @"\"will\":\"Minted(0/1)\""));
+    assert!(contains_bytes(@uri, @"\"awa\":\"Minted(0/1)\""));
 }
 
 #[test]

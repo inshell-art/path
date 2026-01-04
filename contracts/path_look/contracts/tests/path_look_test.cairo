@@ -255,10 +255,10 @@ fn metadata_reflects_flags() {
 
     let metadata = dispatcher.get_token_metadata(path_nft, 9_u256);
     assert(contains_bytes(@metadata, @"\"Stage\",\"value\":\"AWA\""), 'stage');
-    assert(contains_bytes(@metadata, @"\"THOUGHT\",\"value\":\"Manifested(2/2)\""), 'thought status');
-    assert(contains_bytes(@metadata, @"\"WILL\",\"value\":\"Manifested(2/2)\""), 'will status');
-    assert(contains_bytes(@metadata, @"\"AWA\",\"value\":\"Manifested(1/2)\""), 'awa status');
-    assert(contains_bytes(@metadata, @"\"Breath\",\"value\":"), 'breath present');
+    assert(contains_bytes(@metadata, @"\"THOUGHT\",\"value\":\"Minted(2/2)\""), 'thought status');
+    assert(contains_bytes(@metadata, @"\"WILL\",\"value\":\"Minted(2/2)\""), 'will status');
+    assert(contains_bytes(@metadata, @"\"AWA\",\"value\":\"Minted(1/2)\""), 'awa status');
+    assert(contains_bytes(@metadata, @"\"sigma\",\"value\":"), 'sigma present');
 }
 
 #[test]
