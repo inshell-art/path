@@ -27,3 +27,8 @@ PTS=1
 # IMPORTANT: set these in scripts/params.sepolia.local before deploying.
 PAYTOKEN=""
 TREASURY=""
+
+# ---- Optional: reuse already-deployed glyph contracts ----
+# If set, deploy script will skip deploying these and use the provided addresses.
+PPRF_ADDR=""
+STEP_CURVE_ADDR=""

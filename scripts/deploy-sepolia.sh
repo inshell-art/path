@@ -126,9 +126,14 @@ require_nonempty TREASURY "${TREASURY:-}"
 : "${CLASS_MINTER:?source output/sepolia/classes.sepolia.env first (missing CLASS_MINTER)}"
 : "${CLASS_ADAPTER:?source output/sepolia/classes.sepolia.env first (missing CLASS_ADAPTER)}"
 : "${CLASS_PULSE:?source output/sepolia/classes.sepolia.env first (missing CLASS_PULSE)}"
-: "${CLASS_PPRF:?source output/sepolia/classes.sepolia.env first (missing CLASS_PPRF)}"
-: "${CLASS_STEP_CURVE:?source output/sepolia/classes.sepolia.env first (missing CLASS_STEP_CURVE)}"
 : "${CLASS_PATH_LOOK:?source output/sepolia/classes.sepolia.env first (missing CLASS_PATH_LOOK)}"
+
+if [ -z "${PPRF_ADDR:-}" ]; then
+	: "${CLASS_PPRF:?source output/sepolia/classes.sepolia.env first (missing CLASS_PPRF)}"
+fi
+if [ -z "${STEP_CURVE_ADDR:-}" ]; then
+	: "${CLASS_STEP_CURVE:?source output/sepolia/classes.sepolia.env first (missing CLASS_STEP_CURVE)}"
+fi
 
 # deploy_one VAR_NAME package ContractName class_hash <calldata...>
 deploy_one() {
@@ -182,8 +187,20 @@ read -r GP_LOW GP_HIGH <<<"$(u256 "$GP_FRI")"
 read -r FL_LOW FL_HIGH <<<"$(u256 "$FL_FRI")"
 
 # ---- deploy in order ----
-deploy_one ADDR_PPRF glyph_pprf Pprf "$CLASS_PPRF"
-deploy_one ADDR_STEP_CURVE step_curve StepCurve "$CLASS_STEP_CURVE"
+if [ -n "${PPRF_ADDR:-}" ]; then
+	ADDR_PPRF="$PPRF_ADDR"
+	echo "==> Using existing glyph_pprf at $ADDR_PPRF"
+else
+	deploy_one ADDR_PPRF glyph_pprf Pprf "$CLASS_PPRF"
+fi
+
+if [ -n "${STEP_CURVE_ADDR:-}" ]; then
+	ADDR_STEP_CURVE="$STEP_CURVE_ADDR"
+	echo "==> Using existing step_curve at $ADDR_STEP_CURVE"
+else
+	deploy_one ADDR_STEP_CURVE step_curve StepCurve "$CLASS_STEP_CURVE"
+fi
+
 deploy_one ADDR_LOOK path_look PathLook "$CLASS_PATH_LOOK" "$ADDR_PPRF" "$ADDR_STEP_CURVE"
 PATH_LOOK="$ADDR_LOOK"
 

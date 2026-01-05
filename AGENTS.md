@@ -36,8 +36,10 @@
 ## Sepolia local deploy (no CI/CD)
 - Create `scripts/.env.sepolia.local` with `RPC_URL`, `SNCAST_ACCOUNTS_FILE`, `SNCAST_ACCOUNTS_NAMESPACE`, and `DECLARE_PROFILE/DEPLOY_PROFILE`.
 - Create `scripts/params.sepolia.local` with `PAYTOKEN`, `TREASURY`, and any constructor overrides.
+- Optional: set `PPRF_ADDR` and `STEP_CURVE_ADDR` in `scripts/params.sepolia.local` to reuse existing glyph deployments.
 - Declare: `./scripts/declare-sepolia.sh` (build + declare).
 - Deploy: `./scripts/deploy-sepolia.sh`.
+- Configure roles: `./scripts/config-sepolia.sh`.
 - Artifacts live under `output/sepolia/` (`classes.sepolia.json`, `addresses.sepolia.json`, `addresses.sepolia.env`, `deploy.params.sepolia.json`, and per-contract declare/deploy JSON logs).
 
 ## Definition of done
