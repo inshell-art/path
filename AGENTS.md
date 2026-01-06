@@ -40,6 +40,8 @@
 - Declare: `./scripts/declare-sepolia.sh` (build + declare).
 - Deploy: `./scripts/deploy-sepolia.sh`.
 - Configure roles: `./scripts/config-sepolia.sh`.
+- Verify wiring: `./scripts/verify-sepolia.sh`.
+- If using v0_10 RPC, the scripts use `scripts/sepolia_declare_v3.py` and `scripts/sepolia_invoke_v3.py` helpers for v3 transactions.
 - Artifacts live under `output/sepolia/` (`classes.sepolia.json`, `addresses.sepolia.json`, `addresses.sepolia.env`, `deploy.params.sepolia.json`, and per-contract declare/deploy JSON logs).
 
 ## Definition of done
