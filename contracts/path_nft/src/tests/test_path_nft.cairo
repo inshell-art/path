@@ -626,6 +626,33 @@ fn movement_consume_allows_approved_claimer() {
 }
 
 #[test]
+fn movement_consume_serial_increments_until_quota() {
+    let h = deploy_path_nft_default();
+    let to = deploy_receiver();
+
+    cheat_caller_address(h.addr, ADMIN(), CheatSpan::TargetCalls(2));
+    h.ac.grant_role(MINTER_ROLE, MINTER());
+    h.nft.set_movement_config('THOUGHT', ALICE(), 2_u32);
+
+    cheat_caller_address(h.addr, MINTER(), CheatSpan::TargetCalls(1));
+    h.nft.safe_mint(to, T1, array![].span());
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
+    let serial0 = h.nft.consume_unit(T1, 'THOUGHT', to);
+    assert_eq!(serial0, 0_u32);
+    assert_eq!(h.nft.get_stage(T1), 0_u8);
+    assert_eq!(h.nft.get_stage_minted(T1), 1_u32);
+
+    cheat_caller_address(h.addr, ALICE(), CheatSpan::TargetCalls(1));
+    cheat_account_contract_address(h.addr, to, CheatSpan::TargetCalls(1));
+    let serial1 = h.nft.consume_unit(T1, 'THOUGHT', to);
+    assert_eq!(serial1, 1_u32);
+    assert_eq!(h.nft.get_stage(T1), 1_u8);
+    assert_eq!(h.nft.get_stage_minted(T1), 0_u32);
+}
+
+#[test]
 #[feature("safe_dispatcher")]
 fn movement_consume_requires_claimer_matches_tx_sender() {
     let h = deploy_path_nft_default();

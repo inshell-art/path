@@ -221,6 +221,32 @@ fn has_byte(data: @ByteArray, needle: u8) -> bool {
     false
 }
 
+fn count_bytes(haystack: @ByteArray, needle: @ByteArray) -> u32 {
+    let hay_len = haystack.len();
+    let ned_len = needle.len();
+    if ned_len == 0_usize || ned_len > hay_len {
+        return 0_u32;
+    }
+    let mut count: u32 = 0_u32;
+    let mut i: usize = 0_usize;
+    while i + ned_len <= hay_len {
+        let mut j: usize = 0_usize;
+        let mut matched = true;
+        while j < ned_len {
+            if haystack.at(i + j).unwrap() != needle.at(j).unwrap() {
+                matched = false;
+                break;
+            }
+            j = j + 1_usize;
+        }
+        if matched {
+            count = count + 1_u32;
+        }
+        i = i + 1_usize;
+    }
+    count
+}
+
 #[test]
 fn svg_hides_minted_and_sigma_changes() {
     let mock = deploy_mock_pprf(123_456_u32);
@@ -259,6 +285,53 @@ fn metadata_reflects_flags() {
     assert(contains_bytes(@metadata, @"\"WILL\",\"value\":\"Minted(2/2)\""), 'will status');
     assert(contains_bytes(@metadata, @"\"AWA\",\"value\":\"Minted(1/2)\""), 'awa status');
     assert(contains_bytes(@metadata, @"\"sigma\",\"value\":"), 'sigma present');
+}
+
+#[test]
+fn metadata_includes_core_traits() {
+    let mock = deploy_mock_pprf(9_u32);
+    let step_curve = deploy_step_curve();
+    let contract = deploy_path_look(mock, step_curve);
+    let path_nft = deploy_path_nft_mock(0_u8, 0_u32, 2_u32, 2_u32, 2_u32);
+    let dispatcher = IPathLookDispatcher { contract_address: contract };
+
+    let metadata = dispatcher.get_token_metadata(path_nft, 12_u256);
+    assert(contains_bytes(@metadata, @"\"trait_type\":\"segments\""), 'segments');
+    assert(contains_bytes(@metadata, @"\"trait_type\":\"stroke-width\""), 'stroke-width');
+    assert(contains_bytes(@metadata, @"\"trait_type\":\"sharpness\""), 'sharpness');
+    assert(contains_bytes(@metadata, @"\"trait_type\":\"padding-pct\""), 'padding-pct');
+    assert(contains_bytes(@metadata, @"\"trait_type\":\"sigma\""), 'sigma');
+}
+
+#[test]
+fn svg_segments_match_minted_count() {
+    let mock = deploy_mock_pprf(55_u32);
+    let step_curve = deploy_step_curve();
+    let contract = deploy_path_look(mock, step_curve);
+    let dispatcher = IPathLookDispatcher { contract_address: contract };
+
+    let path_nft = deploy_path_nft_mock(0_u8, 2_u32, 3_u32, 2_u32, 1_u32);
+    let svg = dispatcher.generate_svg(path_nft, 7_u256);
+    assert(contains_bytes(@svg, @"id='segments-thought'"), 'thought group missing');
+    assert(!contains_bytes(@svg, @"id='segments-will'"), 'unexpected will group');
+    assert(!contains_bytes(@svg, @"id='segments-awa'"), 'unexpected awa group');
+    assert_eq!(count_bytes(@svg, @"id='segment-thought-"), 2_u32);
+    assert(contains_bytes(@svg, @"pathLength='3'"), 'expected pathLength');
+}
+
+#[test]
+fn metadata_complete_stage_marks_all_minted() {
+    let mock = deploy_mock_pprf(4_u32);
+    let step_curve = deploy_step_curve();
+    let contract = deploy_path_look(mock, step_curve);
+    let path_nft = deploy_path_nft_mock(3_u8, 0_u32, 2_u32, 1_u32, 1_u32);
+    let dispatcher = IPathLookDispatcher { contract_address: contract };
+
+    let metadata = dispatcher.get_token_metadata(path_nft, 22_u256);
+    assert(contains_bytes(@metadata, @"\"Stage\",\"value\":\"COMPLETE\""), 'stage complete');
+    assert(contains_bytes(@metadata, @"\"THOUGHT\",\"value\":\"Minted(2/2)\""), 'thought complete');
+    assert(contains_bytes(@metadata, @"\"WILL\",\"value\":\"Minted(1/1)\""), 'will complete');
+    assert(contains_bytes(@metadata, @"\"AWA\",\"value\":\"Minted(1/1)\""), 'awa complete');
 }
 
 #[test]
