@@ -59,3 +59,24 @@
 - `vendors/` vendored code or submodules.
 - `workbook/artifacts/devnet/*`, `output/*`, or `.accounts` secrets.
 - Network credentials, keys, or deployment state.
+
+## Security and leak-prevention rules
+- Never introduce secrets into the repo.
+- Do not add or modify code that includes any: private keys, seed phrases, mnemonics, service account JSON, API keys/tokens (RPC keys included), `.env` files, or `.pem`/`.key` files.
+- Treat any `VITE_*` env vars as public (baked into client JS). Never store secrets in them.
+- Always run a leak scan before committing:
+  - `git diff --staged` and manually inspect for secrets.
+  - `gitleaks detect --no-git --redact` (or repo’s chosen scanner).
+- If any potential secret is detected, stop and remove it; do not “mask” it.
+- Do not print sensitive values in CI logs (avoid `echo $TOKEN`, `printenv`, verbose debug logs with headers/keys).
+- Avoid logging full RPC URLs if they include keys.
+- No new third-party telemetry by default (no analytics, session replay, fingerprinting, or new error trackers unless explicitly requested).
+- If error tracking exists, ensure it does not capture wallet addresses, RPC payloads, or user identifiers.
+- Protect deployment and workflow integrity: do not weaken branch protections in docs/instructions; pin GitHub Action versions where possible; prefer least-privilege tokens; avoid long-lived credentials.
+- Remove debug artifacts before committing (no debug-only endpoints, “test wallets”, or localhost RPC defaults in production configs).
+- Security PR checklist (must pass):
+  - No secrets in diff.
+  - No new telemetry.
+  - No new external endpoints without clear reason.
+  - Build succeeds with clean env.
+  - Any new config is documented and safe to be public.
