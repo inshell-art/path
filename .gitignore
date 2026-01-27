@@ -18,3 +18,15 @@ deployments/
 scripts/.env.local
 scripts/params.devnet.local
 .accounts/
+
+# dotenv environment files
+.env
+.env.*
+.env.*.local
+
+# keys & sensitive files
+*.key
+*.pem
+*keystore*.json
+*serviceAccount*.json
+workbook/artifacts/**/keystore*
