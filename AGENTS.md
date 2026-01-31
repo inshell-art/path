@@ -1,16 +1,16 @@
 # AGENTS
 
 ## Overview
-- PATH smart contracts (Cairo) plus devnet tooling and vendor dependencies.
-- Primary workflows: Scarb builds/tests and devnet deployment scripts.
+- PATH smart contracts (Cairo) plus deployment tooling and vendor dependencies.
+- Primary workflows: Scarb builds/tests and Sepolia deploy scripts.
 
 ## Project layout
 - `contracts/`: PathNFT, PathMinter, PathMinterAdapter, PathLook (gallery under PathLook).
 - `interfaces/`: shared Cairo interfaces.
 - `crates/`: test support and e2e helpers.
 - `vendors/`: vendored dependencies (pulse, pprf, step-curve).
-- `scripts/`: devnet and deployment scripts.
-- `workbook/`: local artifacts, SVGs, and notes.
+- `scripts/`: deployment scripts (Sepolia) and ops helpers.
+- `workbook/`: ops runbooks + metadata notes (devnet workbook moved to `../localnet/workbook`).
 
 ## Install
 - `pnpm install` (optional; for husky hooks only).
@@ -24,14 +24,9 @@
 - Full tests (includes vendor pulse): `./scripts/test-full.sh`.
 
 ## Devnet entrypoints
-- Devnet runtime is managed in `../localnet` (see `../localnet/README.md`).
-- `./scripts/deploy-devnet.sh` (end-to-end devnet deploy).
-- `scripts/devnet/00_env.sh` (source env).
-- `scripts/devnet/01_deploy_utils.sh`.
-- `scripts/devnet/02_deploy_renderer.sh` (PathLook + deps).
-- `scripts/devnet/03_deploy_path_core.sh`.
-- `scripts/devnet/04_deploy_pulse.sh`.
-- `scripts/devnet/05_smoke_e2e.sh`.
+- Devnet runtime + scripts are managed in `../localnet` (see `../localnet/README.md`).
+- Devnet scripts live under `../localnet/scripts/` and `../localnet/scripts/devnet/`.
+- Devnet workbook lives under `../localnet/workbook/`.
 
 ## Sepolia local deploy (no CI/CD)
 - Create `scripts/.env.sepolia.local` with `RPC_URL`, `SNCAST_ACCOUNTS_FILE`, `SNCAST_ACCOUNTS_NAMESPACE`, and `DECLARE_PROFILE/DEPLOY_PROFILE`.
@@ -57,7 +52,7 @@
 
 ## Boundaries (do not touch unless asked)
 - `vendors/` vendored code or submodules.
-- `workbook/artifacts/devnet/*`, `output/*`, or `.accounts` secrets.
+- `workbook/artifacts/*`, `output/*`, or `.accounts` secrets.
 - Network credentials, keys, or deployment state.
 
 ## Security and leak-prevention rules
