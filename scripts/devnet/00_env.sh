@@ -29,7 +29,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "$SCRIPT_SOURCE")/../.." && pwd)"
 
 export RPC="${RPC:-http://127.0.0.1:5050/rpc}"
 export ACCOUNT="${ACCOUNT:-dev_deployer}"
-export ACCOUNTS_FILE="${ACCOUNTS_FILE:-$ROOT_DIR/.accounts/devnet_oz_accounts.json}"
+export ACCOUNTS_FILE="${ACCOUNTS_FILE:-/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json}"
 export ACCOUNTS_NAMESPACE="${ACCOUNTS_NAMESPACE:-alpha-sepolia}"
 
 export WORKBOOK_DIR="${WORKBOOK_DIR:-$ROOT_DIR/workbook}"

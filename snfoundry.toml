@@ -1,31 +1,31 @@
 [sncast.dev_deployer]
 account = "dev_deployer"
-accounts-file = ".accounts/devnet_oz_accounts.json"
+accounts-file = "/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json"
 url = "http://127.0.0.1:5050"
 
 [sncast.dev_operator]
 account = "dev_operator"
-accounts-file = ".accounts/devnet_oz_accounts.json"
+accounts-file = "/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json"
 url = "http://127.0.0.1:5050"
 
 [sncast.dev_seeder]
 account = "dev_seeder"
-accounts-file = ".accounts/devnet_oz_accounts.json"
+accounts-file = "/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json"
 url = "http://127.0.0.1:5050"
 
 [sncast.dev_bidder1]
 account = "dev_bidder1"
-accounts-file = ".accounts/devnet_oz_accounts.json"
+accounts-file = "/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json"
 url = "http://127.0.0.1:5050"
 
 [sncast.dev_bidder2]
 account = "dev_bidder2"
-accounts-file = ".accounts/devnet_oz_accounts.json"
+accounts-file = "/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json"
 url = "http://127.0.0.1:5050"
 
 [sncast.dev_publisher]
 account = "dev_publisher"
-accounts-file = ".accounts/devnet_oz_accounts.json"
+accounts-file = "/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json"
 url = "http://127.0.0.1:5050"
 
 [sncast.main-sep]

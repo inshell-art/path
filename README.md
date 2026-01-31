@@ -46,40 +46,15 @@ Artifacts:
 - `output/sepolia/addresses.sepolia.env`
 - `output/sepolia/deploy.params.sepolia.json`
 
-## 0) Start Starknet Devnet
+## 0) Devnet (managed in ../localnet)
 
-```bash
-# Include --allow-mint only if your devnet build supports the faucet flag.
-starknet-devnet --host 127.0.0.1 --port 5050 --seed 0
-```
+Devnet is managed in the dedicated local repo at `../localnet`.
 
-Any equivalent devnet command works; the important bits are:
+- Start/stop and watchdog docs: `../localnet/README.md`
+- RPC should be available at `http://127.0.0.1:5050/rpc`
+- Use seed `0` so addresses match:
+  `/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json`
 
-- RPC listening at `http://127.0.0.1:5050/rpc` (scripts default to this URL).
-- Faucet endpoint (via `--allow-mint` or the flag your build provides) if you want to fund bidder accounts through `/mint`. On builds without that flag, fund via manual ERC-20 transfers instead.
-- Deterministic seed so addresses match `.accounts/devnet_oz_accounts.json`.
-
-### Watchdog loop (nohup-friendly)
-
-To keep devnet running while you log out, launch the watchdog under `nohup` (or drop it into `tmux` if you prefer). The script auto-restores dumps via the `devnet_load` RPC and restarts on crash:
-
-```bash
-nohup ./scripts/devnet_watchdog.sh >output/devnet/watchdog.log 2>&1 &
-```
-
-Key knobs can be overridden via env vars before launching:
-
-| Variable | Meaning |
-| --- | --- |
-| `DEVNET_HOST` / `DEVNET_PORT` | RPC bind address (defaults `127.0.0.1:5050`). |
-| `DEVNET_INITIAL_BALANCE` | Funds per preloaded account (fri). |
-| `DEVNET_DUMP_FILE` | Where dumps are written/read (`output/devnet/devnet.dump.json`). |
-| `DEVNET_ADDITIONAL_ARGS` | Extra flags passed verbatim to `starknet-devnet` (e.g. `--initial-balance` or `--allow-mint`). |
-| `DEVNET_LOAD_ON_START` | Set `0` to skip automatic `devnet_load`. |
-| `DEVNET_INIT_WAIT` | Seconds to wait before polling `/is_alive` (default `5`). |
-| `DEVNET_RPC_TRIES` | Number of `/is_alive` polls after `INIT_WAIT` (1/s, default `180`). |
-
-Watchdog logs: `output/devnet/devnet.log`. Stop it with `pkill -f scripts/devnet_watchdog.sh`.
 
 ## 1) Declare classes (build → declare → class hashes)
 

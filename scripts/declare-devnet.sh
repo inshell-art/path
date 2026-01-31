@@ -21,7 +21,7 @@ need curl
 
 RPC="${RPC_URL:-http://127.0.0.1:5050/rpc}"
 PROFILE="${PROFILE:-dev_deployer}"
-ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-.accounts/devnet_oz_accounts.json}"
+ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json}"
 ACCOUNT_NAME="${SNCAST_ACCOUNT_NAME:-${PROFILE:-dev_deployer}}"
 ACCOUNTS_FILE_ABS="$(
 	python3 - "$ACCOUNTS_FILE" <<'PY'

@@ -31,7 +31,7 @@ mkdir -p "$OUT_DIR"
 : >"$OUT_DIR/.gitkeep"
 LOG_FILE="$OUT_DIR/smoke_$(date +%F-%H%M%S).jsonl"
 
-ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-.accounts/devnet_oz_accounts.json}"
+ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json}"
 ACCT_NS="${SNCAST_ACCOUNTS_NAMESPACE:-alpha-sepolia}"
 BIDDER_ADDR="$(jq -r --arg ns "$ACCT_NS" --arg p "$PROFILE_BIDDER" '.[$ns][$p].address' "$ACCOUNTS_FILE")"
 

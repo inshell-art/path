@@ -24,7 +24,7 @@
 - Full tests (includes vendor pulse): `./scripts/test-full.sh`.
 
 ## Devnet entrypoints
-- `./scripts/devnet_watchdog.sh` (start/monitor devnet, load dump).
+- Devnet runtime is managed in `../localnet` (see `../localnet/README.md`).
 - `./scripts/deploy-devnet.sh` (end-to-end devnet deploy).
 - `scripts/devnet/00_env.sh` (source env).
 - `scripts/devnet/01_deploy_utils.sh`.

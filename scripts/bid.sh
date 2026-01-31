@@ -23,7 +23,7 @@ PROFILE_BIDDER="${PROFILE_BIDDER:-dev_bidder1}"
 RPC="${RPC_URL:-http://127.0.0.1:5050/rpc}"
 PAYTOKEN="${PAYTOKEN:?set PAYTOKEN or source env files}"
 PULSE_AUCTION="${PULSE_AUCTION:?set PULSE_AUCTION or source env files}"
-ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-.accounts/devnet_oz_accounts.json}"
+ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json}"
 ACCT_NS="${SNCAST_ACCOUNTS_NAMESPACE:-alpha-sepolia}"
 BIDDER_ADDR="$(jq -r --arg ns "$ACCT_NS" --arg p "$PROFILE_BIDDER" '.[$ns][$p].address' "$ACCOUNTS_FILE")"
 

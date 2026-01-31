@@ -3,7 +3,7 @@
 ## Environment
 - RPC: http://127.0.0.1:5050/rpc
 - Account: dev_deployer
-- Accounts file: /Users/bigu/Projects/path/.accounts/devnet_oz_accounts.json
+- Accounts file: /Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json
 - Devnet seed: 0 (watchdog default)
 
 ## Group A — Utilities
