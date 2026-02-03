@@ -12,8 +12,9 @@ tmp_tx.json
 tmp/
 .DS_Store
 .vscode/
-output/
-!output/.gitkeep
+output/*
+!output/addresses.sepolia.json
+!output/deploy.sepolia.json
 deployments/
 scripts/.env.local
 scripts/params.devnet.local

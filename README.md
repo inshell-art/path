@@ -40,6 +40,12 @@ CLASS_PULSE="<pulse_class_hash>" ./scripts/declare-sepolia.sh
 ./scripts/verify-sepolia.sh
 ```
 
+Publish FE artifacts (end of runbook):
+- Follow `docs/specs/fe-deploy-artifacts.md`.
+- Update the two public outputs used by the frontend:
+  - `output/addresses.sepolia.json`
+  - `output/deploy.sepolia.json`
+
 Artifacts:
 - `output/sepolia/classes.sepolia.json`
 - `output/sepolia/addresses.sepolia.json`
