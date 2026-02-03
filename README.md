@@ -45,6 +45,9 @@ Publish FE artifacts (end of runbook):
 - Update the two public outputs used by the frontend:
   - `output/addresses.sepolia.json`
   - `output/deploy.sepolia.json`
+- **Note:** capture `deploy_block` immediately after a successful deploy (use the latest
+  PulseAuction deploy tx hash to resolve the block number) and record it in
+  `output/deploy.sepolia.json`.
 
 Artifacts:
 - `output/sepolia/classes.sepolia.json`

@@ -84,6 +84,12 @@ The FE can:
 - Keep old versions via git history (or tagged releases if needed).
 - Do not reuse files across networks.
 
+### Timing for deploy_block
+
+Capture `deploy_block` **immediately after a successful deploy** while the deploy
+transaction hash is known (e.g., from the latest `deploy_PulseAuction_*.json`).
+Resolve that tx to its block number and record it in `output/deploy.<net>.json`.
+
 ## 6) Safety
 
 - ✅ Public info only.
