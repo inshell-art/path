@@ -9,8 +9,8 @@
 - `interfaces/`: shared Cairo interfaces.
 - `crates/`: test support and e2e helpers.
 - `vendors/`: vendored dependencies (pulse, pprf, step-curve).
-- `scripts/`: deployment scripts (Sepolia) and ops helpers.
-- `workbook/`: ops runbooks + metadata notes (devnet workbook moved to `../localnet/workbook`).
+- `scripts/`: deployment scripts (Sepolia) and devnet ops helpers.
+- `workbook/`: runbooks + devnet/sepolia workbooks.
 
 ## Install
 - `pnpm install` (optional; for husky hooks only).
@@ -24,9 +24,9 @@
 - Full tests (includes vendor pulse): `./scripts/test-full.sh`.
 
 ## Devnet entrypoints
-- Devnet runtime + scripts are managed in `../localnet` (see `../localnet/README.md`).
-- Devnet scripts live under `../localnet/scripts/` and `../localnet/scripts/devnet/`.
-- Devnet workbook lives under `../localnet/workbook/`.
+- Devnet runtime is managed in `../localnet` (see `../localnet/README.md`).
+- Devnet scripts live under `scripts/devnet/`.
+- Devnet workbook lives under `workbook/`.
 
 ## Sepolia local deploy (no CI/CD)
 - Create `scripts/.env.sepolia.local` with `RPC_URL`, `SNCAST_ACCOUNTS_FILE`, `SNCAST_ACCOUNTS_NAMESPACE`, and `DECLARE_PROFILE/DEPLOY_PROFILE`.

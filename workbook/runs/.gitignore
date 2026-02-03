@@ -1,0 +1,3 @@
+# personal run logs
+run-*.md
+!run-YYYYMMDD.md

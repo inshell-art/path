@@ -55,24 +55,21 @@ Artifacts:
 - `output/sepolia/addresses.sepolia.env`
 - `output/sepolia/deploy.params.sepolia.json`
 
-## 0) Devnet (managed in ../localnet)
+## 0) Devnet (local runtime + PATH ops)
 
-Devnet is managed in the dedicated local repo at `../localnet`.
-
+Devnet runtime is managed in the dedicated local repo at `../localnet`:
 - Start/stop and watchdog docs: `../localnet/README.md`
 - RPC should be available at `http://127.0.0.1:5050/rpc`
 - Use seed `0` so addresses match:
   `/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json`
 
-
-## Devnet deploy + bids (moved)
-
-Devnet deploy/config/smoke scripts now live in `../localnet/scripts/`.
-Run them from the localnet repo (they default to using the sibling `../path` repo).
+Devnet deploy/config/smoke scripts live here under `scripts/devnet/` and
+the devnet workbook is in `workbook/`.
 
 Suggested flow:
-- `../localnet/scripts/declare-devnet.sh`
-- `../localnet/scripts/deploy-devnet.sh`
-- `../localnet/scripts/config-devnet.sh`
-- `../localnet/scripts/smoke.sh`
-- `../localnet/scripts/bid.sh`
+- `scripts/devnet/01_preflight.sh`
+- `scripts/devnet/10_group_A_utils.sh`
+- `scripts/devnet/20_group_C_path_core.sh`
+- `scripts/devnet/30_group_B_renderer.sh`
+- `scripts/devnet/40_group_D_pulse.sh`
+- `scripts/devnet/50_group_E_movements.sh`
