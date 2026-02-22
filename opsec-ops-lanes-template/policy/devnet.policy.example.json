@@ -1,0 +1,211 @@
+{
+  "network": "devnet",
+  "chain_id": "31337",
+  "rpc_allowlist": [
+    "http://127.0.0.1:8545",
+    "http://localhost:8545"
+  ],
+  "signer_aliases": {
+    "DEVNET_DEPLOY_SW_A": {
+      "type": "keystore",
+      "address_env": "DEVNET_DEPLOY_ADDRESS",
+      "keystore_env": "DEVNET_DEPLOY_KEYSTORE_JSON"
+    },
+    "DEVNET_GOV_SW_A": {
+      "type": "keystore",
+      "address_env": "DEVNET_GOV_ADDRESS",
+      "keystore_env": "DEVNET_GOV_KEYSTORE_JSON"
+    },
+    "DEVNET_GOV_HW_B": {
+      "type": "ledger"
+    },
+    "DEVNET_TREASURY_SW_A": {
+      "type": "keystore",
+      "address_env": "DEVNET_TREASURY_ADDRESS",
+      "keystore_env": "DEVNET_TREASURY_KEYSTORE_JSON"
+    },
+    "DEVNET_TREASURY_HW_B": {
+      "type": "ledger"
+    }
+  },
+  "lanes": {
+    "observe": {
+      "writes": false,
+      "allowed_ops": [
+        "read",
+        "snapshot",
+        "diff",
+        "simulate"
+      ]
+    },
+    "plan": {
+      "writes": false,
+      "allowed_ops": [
+        "build",
+        "compile",
+        "derive_intent",
+        "checks_readonly",
+        "simulate"
+      ]
+    },
+    "deploy": {
+      "writes": true,
+      "allowed_signers": [
+        "DEVNET_DEPLOY_SW_A"
+      ],
+      "allowed_ops": [
+        "deploy_contract",
+        "initialize_contract"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist",
+        "bytecode_hash",
+        "proxy_implementation",
+        "post_deploy_snapshot"
+      ],
+      "fee_policy": {
+        "max_fee_per_gas_gwei": "<SET_ME>",
+        "max_priority_fee_per_gas_gwei": "<SET_ME>",
+        "enforce_eip1559": true
+      }
+    },
+    "handoff": {
+      "writes": true,
+      "allowed_signers": [
+        "DEVNET_DEPLOY_SW_A",
+        "DEVNET_GOV_SW_A",
+        "DEVNET_GOV_HW_B"
+      ],
+      "allowed_ops": [
+        "grant_role",
+        "revoke_role",
+        "transfer_ownership",
+        "accept_ownership",
+        "safe_propose",
+        "safe_confirm",
+        "safe_execute"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist",
+        "target_identity",
+        "preconditions",
+        "postconditions"
+      ]
+    },
+    "govern": {
+      "writes": true,
+      "allowed_signers": [
+        "DEVNET_GOV_SW_A",
+        "DEVNET_GOV_HW_B",
+        "DEVNET_TREASURY_SW_A",
+        "DEVNET_TREASURY_HW_B"
+      ],
+      "allowed_ops": [
+        "safe_propose",
+        "safe_confirm",
+        "safe_execute"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist",
+        "target_identity",
+        "preconditions",
+        "simulate",
+        "postconditions"
+      ],
+      "safe_rules": {
+        "gov": {
+          "quorum": 2,
+          "signers": [
+            "DEVNET_GOV_SW_A",
+            "DEVNET_GOV_HW_B"
+          ]
+        },
+        "treasury": {
+          "quorum": 2,
+          "signers": [
+            "DEVNET_TREASURY_SW_A",
+            "DEVNET_TREASURY_HW_B"
+          ]
+        }
+      }
+    },
+    "treasury": {
+      "writes": true,
+      "allowed_signers": [
+        "DEVNET_TREASURY_SW_A",
+        "DEVNET_TREASURY_HW_B"
+      ],
+      "allowed_ops": [
+        "safe_propose",
+        "safe_confirm",
+        "safe_execute"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist",
+        "target_identity",
+        "preconditions",
+        "simulate",
+        "postconditions"
+      ],
+      "safe_rules": {
+        "treasury": {
+          "quorum": 2,
+          "signers": [
+            "DEVNET_TREASURY_SW_A",
+            "DEVNET_TREASURY_HW_B"
+          ]
+        }
+      }
+    },
+    "operate": {
+      "writes": true,
+      "allowed_signers": [
+        "DEVNET_GOV_SW_A",
+        "DEVNET_GOV_HW_B"
+      ],
+      "allowed_ops": [
+        "safe_propose",
+        "safe_confirm",
+        "safe_execute"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist",
+        "target_identity",
+        "preconditions",
+        "postconditions"
+      ]
+    },
+    "emergency": {
+      "writes": true,
+      "allowed_signers": [
+        "DEVNET_GOV_SW_A",
+        "DEVNET_GOV_HW_B"
+      ],
+      "allowed_ops": [
+        "pause",
+        "freeze",
+        "safe_propose",
+        "safe_confirm",
+        "safe_execute"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist",
+        "target_identity",
+        "preconditions",
+        "postconditions"
+      ]
+    }
+  }
+}

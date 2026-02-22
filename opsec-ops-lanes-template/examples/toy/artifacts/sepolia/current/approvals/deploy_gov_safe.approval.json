@@ -1,0 +1,9 @@
+{
+  "intent_hash": "0xINTENT_HASH_PLACEHOLDER",
+  "bundle_hash": "0xBUNDLE_HASH_PLACEHOLDER",
+  "approved": true,
+  "approved_at": "2026-02-04T00:00:00Z",
+  "approved_by": "<OPERATOR>",
+  "approval_phrase": "APPROVE SEPOLIA DEPLOY",
+  "notes": "Toy example approval."
+}

@@ -1,0 +1,62 @@
+name: Ops Bundle (CI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: "Target network"
+        type: choice
+        required: true
+        default: devnet
+        options:
+          - devnet
+          - sepolia
+          - mainnet
+      lane:
+        description: "Lane"
+        type: choice
+        required: true
+        default: plan
+        options:
+          - observe
+          - plan
+          - deploy
+          - handoff
+          - govern
+          - treasury
+          - operate
+          - emergency
+      run_id:
+        description: "Optional run id (default: timestamp + short SHA)"
+        type: string
+        required: false
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Set run id
+        id: runid
+        run: |
+          if [[ -n "${{ inputs.run_id }}" ]]; then
+            echo "run_id=${{ inputs.run_id }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_id=$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build bundle
+        env:
+          NETWORK: ${{ inputs.network }}
+          LANE: ${{ inputs.lane }}
+          RUN_ID: ${{ steps.runid.outputs.run_id }}
+        run: |
+          ./ops/tools/bundle.sh
+      - name: Upload bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ops-bundle-${{ inputs.network }}-${{ steps.runid.outputs.run_id }}
+          path: bundles/${{ inputs.network }}/${{ steps.runid.outputs.run_id }}
+          if-no-files-found: error

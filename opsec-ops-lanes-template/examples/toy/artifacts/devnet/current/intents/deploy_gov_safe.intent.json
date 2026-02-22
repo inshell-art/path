@@ -1,0 +1,42 @@
+{
+  "network": "devnet",
+  "lane": "deploy",
+  "signer_alias": "DEVNET_DEPLOY_SW_A",
+  "tx": {
+    "kind": "safe_tx",
+    "safe": {
+      "safe_address": "0x1111111111111111111111111111111111111111",
+      "chain_id": "31337",
+      "nonce": "7",
+      "operation": "call"
+    },
+    "calls": [
+      {
+        "to": "0x2222222222222222222222222222222222222222",
+        "value": "0",
+        "data": "0x6080604052348015600f57600080fd5b",
+        "operation": "create"
+      },
+      {
+        "to": "0x3333333333333333333333333333333333333333",
+        "value": "0",
+        "data": "0x8129fc1c0000000000000000000000004444444444444444444444444444444444444444",
+        "operation": "call"
+      }
+    ]
+  },
+  "semantic": {
+    "summary": "Execute Safe deployment batch to deploy GOV Safe proxy and initialize owners.",
+    "expected_effect": "A new Safe proxy is created and recorded as DEVNET_GOV_SAFE.",
+    "risk": "medium",
+    "notes": "Toy example only; production runs must verify bytecode hash and proxy implementation slots."
+  },
+  "hashes": {
+    "intent_hash": "0xINTENT_HASH_PLACEHOLDER",
+    "bundle_hash": "0xBUNDLE_HASH_PLACEHOLDER"
+  },
+  "meta": {
+    "generated_at": "2026-02-04T00:00:00Z",
+    "tool": "template"
+  }
+}

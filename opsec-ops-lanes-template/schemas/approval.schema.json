@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Human Approval",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "intent_hash",
+    "approved",
+    "approved_at",
+    "approval_phrase"
+  ],
+  "properties": {
+    "intent_hash": {
+      "type": "string"
+    },
+    "bundle_hash": {
+      "type": "string"
+    },
+    "approved": {
+      "type": "boolean"
+    },
+    "approved_at": {
+      "type": "string"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "approval_phrase": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

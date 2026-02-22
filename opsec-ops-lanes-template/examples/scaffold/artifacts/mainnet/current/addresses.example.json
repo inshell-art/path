@@ -1,0 +1,12 @@
+{
+  "network": "mainnet",
+  "labels": {
+    "MAINNET_GOV_SW_A": "0x8888888888888888888888888888888888888888",
+    "MAINNET_GOV_HW_B": "0x9999999999999999999999999999999999999999",
+    "MAINNET_TREASURY_SW_A": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "MAINNET_TREASURY_HW_B": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "MAINNET_GOV_SAFE": "0xcccccccccccccccccccccccccccccccccccccccc",
+    "MAINNET_TREASURY_SAFE": "0xdddddddddddddddddddddddddddddddddddddddd"
+  },
+  "notes": "Example only. Replace with real addresses in your private instance."
+}

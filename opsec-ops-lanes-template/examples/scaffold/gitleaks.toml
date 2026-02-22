@@ -1,0 +1,10 @@
+title = "opsec-ops-lanes-template scaffold"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow example placeholders"
+paths = [
+  '''examples/scaffold/.*'''
+]

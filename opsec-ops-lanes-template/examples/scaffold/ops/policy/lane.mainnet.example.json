@@ -1,0 +1,138 @@
+{
+  "network": "mainnet",
+  "rpc_allowlist": [
+    "https://eth-mainnet.g.alchemy.com/v2/<API_KEY>",
+    "https://mainnet.infura.io/v3/<API_KEY>",
+    "https://ethereum-rpc.publicnode.com"
+  ],
+  "lanes": {
+    "observe": {
+      "writes": false,
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist"
+      ],
+      "gates": {
+        "require_rehearsal_proof": false,
+        "rehearsal_proof_network": "devnet"
+      }
+    },
+    "plan": {
+      "writes": false,
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist"
+      ],
+      "gates": {
+        "require_rehearsal_proof": false,
+        "rehearsal_proof_network": "devnet"
+      }
+    },
+    "deploy": {
+      "writes": true,
+      "allowed_signers": [
+        "MAINNET_DEPLOY_SW_A"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist",
+        "bytecode_hash",
+        "proxy_implementation"
+      ],
+      "fee_policy": {
+        "max_fee_per_gas_gwei": "<SET_ME>",
+        "max_priority_fee_per_gas_gwei": "<SET_ME>",
+        "enforce_eip1559": true
+      },
+      "gates": {
+        "require_rehearsal_proof": true,
+        "rehearsal_proof_network": "devnet"
+      }
+    },
+    "handoff": {
+      "writes": true,
+      "allowed_signers": [
+        "MAINNET_GOV_SW_A",
+        "MAINNET_GOV_HW_B"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist",
+        "target_identity"
+      ],
+      "gates": {
+        "require_rehearsal_proof": true,
+        "rehearsal_proof_network": "devnet"
+      }
+    },
+    "govern": {
+      "writes": true,
+      "allowed_signers": [
+        "MAINNET_GOV_SW_A",
+        "MAINNET_GOV_HW_B",
+        "MAINNET_TREASURY_SW_A",
+        "MAINNET_TREASURY_HW_B"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist",
+        "simulate"
+      ],
+      "gates": {
+        "require_rehearsal_proof": true,
+        "rehearsal_proof_network": "devnet"
+      }
+    },
+    "treasury": {
+      "writes": true,
+      "allowed_signers": [
+        "MAINNET_TREASURY_SW_A",
+        "MAINNET_TREASURY_HW_B"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist",
+        "simulate"
+      ],
+      "gates": {
+        "require_rehearsal_proof": true,
+        "rehearsal_proof_network": "devnet"
+      }
+    },
+    "operate": {
+      "writes": true,
+      "allowed_signers": [
+        "MAINNET_GOV_SW_A"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist"
+      ],
+      "gates": {
+        "require_rehearsal_proof": true,
+        "rehearsal_proof_network": "devnet"
+      }
+    },
+    "emergency": {
+      "writes": true,
+      "allowed_signers": [
+        "MAINNET_GOV_SW_A",
+        "MAINNET_GOV_HW_B"
+      ],
+      "required_checks": [
+        "chain_id",
+        "rpc_allowlist",
+        "signer_allowlist"
+      ],
+      "gates": {
+        "require_rehearsal_proof": true,
+        "rehearsal_proof_network": "devnet"
+      }
+    }
+  }
+}

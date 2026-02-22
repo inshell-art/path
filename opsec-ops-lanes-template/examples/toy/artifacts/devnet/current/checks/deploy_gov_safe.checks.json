@@ -1,0 +1,55 @@
+{
+  "intent_hash": "0xINTENT_HASH_PLACEHOLDER",
+  "status": "pass",
+  "checks": [
+    {
+      "name": "chain_id",
+      "status": "pass",
+      "evidence": {
+        "expected": "31337",
+        "observed": "31337"
+      }
+    },
+    {
+      "name": "rpc_allowlist",
+      "status": "pass",
+      "evidence": {
+        "rpc": "http://127.0.0.1:8545"
+      }
+    },
+    {
+      "name": "signer_allowlist",
+      "status": "pass",
+      "evidence": {
+        "signer_alias": "DEVNET_DEPLOY_SW_A"
+      }
+    },
+    {
+      "name": "bytecode_hash",
+      "status": "pass",
+      "evidence": {
+        "expected": "0x5f5f9d6c2b7b9b1e85f8f87cd5f16e10f3a7e00a7a6c3f4af4a3c8b889f8dafe",
+        "observed": "0x5f5f9d6c2b7b9b1e85f8f87cd5f16e10f3a7e00a7a6c3f4af4a3c8b889f8dafe"
+      }
+    },
+    {
+      "name": "proxy_implementation",
+      "status": "pass",
+      "evidence": {
+        "slot": "eip1967.implementation",
+        "expected": "0x4444444444444444444444444444444444444444",
+        "observed": "0x4444444444444444444444444444444444444444"
+      }
+    },
+    {
+      "name": "post_deploy_snapshot",
+      "status": "skip",
+      "evidence": {
+        "reason": "toy example"
+      }
+    }
+  ],
+  "meta": {
+    "generated_at": "2026-02-04T00:00:00Z"
+  }
+}

@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Onchain Operation Intent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "network",
+    "lane",
+    "signer_alias",
+    "tx",
+    "semantic",
+    "hashes"
+  ],
+  "properties": {
+    "network": {
+      "type": "string"
+    },
+    "lane": {
+      "type": "string"
+    },
+    "signer_alias": {
+      "type": "string"
+    },
+    "tx": {
+      "description": "Transaction envelope. Supports legacy generic shape, EVM direct calls, and Safe batches.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/legacyTx"
+        },
+        {
+          "$ref": "#/$defs/evmCallTx"
+        },
+        {
+          "$ref": "#/$defs/safeTx"
+        }
+      ]
+    },
+    "semantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "expected_effect": {
+          "type": "string"
+        },
+        "risk": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_hash"
+      ],
+      "properties": {
+        "intent_hash": {
+          "type": "string"
+        },
+        "bundle_hash": {
+          "type": "string"
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "generated_at": {
+          "type": "string"
+        },
+        "git_commit": {
+          "type": "string"
+        },
+        "tool": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "legacyTx": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "to",
+        "entrypoint",
+        "calldata"
+      ],
+      "properties": {
+        "to": {
+          "type": "string",
+          "description": "Target contract address (hex string)."
+        },
+        "entrypoint": {
+          "type": "string",
+          "description": "Entry point / function name."
+        },
+        "calldata": {
+          "type": "array",
+          "items": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "value": {
+          "type": "string",
+          "description": "Native value, if applicable (hex or decimal string)."
+        }
+      }
+    },
+    "evmCallTx": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "to",
+        "data"
+      ],
+      "properties": {
+        "kind": {
+          "const": "evm_call"
+        },
+        "to": {
+          "type": "string",
+          "description": "Target EVM address."
+        },
+        "data": {
+          "type": "string",
+          "description": "Hex-encoded calldata."
+        },
+        "value": {
+          "type": "string",
+          "description": "Native value in wei (decimal or hex string)."
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "call",
+            "delegatecall",
+            "create"
+          ]
+        },
+        "gas_limit": {
+          "type": "string"
+        },
+        "max_fee_per_gas": {
+          "type": "string",
+          "description": "EIP-1559 max fee per gas (wei)."
+        },
+        "max_priority_fee_per_gas": {
+          "type": "string",
+          "description": "EIP-1559 max priority fee per gas (wei)."
+        },
+        "nonce": {
+          "type": "string"
+        },
+        "access_list": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "address",
+              "storage_keys"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "storage_keys": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "safeTx": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "safe",
+        "calls"
+      ],
+      "properties": {
+        "kind": {
+          "const": "safe_tx"
+        },
+        "safe": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "safe_address",
+            "chain_id",
+            "nonce",
+            "operation"
+          ],
+          "properties": {
+            "safe_address": {
+              "type": "string"
+            },
+            "chain_id": {
+              "type": "string"
+            },
+            "nonce": {
+              "type": "string"
+            },
+            "operation": {
+              "type": "string",
+              "enum": [
+                "call",
+                "delegatecall"
+              ]
+            },
+            "safe_tx_gas": {
+              "type": "string"
+            },
+            "base_gas": {
+              "type": "string"
+            },
+            "gas_price": {
+              "type": "string"
+            },
+            "gas_token": {
+              "type": "string"
+            },
+            "refund_receiver": {
+              "type": "string"
+            }
+          }
+        },
+        "calls": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "to",
+              "data",
+              "value",
+              "operation"
+            ],
+            "properties": {
+              "to": {
+                "type": "string"
+              },
+              "data": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "call",
+                  "delegatecall",
+                  "create"
+                ]
+              }
+            }
+          }
+        },
+        "signatures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "signer_alias",
+              "signature"
+            ],
+            "properties": {
+              "signer_alias": {
+                "type": "string"
+              },
+              "signature": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
