@@ -31,3 +31,4 @@ scripts/params.devnet.local
 *keystore*.json
 *serviceAccount*.json
 workbook/artifacts/**/keystore*
+.last_ops_rid
