@@ -1,15 +1,95 @@
-# path Protocol – Dev Runbook
+# PATH Protocol
 
-Protocol deployment + config steps that used to live in `inshell.art/README.md`.
-Run these from the `../path` repo (sibling to the FE repo) before syncing data
-back into the frontend.
+Primary implementation is now Solidity/EVM in `evm/`.
+Legacy Cairo/Starknet contracts and scripts are still available for maintenance and historical deploys.
 
-## Sepolia Runbook (local deploy)
+## EVM (primary)
 
-Set local env/params (these are not committed):
+Quickstart:
 
 ```bash
-# Required env
+npm run evm:install
+npm run evm:compile
+npm run evm:test
+npm run evm:estimate:deploy:cost
+```
+
+Primary repo-level entrypoints:
+
+```bash
+npm test
+npm run deploy
+npm run smoke
+npm run scenario
+```
+
+Local ETH cascade rehearsal:
+
+Terminal 1:
+
+```bash
+npm run evm:node
+```
+
+Terminal 2:
+
+```bash
+npm run evm:local:eth
+# or use root helper scripts:
+./scripts/deploy-eth-local.sh
+./scripts/smoke-eth-local.sh
+./scripts/scenario-eth-local.sh
+```
+
+EVM details live in `evm/README.md`.
+
+## Ops Lanes (Ethereum)
+
+Ops-lanes template is vendored at `opsec-ops-lanes-template/` and downstream instance files live at:
+
+- `ops/` (policy, tools, runbooks)
+- `artifacts/` (generated evidence)
+- `bundles/` (immutable CI/CD bundles)
+
+Vendored source: `https://github.com/inshell-art/opsec-ops-lanes-template` at commit `c274fda`.
+
+Quick rehearsal (bundle + verify only):
+
+```bash
+NETWORK=sepolia LANE=plan RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)-local npm run ops:bundle
+NETWORK=sepolia RUN_ID=<same_run_id> npm run ops:verify
+```
+
+Apply path (Signing OS only):
+
+```bash
+NETWORK=sepolia RUN_ID=<same_run_id> npm run ops:approve
+SIGNING_OS=1 NETWORK=sepolia RUN_ID=<same_run_id> npm run ops:apply
+NETWORK=sepolia RUN_ID=<same_run_id> POSTCONDITIONS_STATUS=pass npm run ops:postconditions
+```
+
+Local ops env variable examples are in `ops/env.example` (do not commit secrets).
+
+## Cairo/Starknet (legacy)
+
+Legacy Cairo sources now live under `legacy/cairo/`:
+
+- `legacy/cairo/contracts`
+- `legacy/cairo/interfaces`
+- `legacy/cairo/crates`
+
+### Tests
+
+```bash
+npm run cairo:test:unit
+npm run cairo:test:full
+```
+
+### Sepolia runbook (legacy local deploy)
+
+Set local env/params (not committed):
+
+```bash
 cat > scripts/.env.sepolia.local <<'EOF'
 RPC_URL="https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<key>"
 SNCAST_ACCOUNTS_FILE="$HOME/.starknet_accounts/sepolia_accounts.json"
@@ -20,11 +100,9 @@ CONFIG_PROFILE="pathnft_owner"
 ADMIN_PROFILE="PathNFT-owner"
 EOF
 
-# Required params
 cat > scripts/params.sepolia.local <<'EOF'
 PAYTOKEN="<STRK_SEPOLIA_ADDRESS>"
 TREASURY="<TREASURY_ADDRESS>"
-# Optional reuse of glyph deployments
 PPRF_ADDR=""
 STEP_CURVE_ADDR=""
 EOF
@@ -33,43 +111,14 @@ EOF
 Declare + deploy + configure:
 
 ```bash
-# Pulse class should be declared in the pulse repo; export CLASS_PULSE if already declared.
-CLASS_PULSE="<pulse_class_hash>" ./scripts/declare-sepolia.sh
-./scripts/deploy-sepolia.sh
-./scripts/config-sepolia.sh
-./scripts/verify-sepolia.sh
+CLASS_PULSE="<pulse_class_hash>" npm run legacy:declare:sepolia
+npm run legacy:deploy:sepolia
+npm run legacy:config:sepolia
+npm run legacy:verify:sepolia
 ```
-
-Publish FE artifacts (end of runbook):
-- Follow `docs/specs/fe-deploy-artifacts.md`.
-- Update the two public outputs used by the frontend:
-  - `output/addresses.sepolia.json`
-  - `output/deploy.sepolia.json`
-- **Note:** capture `deploy_block` immediately after a successful deploy (use the latest
-  PulseAuction deploy tx hash to resolve the block number) and record it in
-  `output/deploy.sepolia.json`.
 
 Artifacts:
 - `output/sepolia/classes.sepolia.json`
 - `output/sepolia/addresses.sepolia.json`
 - `output/sepolia/addresses.sepolia.env`
 - `output/sepolia/deploy.params.sepolia.json`
-
-## 0) Devnet (local runtime + PATH ops)
-
-Devnet runtime is managed in the dedicated local repo at `../localnet`:
-- Start/stop and watchdog docs: `../localnet/README.md`
-- RPC should be available at `http://127.0.0.1:5050/rpc`
-- Use seed `0` so addresses match:
-  `/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json`
-
-Devnet deploy/config/smoke scripts live here under `scripts/devnet/` and
-the devnet workbook is in `workbook/`.
-
-Suggested flow:
-- `scripts/devnet/01_preflight.sh`
-- `scripts/devnet/10_group_A_utils.sh`
-- `scripts/devnet/20_group_C_path_core.sh`
-- `scripts/devnet/30_group_B_renderer.sh`
-- `scripts/devnet/40_group_D_pulse.sh`
-- `scripts/devnet/50_group_E_movements.sh`
