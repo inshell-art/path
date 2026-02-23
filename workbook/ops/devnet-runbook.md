@@ -10,33 +10,30 @@
 
 ## B) Execute scripts (exact commands)
 ```bash
-source ~/.config/inshell/path/env/devnet.env
-./scripts/ops/10_build.sh
-./scripts/ops/20_declare.sh
-./scripts/ops/30_deploy.sh
-./scripts/ops/40_wire.sh
-./scripts/ops/50_prepare_handoff_intents.sh
+source scripts/devnet/00_env.sh
+scripts/devnet/01_preflight.sh
+scripts/devnet/10_group_A_utils.sh
+scripts/devnet/20_group_C_path_core.sh
+scripts/devnet/30_group_B_renderer.sh
+scripts/devnet/40_group_D_pulse.sh
+scripts/devnet/50_group_E_movements.sh
 ```
 
-## C) Multisig handoff procedure
-- locate `workbook/artifacts/devnet/intents/handoff.json`
-- open multisig UI
-- submit each action in order
-- collect approvals (Signer A + Ledger)
-- execute each action
-- record tx hashes per action
-
-## D) Verification steps
+All‑in‑one:
 ```bash
-./scripts/ops/60_verify.sh
+scripts/devnet/rehearse_all.sh
 ```
-- manual explorer checks (owner/admin addresses)
 
-## E) Logging
-- append to `workbook/devnet-run-YYYYMMDD.md`
-- include: class hashes, addresses, tx hashes, final owner/admin values
+## C) Verification steps
+```bash
+scripts/devnet/05_smoke_e2e.sh
+```
 
-## F) Failure handling
-- declare ok but deploy failed → retry deploy only
-- wiring failed → revert config if possible, retry
-- handoff partially executed → stop and finish; never leave deployer privileged longer than needed
+## D) Logging
+- append to `workbook/runs/run-YYYYMMDD.md`
+- include: class hashes, addresses, tx hashes, and any anomalies
+
+## E) Failure handling
+- declare ok but deploy failed → rerun the failed group only
+- renderer failed → rerun Group B after confirming token id
+- pulse failed → rerun Group D after verifying adapter wiring

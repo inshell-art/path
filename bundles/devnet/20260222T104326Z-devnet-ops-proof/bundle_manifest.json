@@ -1,0 +1,23 @@
+{
+  "bundle_hash": "2c37e6be3a7fb7b4120cd1082ae23241063c41464a1d6c5c1d294180313a0511",
+  "generated_at": "2026-02-22T10:43:27Z",
+  "git_commit": "3b4692e8953010c7073c0241f3ceb12c84be0769",
+  "immutable_files": [
+    {
+      "path": "run.json",
+      "sha256": "54a15437eb46dfa8fb09d1bd2bcce29f0106b6e05612c83dd21d69b8c1fcf6ab"
+    },
+    {
+      "path": "intent.json",
+      "sha256": "5ec6243a9da3e6eafdc6ead45d642819b984ee65913032747271430f21e672e2"
+    },
+    {
+      "path": "checks.json",
+      "sha256": "8eab991bd997d8964fa6aeb54ad71ecfec0b43747e0beb2384bee752cdd5b9fa"
+    }
+  ],
+  "lane": "plan",
+  "manifest_version": 1,
+  "network": "devnet",
+  "run_id": "20260222T104326Z-devnet-ops-proof"
+}

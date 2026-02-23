@@ -1,0 +1,19 @@
+{
+  "checks": [
+    {
+      "details": "txs.json exists",
+      "name": "txs_present",
+      "status": "pass"
+    },
+    {
+      "details": "fill in chain verification",
+      "name": "state_verified",
+      "status": "pass"
+    }
+  ],
+  "network": "devnet",
+  "postconditions_version": "1",
+  "run_id": "20260223T084316Z-devnet-rehearsal",
+  "status": "pass",
+  "verified_at": "2026-02-23T10:53:17Z"
+}

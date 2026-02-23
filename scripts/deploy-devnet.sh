@@ -20,7 +20,7 @@ need tee
 need python3
 
 RPC="${RPC_URL:-http://127.0.0.1:5050/rpc}"
-PROFILE="${PROFILE:-dev_deployer}"
+PROFILE="${DEPLOY_PROFILE:-${PROFILE:-dev_deployer}}"
 FRI_PER_STRK="${FRI_PER_STRK:-1000000000000000000}"
 
 OUT_DIR="output"
@@ -130,7 +130,7 @@ deploy_one() {
 	if [ "$#" -gt 0 ]; then
 		addr="$(
 			sncast --profile "$PROFILE" --json deploy \
-				--class-hash "$class" --constructor-calldata "$@" |
+				--class-hash "$class" --constructor-calldata "$@" --url "$RPC" |
 				tee "$out" |
 				jq -r '.. | objects | (.contract_address? // .deploy?.contract_address? // empty)' |
 				head -n1
@@ -138,7 +138,7 @@ deploy_one() {
 	else
 		addr="$(
 			sncast --profile "$PROFILE" --json deploy \
-				--class-hash "$class" |
+				--class-hash "$class" --url "$RPC" |
 				tee "$out" |
 				jq -r '.. | objects | (.contract_address? // .deploy?.contract_address? // empty)' |
 				head -n1

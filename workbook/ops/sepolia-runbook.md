@@ -11,32 +11,26 @@
 ## B) Execute scripts (exact commands)
 ```bash
 source ~/.config/inshell/path/env/sepolia.env
-./scripts/ops/10_build.sh
-./scripts/ops/20_declare.sh
-./scripts/ops/30_deploy.sh
-./scripts/ops/40_wire.sh
-./scripts/ops/50_prepare_handoff_intents.sh
+./scripts/declare-sepolia.sh
+./scripts/deploy-sepolia.sh
+./scripts/config-sepolia.sh
+./scripts/verify-sepolia.sh
 ```
 
-## C) Multisig handoff procedure
-- locate `workbook/artifacts/sepolia/intents/handoff.json`
-- open multisig UI
-- submit each action in order
-- collect approvals (Signer A + Ledger)
-- execute each action
-- record tx hashes per action
+## C) Capture deploy metadata (for FE)
+- After `deploy-sepolia.sh`, record the **deploy block** from the deploy tx receipt.
+- Update:
+  - `output/addresses.sepolia.json`
+  - `output/deploy.sepolia.json` (set `deploy_block`, `chain_id`, `payment_token`, `explorer_base`)
 
 ## D) Verification steps
-```bash
-./scripts/ops/60_verify.sh
-```
+- `./scripts/verify-sepolia.sh`
 - manual explorer checks (owner/admin addresses)
 
 ## E) Logging
-- append to `workbook/sepolia-run-YYYYMMDD.md`
-- include: class hashes, addresses, tx hashes, final owner/admin values
+- append to `workbook/runs/run-YYYYMMDD.md`
+- include: class hashes, addresses, tx hashes, deploy block, final owner/admin values
 
 ## F) Failure handling
-- declare ok but deploy failed → retry deploy only
-- wiring failed → revert config if possible, retry
-- handoff partially executed → stop and finish; never leave deployer privileged longer than needed
+- declare ok but deploy failed → rerun deploy only
+- config failed → rerun config/verify after fixing roles

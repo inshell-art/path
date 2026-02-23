@@ -1,0 +1,9 @@
+{
+  "intent_version": 1,
+  "lane": "plan",
+  "network": "devnet",
+  "notes": "Scaffold stub. Replace with real intent generation.",
+  "ops": [
+    "stub"
+  ]
+}

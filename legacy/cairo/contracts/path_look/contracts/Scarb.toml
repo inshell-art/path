@@ -6,7 +6,7 @@ edition = "2024_07"
 [dependencies]
 starknet = "2.8.2"
 glyph_pprf = { git = "https://github.com/inshell-art/pprf.git" }
-step_curve = { path = "../../../../step-curve" }
+step_curve = { path = "../../../../../../step-curve" }
 
 [[target.starknet-contract]]
 sierra = true

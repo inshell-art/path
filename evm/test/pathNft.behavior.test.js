@@ -1,0 +1,189 @@
+import { expect } from "chai";
+import hre from "hardhat";
+import { deployPathNftEnv } from "./helpers/fixtures.js";
+
+describe("PathNFT (Solidity)", function () {
+  let conn;
+  let ethers;
+
+  async function expectAnyRevert(txPromise) {
+    try {
+      await txPromise;
+      expect.fail("expected tx to revert");
+    } catch (error) {
+      expect(error).to.exist;
+    }
+  }
+
+  beforeEach(async function () {
+    conn = await hre.network.connect();
+    ethers = conn.ethers;
+  });
+
+  afterEach(async function () {
+    await conn.close();
+  });
+
+  it("constructor sets metadata and admin role", async function () {
+    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+
+    expect(await nft.name()).to.equal("PATH NFT");
+    expect(await nft.symbol()).to.equal("PATH");
+    expect(await nft.hasRole(roles.DEFAULT_ADMIN_ROLE, deployer.address)).to.equal(true);
+  });
+
+  it("safeMint is MINTER_ROLE-gated", async function () {
+    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+    const [, alice] = await ethers.getSigners();
+
+    await expectAnyRevert(nft.connect(alice).safeMint(alice.address, 1n, "0x"));
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.safeMint(alice.address, 1n, "0x")).wait();
+
+    expect(await nft.ownerOf(1n)).to.equal(alice.address);
+    expect(await nft.getStage(1n)).to.equal(0n);
+    expect(await nft.getStageMinted(1n)).to.equal(0n);
+  });
+
+  it("setMovementConfig validates movement, minter, quota, and admin", async function () {
+    const { nft, movements } = await deployPathNftEnv(ethers);
+    const [, alice, bob] = await ethers.getSigners();
+
+    await expectAnyRevert(nft.connect(alice).setMovementConfig(movements.THOUGHT, bob.address, 1));
+    await expect(nft.setMovementConfig(movements.DREAM, bob.address, 1)).to.be.revertedWith("BAD_MOVEMENT");
+    await expect(nft.setMovementConfig(movements.THOUGHT, ethers.ZeroAddress, 1)).to.be.revertedWith("ZERO_MINTER");
+    await expect(nft.setMovementConfig(movements.THOUGHT, bob.address, 0)).to.be.revertedWith("ZERO_QUOTA");
+
+    await (await nft.setMovementConfig(movements.THOUGHT, bob.address, 2)).wait();
+    expect(await nft.getAuthorizedMinter(movements.THOUGHT)).to.equal(bob.address);
+    expect(await nft.getMovementQuota(movements.THOUGHT)).to.equal(2n);
+  });
+
+  it("burn requires owner/approval", async function () {
+    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+    const [, alice, bob] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.safeMint(alice.address, 11n, "0x")).wait();
+
+    await expect(nft.connect(bob).burn(11n)).to.be.revertedWith("ERR_NOT_OWNER");
+
+    await (await nft.connect(alice).approve(bob.address, 11n)).wait();
+    await (await nft.connect(bob).burn(11n)).wait();
+
+    await expectAnyRevert(nft.ownerOf(11n));
+  });
+
+  it("tokenURI returns base URI + token id", async function () {
+    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+    const [, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.safeMint(alice.address, 5n, "0x1234")).wait();
+
+    expect(await nft.tokenURI(5n)).to.equal("5");
+  });
+
+  it("consumeUnit enforces authorized movement minter", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, alice, bob] = await ethers.getSigners();
+
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 1)).wait();
+    await (await nft.safeMint(alice.address, 21n, "0x")).wait();
+
+    await expect(nft.connect(bob).consumeUnit(21n, movements.THOUGHT, bob.address)).to.be.revertedWith(
+      "ERR_UNAUTHORIZED_MINTER"
+    );
+  });
+
+  it("consumeUnit enforces BAD_CLAIMER and owner/approval checks", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, alice, bob, carol] = await ethers.getSigners();
+
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 1)).wait();
+    await (await nft.safeMint(alice.address, 22n, "0x")).wait();
+
+    await expect(
+      mover.connect(bob).consume(await nft.getAddress(), 22n, movements.THOUGHT, carol.address)
+    ).to.be.revertedWith("BAD_CLAIMER");
+
+    await expect(
+      mover.connect(bob).consume(await nft.getAddress(), 22n, movements.THOUGHT, bob.address)
+    ).to.be.revertedWith("ERR_NOT_OWNER");
+
+    await (await nft.connect(alice).approve(bob.address, 22n)).wait();
+    await (await mover.connect(bob).consume(await nft.getAddress(), 22n, movements.THOUGHT, bob.address)).wait();
+
+    expect(await nft.getStage(22n)).to.equal(1n);
+    expect(await nft.getStageMinted(22n)).to.equal(0n);
+  });
+
+  it("consumeUnit enforces movement order and advances stage by quota", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, alice] = await ethers.getSigners();
+
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 2)).wait();
+    await (await nft.setMovementConfig(movements.WILL, await mover.getAddress(), 2)).wait();
+    await (await nft.setMovementConfig(movements.AWA, await mover.getAddress(), 1)).wait();
+    await (await nft.safeMint(alice.address, 31n, "0x")).wait();
+
+    await expect(
+      mover.connect(alice).consume(await nft.getAddress(), 31n, movements.WILL, alice.address)
+    ).to.be.revertedWith("BAD_MOVEMENT_ORDER");
+
+    await (await mover.connect(alice).consume(await nft.getAddress(), 31n, movements.THOUGHT, alice.address)).wait();
+    expect(await nft.getStage(31n)).to.equal(0n);
+    expect(await nft.getStageMinted(31n)).to.equal(1n);
+
+    await (await mover.connect(alice).consume(await nft.getAddress(), 31n, movements.THOUGHT, alice.address)).wait();
+    expect(await nft.getStage(31n)).to.equal(1n);
+    expect(await nft.getStageMinted(31n)).to.equal(0n);
+
+    await (await mover.connect(alice).consume(await nft.getAddress(), 31n, movements.WILL, alice.address)).wait();
+    await (await mover.connect(alice).consume(await nft.getAddress(), 31n, movements.WILL, alice.address)).wait();
+    await (await mover.connect(alice).consume(await nft.getAddress(), 31n, movements.AWA, alice.address)).wait();
+
+    expect(await nft.getStage(31n)).to.equal(3n);
+    await expect(
+      mover.connect(alice).consume(await nft.getAddress(), 31n, movements.AWA, alice.address)
+    ).to.be.revertedWith("BAD_STAGE");
+  });
+
+  it("movement freeze is per-movement", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, alice, bob] = await ethers.getSigners();
+
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 1)).wait();
+    await (await nft.setMovementConfig(movements.WILL, bob.address, 2)).wait();
+    await (await nft.safeMint(alice.address, 41n, "0x")).wait();
+
+    await (await mover.connect(alice).consume(await nft.getAddress(), 41n, movements.THOUGHT, alice.address)).wait();
+
+    await expect(nft.setMovementConfig(movements.THOUGHT, bob.address, 2)).to.be.revertedWith("MOVEMENT_FROZEN");
+
+    await (await nft.setMovementConfig(movements.WILL, alice.address, 3)).wait();
+    expect(await nft.getAuthorizedMinter(movements.WILL)).to.equal(alice.address);
+    expect(await nft.getMovementQuota(movements.WILL)).to.equal(3n);
+  });
+});

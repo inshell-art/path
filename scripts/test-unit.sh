@@ -6,6 +6,6 @@ scarb run test -p path_minter
 scarb run test -p path_minter_adapter
 
 (
-  cd contracts/path_look/contracts
+  cd legacy/cairo/contracts/path_look/contracts
   scarb test
 )

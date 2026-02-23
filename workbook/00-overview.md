@@ -56,4 +56,4 @@ Artifacts are written by scripts and manual commands:
 
 ## Logging template
 
-Use `workbook/devnet-run-YYYYMMDD.md` to log each hand-check run.
+Use `workbook/runs/run-YYYYMMDD.md` to log each hand-check run.

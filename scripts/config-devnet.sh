@@ -106,7 +106,7 @@ invoke() { # invoke <label> <addr> <fn> <calldata...>
 	fi
 	echo "   calldata: $*"
 	local argv=(sncast --profile "$PROFILE" --json invoke
-		--contract-address "$addr" --function "$fn" --calldata)
+		--contract-address "$addr" --function "$fn" --url "$RPC" --calldata)
 	for w in "$@"; do argv+=("$w"); done
 	"${argv[@]}" | tee "$out" >/dev/null || true
 }
@@ -115,7 +115,7 @@ call_json() { # call_json <addr> <fn> [calldata...]
 	local addr="$1" fn="$2"
 	shift 2
 	local argv=(sncast --profile "$PROFILE" --json call
-		--contract-address "$addr" --function "$fn")
+		--contract-address "$addr" --function "$fn" --url "$RPC")
 	if [ "$#" -gt 0 ]; then
 		argv+=(--calldata)
 		for w in "$@"; do argv+=("$w"); done

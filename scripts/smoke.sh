@@ -2,6 +2,7 @@
 [ -n "${BASH_VERSION:-}" ] || exec /usr/bin/env bash "$0" "$@"
 set -euo pipefail
 cd -- "$(dirname -- "$0")/.."
+ROOT_DIR="$(pwd)"
 
 # ---- env ----
 [ -f scripts/.env.example ] && . scripts/.env.example
@@ -31,7 +32,7 @@ mkdir -p "$OUT_DIR"
 : >"$OUT_DIR/.gitkeep"
 LOG_FILE="$OUT_DIR/smoke_$(date +%F-%H%M%S).jsonl"
 
-ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json}"
+ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-$ROOT_DIR/../localnet/.accounts/devnet_oz_accounts.json}"
 ACCT_NS="${SNCAST_ACCOUNTS_NAMESPACE:-alpha-sepolia}"
 BIDDER_ADDR="$(jq -r --arg ns "$ACCT_NS" --arg p "$PROFILE_BIDDER" '.[$ns][$p].address' "$ACCOUNTS_FILE")"
 
@@ -55,7 +56,7 @@ PY
 call_json() { # call_json <profile> <addr> <fn> [calldata...]
 	local prof="$1" addr="$2" fn="$3"
 	shift 3
-	local argv=(sncast --profile "$prof" --json call --contract-address "$addr" --function "$fn")
+	local argv=(sncast --profile "$prof" --json call --contract-address "$addr" --function "$fn" --url "$RPC")
 	if [ "$#" -gt 0 ]; then
 		argv+=(--calldata)
 		for w in "$@"; do argv+=("$w"); done
@@ -68,7 +69,7 @@ call_json() { # call_json <profile> <addr> <fn> [calldata...]
 invoke_json() { # invoke_json <profile> <addr> <fn> [calldata...]
 	local prof="$1" addr="$2" fn="$3"
 	shift 3
-	local argv=(sncast --profile "$prof" --json invoke --contract-address "$addr" --function "$fn")
+	local argv=(sncast --profile "$prof" --json invoke --contract-address "$addr" --function "$fn" --url "$RPC")
 	if [ "$#" -gt 0 ]; then
 		argv+=(--calldata)
 		for w in "$@"; do argv+=("$w"); done

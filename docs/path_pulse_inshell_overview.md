@@ -117,7 +117,7 @@ renderer assumes `PathLook`, `PPRF`, and `StepCurve` are deployed and wired via 
 
 ## Related files
 
-- Path contracts: `contracts/path_nft`, `contracts/path_minter`, `contracts/path_minter_adapter`
-- Path look and deps: `contracts/path_look`, `vendors/pprf`, `vendors/step-curve`
+- Path contracts: `legacy/cairo/contracts/path_nft`, `legacy/cairo/contracts/path_minter`, `legacy/cairo/contracts/path_minter_adapter`
+- Path look and deps: `legacy/cairo/contracts/path_look`, `vendors/pprf`, `vendors/step-curve`
 - Pulse auction (vendor): `vendors/pulse`
 - Frontend: `../inshell.art/src/components/AuctionCanvas.tsx`

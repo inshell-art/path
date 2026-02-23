@@ -3,9 +3,9 @@
 
 # Idempotent enough: build -> declare -> write output files
 set -euo pipefail
-LOCALNET_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
-PATH_REPO="${PATH_REPO:-$LOCALNET_DIR/../path}"
-cd -- "$LOCALNET_DIR"
+ROOT_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
+PATH_REPO="${PATH_REPO:-$ROOT_DIR}"
+cd -- "$ROOT_DIR"
 
 # ---- env & deps ----
 [ -f scripts/.env.example ] && . scripts/.env.example
@@ -22,9 +22,9 @@ need tee
 need curl
 
 RPC="${RPC_URL:-http://127.0.0.1:5050/rpc}"
-PROFILE="${PROFILE:-dev_deployer}"
-ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json}"
-ACCOUNT_NAME="${SNCAST_ACCOUNT_NAME:-${PROFILE:-dev_deployer}}"
+PROFILE="${DECLARE_PROFILE:-${PROFILE:-dev_deployer}}"
+ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-$ROOT_DIR/../localnet/.accounts/devnet_oz_accounts.json}"
+ACCOUNT_NAME="${SNCAST_ACCOUNT_NAME:-$PROFILE}"
 ACCOUNTS_FILE_ABS="$(
 	python3 - "$ACCOUNTS_FILE" <<'PY'
 import os
@@ -89,7 +89,7 @@ declare_pkg() {
 		(
 			cd "$PATH_REPO" &&
 				sncast --profile "$PROFILE" --json declare \
-					--package "$pkg" --contract-name "$cname"
+					--package "$pkg" --contract-name "$cname" --url "$RPC"
 		) |
 			tee "$out" |
 			jq -r '.class_hash // .declare.class_hash // empty' |

@@ -2,6 +2,7 @@
 [ -n "${BASH_VERSION:-}" ] || exec /usr/bin/env bash "$0" "$@"
 set -euo pipefail
 cd -- "$(dirname -- "$0")/.."
+ROOT_DIR="$(pwd)"
 
 # Pulse bidding loop: auto-derive last sale state from the devnet PulseAuction,
 # compute trigger τ via the spec, bid with a max_price guard, and repeat N times.
@@ -23,7 +24,7 @@ PROFILE_BIDDER="${PROFILE_BIDDER:-dev_bidder1}"
 RPC="${RPC_URL:-http://127.0.0.1:5050/rpc}"
 PAYTOKEN="${PAYTOKEN:?set PAYTOKEN or source env files}"
 PULSE_AUCTION="${PULSE_AUCTION:?set PULSE_AUCTION or source env files}"
-ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json}"
+ACCOUNTS_FILE="${SNCAST_ACCOUNTS_FILE:-$ROOT_DIR/../localnet/.accounts/devnet_oz_accounts.json}"
 ACCT_NS="${SNCAST_ACCOUNTS_NAMESPACE:-alpha-sepolia}"
 BIDDER_ADDR="$(jq -r --arg ns "$ACCT_NS" --arg p "$PROFILE_BIDDER" '.[$ns][$p].address' "$ACCOUNTS_FILE")"
 
@@ -131,7 +132,7 @@ else
 	epoch_index=2
 fi
 
-allow_json="$(sncast --profile "$PROFILE_BIDDER" --json call --contract-address "$PAYTOKEN" --function allowance --calldata "$BIDDER_ADDR" "$PULSE_AUCTION")"
+allow_json="$(sncast --profile "$PROFILE_BIDDER" --json call --contract-address "$PAYTOKEN" --function allowance --url "$RPC" --calldata "$BIDDER_ADDR" "$PULSE_AUCTION")"
 allow_raw="$(jq -r '.response_raw[0] // .response[0] // "0x0"' <<<"$allow_json")"
 allow_dec="$(dec_of_hex "$allow_raw")"
 
@@ -207,7 +208,7 @@ PY
 	echo "floor=$floor_strk θ_eff=$theta_eff τ_target=$tau premium=$premium hammer=$hammer"
 
 	# Fetch current ask to avoid max_price < ask (ASK_ABOVE_MAX_PRICE)
-	ask_json="$(sncast --profile "$PROFILE_BIDDER" --json call --contract-address "$PULSE_AUCTION" --function get_current_price)"
+	ask_json="$(sncast --profile "$PROFILE_BIDDER" --json call --contract-address "$PULSE_AUCTION" --function get_current_price --url "$RPC")"
 	ask_lo="$(jq -r '.response_raw[0] // .response[0]' <<<"$ask_json")"
 	ask_hi="$(jq -r '.response_raw[1] // .response[1]' <<<"$ask_json")"
 	current_ask_wei="$(python3 - "$ask_hi" "$ask_lo" <<'PY'
@@ -242,7 +243,7 @@ PY
 )"
 
 	# Pre-bid balance check
-	balance_json="$(sncast --profile "$PROFILE_BIDDER" --json call --contract-address "$PAYTOKEN" --function balance_of --calldata "$BIDDER_ADDR")"
+	balance_json="$(sncast --profile "$PROFILE_BIDDER" --json call --contract-address "$PAYTOKEN" --function balance_of --url "$RPC" --calldata "$BIDDER_ADDR")"
 	balance_raw="$(jq -r '.response_raw[0] // .response[0] // "0x0"' <<<"$balance_json")"
 	balance_dec="$(dec_of_hex "$balance_raw")"
 	if ! python3 - "$balance_dec" "$max_price_wei" <<'PY'
@@ -308,7 +309,7 @@ PY
 		printf "Target time passed by %.3f sec; sending now.\n" "$(echo "$target_ts" | awk '{print -$1}')"
 	fi
 
-	tx="$(sncast --profile "$PROFILE_BIDDER" --json invoke --contract-address "$PULSE_AUCTION" --function bid --calldata "$max_lo" "$max_hi" | jq -r '.transaction_hash // empty')"
+	tx="$(sncast --profile "$PROFILE_BIDDER" --json invoke --contract-address "$PULSE_AUCTION" --function bid --url "$RPC" --calldata "$max_lo" "$max_hi" | jq -r '.transaction_hash // empty')"
 	[ -n "$tx" ] || { echo "submit failed"; exit 1; }
 	echo "tx=$tx"
 
