@@ -43,7 +43,10 @@ Apply **must not** accept manual calldata, addresses, or tx hashes. It must read
 
 ## No LLM in apply
 LLMs may be used to author scripts and docs, but **must never** be invoked at runtime for apply.
-Agent responses MUST follow the Evidence Pack format in `docs/agent-trust-model.md` whenever discussing ops-step/tool execution or results (see trigger rules).
+Agent responses MUST follow this order whenever discussing ops-step/tool execution or results (see trigger rules):
+- Minimal Evidence Pack
+- Common Answer
+See `docs/agent-trust-model.md`.
 
 Downstream repos should paste the root-ready contract snippet into their repo root `AGENTS.md` so agent runners auto-load it:
 - `docs/snippets/root-AGENTS-ops-agent-contract.md`
