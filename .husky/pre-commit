@@ -1,2 +1,0 @@
-scarb fmt --check
-scarb lint

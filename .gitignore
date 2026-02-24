@@ -1,33 +1,30 @@
-target
-.snfoundry_cache/
-snfoundry_trace/
-coverage/
-profile/
-keystore*
-log.txt
-abi.json
-node_modules/
-.husky/_/
-tmp_tx.json
-tmp/
-.DS_Store
-.vscode/
-output/*
-!output/addresses.sepolia.json
-!output/deploy.sepolia.json
-deployments/
-scripts/.env.local
-scripts/params.devnet.local
-.accounts/
-
-# dotenv environment files
+# --- Secrets (NEVER COMMIT) ---
 .env
 .env.*
-.env.*.local
+local.env
+secrets/
+local/
+**/keystore*.json
+**/*keystore*.json
+**/*keystore*.txt
+**/*mnemonic*
+**/*seed*
+**/*private_key*
+**/*.pem
+**/*.key
 
-# keys & sensitive files
-*.key
-*.pem
-*keystore*.json
-*serviceAccount*.json
-workbook/artifacts/**/keystore*
+# --- Tooling state ---
+.anvil/
+.foundry/
+cache/
+out/
+broadcast/
+node_modules/
+dist/
+build/
+.DS_Store
+.idea/
+.vscode/
+
+# --- Optional: keep run logs local ---
+# artifacts/**/runs/

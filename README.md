@@ -1,75 +1,82 @@
-# path Protocol – Dev Runbook
+# opsec-ops-lanes-template
 
-Protocol deployment + config steps that used to live in `inshell.art/README.md`.
-Run these from the `../path` repo (sibling to the FE repo) before syncing data
-back into the frontend.
+A public, repo-safe template for **deterministic** intent-gated Ethereum operations under a practical **OPSEC compartment model**.
+**LLMs are for authoring tools; production apply is pinned scripts only.**
 
-## Sepolia Runbook (local deploy)
+This repo contains:
+- `docs/ops-lanes-agent.md` — the “Ops Lanes” contract between an agent and a human operator (keystore-mode signing, no accounts-file mode).
+- `docs/opsec-ops-lanes-signer-map.md` — OPSEC compartments + signer aliases + phase split (Devnet rehearsal → Mainnet, Sepolia optional).
+- `policy/*.example.json` — example lane policies (RPC allowlist, signer allowlists, EIP-1559 fee thresholds, required checks).
+- `schemas/*` — starter JSON schemas for intent/check/approval artifacts (including EVM + Safe transaction shapes).
+- `examples/*` — toy examples (no real addresses, no secrets).
+- `examples/scaffold/*` — downstream repo scaffold for CI rehearsal + ops layout.
+- `codex/BOOTSTRAP.md` — maintainer steps to create and publish the template repo.
+- `codex/BUSINESS_REPO_ADOPTION.md` — quick checklist for adopting this template inside a downstream repo.
+- `docs/downstream-ops-contract.md` — required rules for downstream repos (CI/CD + signing).
+- `docs/pipeline-reference.md` — step-by-step pipeline reference (bundle → verify → approve → apply).
+- `docs/agent-trust-model.md` — trust tiers + evidence-pack requirements for agent claims.
+- `schemas/bundle_manifest.schema.json` — schema for bundle manifests (AIRLOCK integrity).
 
-Set local env/params (these are not committed):
+## What this template is (and is not)
 
-```bash
-# Required env
-cat > scripts/.env.sepolia.local <<'EOF'
-RPC_URL="https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<key>"
-SNCAST_ACCOUNTS_FILE="$HOME/.starknet_accounts/sepolia_accounts.json"
-SNCAST_ACCOUNTS_NAMESPACE="alpha-sepolia"
-DECLARE_PROFILE="main-sep"
-DEPLOY_PROFILE="main-sep"
-CONFIG_PROFILE="pathnft_owner"
-ADMIN_PROFILE="PathNFT-owner"
-EOF
+**It is:**
+- A disciplined process for *how* to deploy, handoff, and govern using deterministic intents + checks + approvals.
+- A way to make agent-assisted ops safer by forcing “meaning approval” and “reality verification”.
 
-# Required params
-cat > scripts/params.sepolia.local <<'EOF'
-PAYTOKEN="<STRK_SEPOLIA_ADDRESS>"
-TREASURY="<TREASURY_ADDRESS>"
-# Optional reuse of glyph deployments
-PPRF_ADDR=""
-STEP_CURVE_ADDR=""
-EOF
-```
+**It is not:**
+- A wallet tutorial.
+- A full security guarantee.
 
-Declare + deploy + configure:
+## Secrets rule
 
-```bash
-# Pulse class should be declared in the pulse repo; export CLASS_PULSE if already declared.
-CLASS_PULSE="<pulse_class_hash>" ./scripts/declare-sepolia.sh
-./scripts/deploy-sepolia.sh
-./scripts/config-sepolia.sh
-./scripts/verify-sepolia.sh
-```
+This repo **must stay public-safe**:
+- No seed phrases, private keys, keystore JSON, 2FA backups, RPC URLs with embedded credentials, or screenshots.
+- Keystores and passwords live **outside the repo** (e.g., in a local encrypted directory or dedicated Signing OS).
 
-Publish FE artifacts (end of runbook):
-- Follow `docs/specs/fe-deploy-artifacts.md`.
-- Update the two public outputs used by the frontend:
-  - `output/addresses.sepolia.json`
-  - `output/deploy.sepolia.json`
-- **Note:** capture `deploy_block` immediately after a successful deploy (use the latest
-  PulseAuction deploy tx hash to resolve the block number) and record it in
-  `output/deploy.sepolia.json`.
+## Mainnet contract (non-negotiable)
 
-Artifacts:
-- `output/sepolia/classes.sepolia.json`
-- `output/sepolia/addresses.sepolia.json`
-- `output/sepolia/addresses.sepolia.env`
-- `output/sepolia/deploy.params.sepolia.json`
+- Mainnet writes must be executed via **Local CD on Signing OS**.
+- Remote CI may build/check bundles, but **may not sign**.
+- **No LLM calls inside apply**; only pinned scripts run.
+- If policy requires rehearsal proof, Mainnet apply **refuses** without it.
+  - Default example policy is Devnet-first.
+  - Canonical proof env var is `REHEARSAL_PROOF_RUN_ID` (legacy proof env vars remain temporarily supported).
 
-## 0) Devnet (local runtime + PATH ops)
+See `docs/downstream-ops-contract.md`.
+For agent claim verification discipline, see `docs/agent-trust-model.md`.
 
-Devnet runtime is managed in the dedicated local repo at `../localnet`:
-- Start/stop and watchdog docs: `../localnet/README.md`
-- RPC should be available at `http://127.0.0.1:5050/rpc`
-- Use seed `0` so addresses match:
-  `/Users/bigu/Projects/localnet/.accounts/devnet_oz_accounts.json`
+## How to use this template in a downstream repo
 
-Devnet deploy/config/smoke scripts live here under `scripts/devnet/` and
-the devnet workbook is in `workbook/`.
+Note: Fork/copy/submodule this repo into your downstream repo and keep secrets out of git (keystore files, seed phrases, 2FA backups, RPC credentials). Commit only `*.example` templates.
 
-Suggested flow:
-- `scripts/devnet/01_preflight.sh`
-- `scripts/devnet/10_group_A_utils.sh`
-- `scripts/devnet/20_group_C_path_core.sh`
-- `scripts/devnet/30_group_B_renderer.sh`
-- `scripts/devnet/40_group_D_pulse.sh`
-- `scripts/devnet/50_group_E_movements.sh`
+Pick one approach:
+
+### Option A — Git subtree (recommended)
+Vendor the template into your repo (example: `opsec-ops-lanes-template/`) and pull updates periodically.
+
+### Option B — Git submodule
+Add this repo to your downstream repo at a stable path (example: `ops-template/`), then reference docs/policy from there.
+
+### Option C — Copy the docs
+Copy `docs/` and `policy/` and maintain your own fork.
+
+## Suggested private repo layout (downstream repo)
+
+Keep “rules” separate from “instance data”:
+
+- `ops-template/` (this repo, read-only)
+- `ops/` (your instance: runbooks, lane policy, artifacts)
+- `artifacts/<network>/...` (generated, commit only what you want public)
+
+See `docs/integration.md` for a full example, and `examples/scaffold/` for a runnable layout.
+
+For a minimal CI/CD scaffold you can copy into a downstream repo, see:
+`examples/scaffold/`.
+
+## License
+
+MIT (see `LICENSE`).
+
+## Contributing
+
+PRs that improve safety, clarity, and reproducibility are welcome. See `CONTRIBUTING.md`.

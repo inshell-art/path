@@ -1,77 +1,105 @@
-# AGENTS
+# AGENTS.md — downstream usage guide
 
-## Overview
-- PATH smart contracts (Cairo) plus deployment tooling and vendor dependencies.
-- Primary workflows: Scarb builds/tests and Sepolia deploy scripts.
+This file is for agent operators working in downstream repos that consume this template via subtree or submodule.
 
-## Project layout
-- `contracts/`: PathNFT, PathMinter, PathMinterAdapter, PathLook (gallery under PathLook).
-- `interfaces/`: shared Cairo interfaces.
-- `crates/`: test support and e2e helpers.
-- `vendors/`: vendored dependencies (pulse, pprf, step-curve).
-- `scripts/`: deployment scripts (Sepolia) and devnet ops helpers.
-- `workbook/`: runbooks + devnet/sepolia workbooks.
+## Purpose
+- The template repo is the source of truth for ops‑lanes docs, policies, schemas, and examples.
+- Downstream repos should **consume** it, not edit it in place.
 
-## Install
-- `pnpm install` (optional; for husky hooks only).
-- Required tools: `scarb`, `sncast`, `starknet-devnet`, `jq`, `python3`.
+## Ops Agent Response Contract (MUST)
 
-## Build / Lint / Format / Test
-- Build: `scarb build` (root) or `scarb build -p path_nft` (per package).
-- Format: `scarb fmt` (per package or root).
-- Lint: `scarb lint` (per package or root).
-- Unit tests: `./scripts/test-unit.sh`.
-- Full tests (includes vendor pulse): `./scripts/test-full.sh`.
+Many agent runners auto-load only the downstream repo's root `AGENTS.md`. Since this template is often vendored under a subtree path, downstream repos must copy/paste the snippet below into their repo root `AGENTS.md` so agents actually load it:
 
-## Devnet entrypoints
-- Devnet runtime is managed in `../localnet` (see `../localnet/README.md`).
-- Devnet scripts live under `scripts/devnet/`.
-- Devnet workbook lives under `workbook/`.
+- `docs/snippets/root-AGENTS-ops-agent-contract.md`
 
-## Sepolia local deploy (no CI/CD)
-- Create `scripts/.env.sepolia.local` with `RPC_URL`, `SNCAST_ACCOUNTS_FILE`, `SNCAST_ACCOUNTS_NAMESPACE`, and `DECLARE_PROFILE/DEPLOY_PROFILE`.
-- Create `scripts/params.sepolia.local` with `PAYTOKEN`, `TREASURY`, and any constructor overrides.
-- Optional: set `PPRF_ADDR` and `STEP_CURVE_ADDR` in `scripts/params.sepolia.local` to reuse existing glyph deployments.
-- Declare: `./scripts/declare-sepolia.sh` (build + declare).
-- Deploy: `./scripts/deploy-sepolia.sh`.
-- Configure roles: `./scripts/config-sepolia.sh`.
-- Verify wiring: `./scripts/verify-sepolia.sh`.
-- If using v0_10 RPC, the scripts use `scripts/sepolia_declare_v3.py` and `scripts/sepolia_invoke_v3.py` helpers for v3 transactions.
-- Artifacts live under `output/sepolia/` (`classes.sepolia.json`, `addresses.sepolia.json`, `addresses.sepolia.env`, `deploy.params.sepolia.json`, and per-contract declare/deploy JSON logs).
+### Trigger rule (unambiguous)
+If the user:
+- asks to run any ops tool/step (`ops/tools/*.sh`, `make -C ops ...`, or workflow steps like `bundle`, `verify`, `approve`, `apply`, `postconditions`), or
+- asks what happened / what a step does / what was run / to show output for any ops step,
+then the agent response MUST be in this order:
+- A) Minimal Evidence Pack
+- B) Common Answer
 
-## Definition of done
-- Relevant builds/tests pass.
-- `scarb fmt` and `scarb lint` run for touched packages.
-- No unintended changes in `vendors/`, `output/`, or `workbook/` artifacts.
-- Docs updated when interfaces or behavior change.
+### Minimal Evidence Pack (mandatory fields)
+One short line per field by default.
+1. Claim + trust tier label (`PROPOSED` | `VERIFIED` | `PINNED` | `ON_CHAIN`)
+2. Source-of-truth scripts + repo pin (`git rev-parse HEAD` or tag)
+3. Exact reproduce command(s)
+4. Observed output (and/or expected output if not run) + exit code
+5. Files read/produced (paths)
+6. Stop conditions (what would make it fail/refuse)
+7. What the evidence does not prove (scope limits)
 
-## Coding conventions
-- Follow existing Cairo style; prefer `snake_case` names.
-- Keep movement labels (`THOUGHT`, `WILL`, `AWA`) and constants consistent.
-- Use `ByteArray` for string outputs and keep edits ASCII by default.
+### Common Answer
+After the Minimal Evidence Pack, provide the normal concise answer.
 
-## Boundaries (do not touch unless asked)
-- `vendors/` vendored code or submodules.
-- `workbook/artifacts/*`, `output/*`, or `.accounts` secrets.
-- Network credentials, keys, or deployment state.
+### Default behavior
+- Use minimal/compact response by default.
+- Expand only when the user asks (for example: `expand evidence`).
+- Do not paste long command output dumps unless asked.
 
-## Security and leak-prevention rules
-- Never introduce secrets into the repo.
-- Do not add or modify code that includes any: private keys, seed phrases, mnemonics, service account JSON, API keys/tokens (RPC keys included), `.env` files, or `.pem`/`.key` files.
-- Treat any `VITE_*` env vars as public (baked into client JS). Never store secrets in them.
-- Always run a leak scan before committing:
-  - `git diff --staged` and manually inspect for secrets.
-  - `gitleaks detect --no-git --redact` (or repo’s chosen scanner).
-- If any potential secret is detected, stop and remove it; do not “mask” it.
-- Do not print sensitive values in CI logs (avoid `echo $TOKEN`, `printenv`, verbose debug logs with headers/keys).
-- Avoid logging full RPC URLs if they include keys.
-- No new third-party telemetry by default (no analytics, session replay, fingerprinting, or new error trackers unless explicitly requested).
-- If error tracking exists, ensure it does not capture wallet addresses, RPC payloads, or user identifiers.
-- Protect deployment and workflow integrity: do not weaken branch protections in docs/instructions; pin GitHub Action versions where possible; prefer least-privilege tokens; avoid long-lived credentials.
-- Remove debug artifacts before committing (no debug-only endpoints, “test wallets”, or localhost RPC defaults in production configs).
-- Security PR checklist (must pass):
-  - No secrets in diff.
-  - No new telemetry.
-  - No new external endpoints without clear reason.
-  - Build succeeds with clean env.
-  - Any new config is documented and safe to be public.
+Rule: never present `PROPOSED` as `VERIFIED`.
+Rule: if a command was not run, say it was not run and keep the claim non-`VERIFIED`.
+
+### Short example (required order)
+`Minimal Evidence Pack`
+- `Claim:` `VERIFIED` bundle check passed.
+- `Source:` `ops/tools/verify_bundle.sh`, repo pin `<sha>`.
+- `Reproduce:` `NETWORK=devnet RUN_ID=<id> ops/tools/verify_bundle.sh`.
+- `Output:` observed `Bundle verified ...`, exit `0`.
+- `Files:` read `bundles/devnet/<id>/*`, produced none.
+- `Stop:` missing manifest/hash mismatch/commit mismatch.
+- `Limits:` does not prove semantic safety.
+
+`Common Answer`
+- Verify step succeeded for `RUN_ID=<id>`.
+
+## Where it lives in downstream repos
+- Subtree (current default): `opsec-ops-lanes-template/`
+- Submodule (optional): `ops-template/` or another stable path
+
+## What agents may do in downstream repos
+- Reference template docs directly from the subtree path.
+- Copy example policy files into `ops/policy/` and edit the copies.
+- Create runbooks in `ops/runbooks/`.
+- Maintain run artifacts in `artifacts/<network>/...` (commit only what is safe).
+- Add local `.env.example` and `.gitignore` entries that keep secrets out of git.
+
+## What agents must not do in downstream repos
+- Do not edit files inside the subtree path (`opsec-ops-lanes-template/`) directly.
+- Do not commit secrets, keystores, seed phrases, or RPC credentials.
+- Do not introduce accounts‑file signing mode. Keystore mode only.
+- Do not use LLMs during apply. Only pinned scripts may execute operations.
+
+## How to update the template in a downstream repo
+Use one of these methods:
+
+```bash
+git subtree pull --prefix opsec-ops-lanes-template https://github.com/inshell-art/opsec-ops-lanes-template.git main --squash
+```
+
+```bash
+make -f ops/Makefile subtree-update
+```
+
+If the repo has a helper script:
+
+```bash
+ops/tools/update_ops_template.sh
+```
+
+## How to make edits to the template
+- Make edits **in the template repo** (`opsec-ops-lanes-template`), then push to `main`.
+- Downstream repos should pull updates via subtree or submodule.
+
+## Minimal verification checklist for agents
+- Confirm the template subtree path exists.
+- Ensure the downstream repo has a local policy copy in `ops/policy/`.
+- Check that no secrets are tracked in git.
+- Verify that docs used by operators match the template versions.
+- Ensure operator-facing guidance includes `docs/agent-trust-model.md`.
+
+## Operator safety reminders
+- Keep keystore files and signer metadata paths outside the repo and reference via local env vars.
+- Never paste private keys or mnemonics into docs, scripts, or chat logs.
+- Do not approve or execute a write without the required checks and approvals.

@@ -13,7 +13,9 @@ Core principle:
 If the user:
 - asks to run any ops tool/step (`ops/tools/*.sh`, `make -C ops ...`, or workflow steps like `bundle`, `verify`, `approve`, `apply`, `postconditions`), or
 - asks what happened / what a step does / what was run / to show output for any ops step,
-then the agent response MUST be in Evidence Pack format.
+then the agent response MUST be in this order:
+- A) Minimal Evidence Pack
+- B) Common Answer
 
 ## 1) Trust the verifiers, not the agent
 
@@ -32,17 +34,37 @@ Every agent statement about correctness should be labeled as one of:
 
 `PROPOSED` must never be presented as `VERIFIED`.
 
-## 3) Evidence Pack format (required)
+## 3) Minimal Evidence Pack + Common Answer (required order)
 
 For any instruction or claim like "X is proven", provide:
 
-1. Claim (with tier)
+1. Claim (with trust tier)
 2. Source of truth script(s) and commit (`git rev-parse HEAD`)
 3. Exact reproduce command(s)
 4. Observed output (and/or expected output if not run) + exit code
 5. Files read/produced
 6. Stop conditions
 7. What the evidence does not prove
+
+Then provide a Common Answer (normal concise answer).
+
+Default behavior:
+- Minimal/compact is default.
+- Expand only when asked (for example: `expand evidence`).
+- Do not dump long command outputs unless asked.
+
+Short example:
+`Minimal Evidence Pack`
+- `Claim:` `VERIFIED` verify step passed.
+- `Source:` `ops/tools/verify_bundle.sh`, repo pin `<sha>`.
+- `Reproduce:` `NETWORK=devnet RUN_ID=<id> ops/tools/verify_bundle.sh`.
+- `Output:` observed success, exit `0`.
+- `Files:` read bundle files, produced none.
+- `Stop:` manifest/hash/commit mismatch.
+- `Limits:` does not prove semantic safety.
+
+`Common Answer`
+- Verify completed successfully for `RUN_ID=<id>`.
 
 ## 4) What "bundle consistency" means in this template
 
