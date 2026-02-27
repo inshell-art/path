@@ -16,5 +16,9 @@ interface IPulseAuction {
         view
         returns (uint64 epochIndex, uint64 startTime, uint64 anchorTime, uint256 floorB, bool active);
 
+    function getEpochIndex() external view returns (uint64);
+
     function bid(uint256 maxPrice) external payable;
+
+    function initializeMintAdapter(address adapter) external;
 }

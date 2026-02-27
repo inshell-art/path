@@ -9,6 +9,8 @@
     "estimate:deploy:cost": "hardhat run scripts/estimate-deploy-cost.js",
     "deploy:local:eth": "hardhat run scripts/deploy-local-eth.js --network localhost",
     "smoke:local:eth": "hardhat run scripts/smoke-local-eth.js --network localhost",
+    "smoke:bid:local:eth": "npm run smoke:local:eth",
+    "serial:bids:local:eth": "hardhat run scripts/serial-bids-local-eth.js --network localhost",
     "scenario:local:eth": "hardhat run scripts/scenario-cascade-local-eth.js --network localhost",
     "local:eth": "npm run deploy:local:eth && npm run smoke:local:eth && npm run scenario:local:eth"
   },

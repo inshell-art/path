@@ -30,6 +30,9 @@ describe("PathMinter (Solidity)", function () {
 
     expect(await minter.getReservedCap()).to.equal(RESERVED_CAP);
     expect(await minter.getReservedRemaining()).to.equal(RESERVED_CAP);
+    expect(await minter.SPARK_BASE()).to.equal(1_000_000_000_000_000n);
+    expect(await minter.salesCaller()).to.equal(ethers.ZeroAddress);
+    expect(await minter.salesCallerFrozen()).to.equal(false);
   });
 
   it("mintPublic requires SALES_ROLE", async function () {
@@ -54,6 +57,8 @@ describe("PathMinter (Solidity)", function () {
 
     await expectAnyRevert(minter.connect(alice).mintPublic(alice.address, "0x"));
     expect(await minter.nextId()).to.equal(FIRST_PUBLIC_ID);
+    expect(await minter.salesCaller()).to.equal(ethers.ZeroAddress);
+    expect(await minter.salesCallerFrozen()).to.equal(false);
 
     await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
 
@@ -63,6 +68,39 @@ describe("PathMinter (Solidity)", function () {
     expect(await nft.ownerOf(FIRST_PUBLIC_ID)).to.equal(alice.address);
     expect(await nft.ownerOf(FIRST_PUBLIC_ID + 1n)).to.equal(alice.address);
     expect(await minter.nextId()).to.equal(FIRST_PUBLIC_ID + 2n);
+  });
+
+  it("first successful public mint freezes sales caller", async function () {
+    const { minter, nft, roles } = await deployPathMinterEnv(ethers);
+    const [, alice, bob] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
+    await (await minter.grantRole(roles.SALES_ROLE, alice.address)).wait();
+    await (await minter.grantRole(roles.SALES_ROLE, bob.address)).wait();
+
+    await (await minter.connect(alice).mintPublic(alice.address, "0x")).wait();
+
+    expect(await minter.salesCaller()).to.equal(alice.address);
+    expect(await minter.salesCallerFrozen()).to.equal(true);
+    expect(await minter.getRoleAdmin(roles.SALES_ROLE)).to.equal(await minter.FROZEN_SALES_ADMIN_ROLE());
+
+    await expect(minter.connect(bob).mintPublic(bob.address, "0x"))
+      .to.be.revertedWithCustomError(minter, "BadSalesCaller")
+      .withArgs(bob.address, alice.address);
+  });
+
+  it("cannot reconfigure SALES_ROLE after first successful public mint", async function () {
+    const { minter, nft, roles } = await deployPathMinterEnv(ethers);
+    const [deployer, alice, bob] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
+    await (await minter.grantRole(roles.SALES_ROLE, alice.address)).wait();
+    await (await minter.connect(alice).mintPublic(alice.address, "0x")).wait();
+
+    await expectAnyRevert(minter.grantRole(roles.SALES_ROLE, bob.address));
+    await expectAnyRevert(minter.revokeRole(roles.SALES_ROLE, alice.address));
+    expect(await minter.hasRole(roles.SALES_ROLE, alice.address)).to.equal(true);
+    expect(await minter.hasRole(await minter.FROZEN_SALES_ADMIN_ROLE(), deployer.address)).to.equal(false);
   });
 
   it("mintPublic reverts when receiver rejects ERC721 and does not increment nextId", async function () {
@@ -92,6 +130,7 @@ describe("PathMinter (Solidity)", function () {
   it("mintSparker counts down reserved pool and exhausts", async function () {
     const { minter, nft, roles } = await deployPathMinterEnv(ethers);
     const [, alice] = await ethers.getSigners();
+    const sparkBase = await minter.SPARK_BASE();
 
     await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
     await (await minter.grantRole(roles.RESERVED_ROLE, alice.address)).wait();
@@ -99,13 +138,16 @@ describe("PathMinter (Solidity)", function () {
     const id0 = await minter.connect(alice).mintSparker.staticCall(alice.address, "0x");
     await (await minter.connect(alice).mintSparker(alice.address, "0x")).wait();
     expect(await nft.ownerOf(id0)).to.equal(alice.address);
+    expect(id0).to.equal(sparkBase);
     expect(await minter.getReservedRemaining()).to.equal(RESERVED_CAP - 1n);
 
     const id1 = await minter.connect(alice).mintSparker.staticCall(alice.address, "0x");
     await (await minter.connect(alice).mintSparker(alice.address, "0x")).wait();
-    expect(id1).to.equal(id0 - 1n);
+    expect(id1).to.equal(id0 + 1n);
 
+    const id2 = await minter.connect(alice).mintSparker.staticCall(alice.address, "0x");
     await (await minter.connect(alice).mintSparker(alice.address, "0x")).wait();
+    expect(id2).to.equal(id1 + 1n);
     expect(await minter.getReservedRemaining()).to.equal(0n);
 
     await expect(minter.connect(alice).mintSparker(alice.address, "0x")).to.be.revertedWith("NO_RESERVED_LEFT");
@@ -126,5 +168,23 @@ describe("PathMinter (Solidity)", function () {
     await (await minter.connect(alice).mintSparker(alice.address, "0x")).wait();
 
     expect(resId).to.be.greaterThan(pubId);
+  });
+
+  it("public mint domain stops at SPARK_BASE boundary", async function () {
+    const SPARK_BASE = 1_000_000_000_000_000n;
+    const { minter, nft, roles } = await deployPathMinterEnv(ethers, { firstPublicId: SPARK_BASE - 1n, reservedCap: 1n });
+    const [, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
+    await (await minter.grantRole(roles.SALES_ROLE, alice.address)).wait();
+
+    await (await minter.connect(alice).mintPublic(alice.address, "0x")).wait();
+    expect(await minter.nextId()).to.equal(SPARK_BASE);
+    expect(await nft.ownerOf(SPARK_BASE - 1n)).to.equal(alice.address);
+
+    await expect(minter.connect(alice).mintPublic(alice.address, "0x")).to.be.revertedWith(
+      "PUBLIC_ID_DOMAIN_EXHAUSTED"
+    );
+    expect(await minter.nextId()).to.equal(SPARK_BASE);
   });
 });

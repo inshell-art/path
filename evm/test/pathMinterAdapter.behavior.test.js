@@ -14,27 +14,40 @@ describe("PathMinterAdapter (Solidity)", function () {
     await conn.close();
   });
 
-  async function deployFixture() {
+  async function deployFixture({ tokenBase = 100n, epochBase = 1n } = {}) {
     const [deployer, alice, bob] = await ethers.getSigners();
 
     const StubMinter = await ethers.getContractFactory("StubPathMinter", deployer);
     const minter = await StubMinter.deploy(100n);
     await minter.waitForDeployment();
 
+    const StubAuction = await ethers.getContractFactory("StubPulseAuction", deployer);
+    const auction = await StubAuction.deploy();
+    await auction.waitForDeployment();
+
     const Adapter = await ethers.getContractFactory("PathMinterAdapter", deployer);
-    const adapter = await Adapter.deploy(deployer.address, alice.address, await minter.getAddress());
+    const adapter = await Adapter.deploy(
+      deployer.address,
+      await auction.getAddress(),
+      await minter.getAddress(),
+      tokenBase,
+      epochBase
+    );
     await adapter.waitForDeployment();
 
-    return { deployer, alice, bob, minter, adapter };
+    return { deployer, alice, bob, minter, auction, adapter, tokenBase, epochBase };
   }
 
-  it("constructor sets config and target", async function () {
-    const { alice, minter, adapter } = await deployFixture();
+  it("constructor sets config and explicit getters", async function () {
+    const { minter, auction, adapter, tokenBase, epochBase } = await deployFixture();
 
-    const [auction, minterAddr] = await adapter.getConfig();
-    expect(auction).to.equal(alice.address);
+    const [auctionAddr, minterAddr] = await adapter.getConfig();
+    expect(auctionAddr).to.equal(await auction.getAddress());
     expect(minterAddr).to.equal(await minter.getAddress());
-    expect(await adapter.getFunction("target")()).to.equal(alice.address);
+    expect(await adapter.getAuthorizedAuction()).to.equal(await auction.getAddress());
+    expect(await adapter.getMinterTarget()).to.equal(await minter.getAddress());
+    expect(await adapter.tokenBase()).to.equal(tokenBase);
+    expect(await adapter.epochBase()).to.equal(epochBase);
   });
 
   it("owner-only updates auction/minter and rejects zero", async function () {
@@ -46,36 +59,76 @@ describe("PathMinterAdapter (Solidity)", function () {
     await expect(adapter.setAuction(ethers.ZeroAddress)).to.be.revertedWith("ZERO_AUCTION");
 
     await (await adapter.setAuction(bob.address)).wait();
-    expect(await adapter.getFunction("target")()).to.equal(bob.address);
+    expect(await adapter.getAuthorizedAuction()).to.equal(bob.address);
 
     await expect(adapter.connect(alice).setMinter(bob.address)).to.be.revertedWith(
       "Ownable: caller is not the owner"
     );
     await expect(adapter.setMinter(ethers.ZeroAddress)).to.be.revertedWith("ZERO_MINTER");
 
-    await (await adapter.setMinter(minter.target)).wait();
+    await (await adapter.setMinter(await minter.getAddress())).wait();
 
     const [, minterAddr] = await adapter.getConfig();
-    expect(minterAddr).to.equal(minter.target);
+    expect(minterAddr).to.equal(await minter.getAddress());
+    expect(await adapter.getMinterTarget()).to.equal(await minter.getAddress());
   });
 
   it("settle is callable only by configured auction", async function () {
     const { bob, adapter } = await deployFixture();
 
-    await expect(adapter.connect(bob).settle(bob.address, "0x")).to.be.revertedWith("ONLY_AUCTION");
+    await expect(adapter.connect(bob).settle(bob.address, 1, "0x")).to.be.revertedWithCustomError(
+      adapter,
+      "NotAuction"
+    );
   });
 
-  it("settle forwards buyer/data to minter and returns token id", async function () {
-    const { alice, bob, minter, adapter } = await deployFixture();
+  it("settle enforces epoch-to-token coupling and mints expected id", async function () {
+    const { bob, minter, auction, adapter } = await deployFixture();
     const payload = "0x11223344";
 
-    const minted = await adapter.connect(alice).settle.staticCall(bob.address, payload);
-    expect(minted).to.equal(100n);
+    await (await auction.setEpochIndex(6)).wait(); // next sale epoch = 7
+    await (await minter.setNextTokenId(106n)).wait(); // tokenBase + (7 - 1) = 106
 
-    await (await adapter.connect(alice).settle(bob.address, payload)).wait();
+    await expect(auction.settleThroughAdapter(await adapter.getAddress(), bob.address, payload))
+      .to.emit(adapter, "EpochMinted")
+      .withArgs(7n, 106n, bob.address);
 
     expect(await minter.lastTo()).to.equal(bob.address);
     expect(await minter.lastData()).to.equal(payload);
-    expect(await minter.nextTokenId()).to.equal(101n);
+    expect(await minter.nextTokenId()).to.equal(107n);
+  });
+
+  it("settle reverts on auction epoch mismatch", async function () {
+    const { bob, minter, auction, adapter } = await deployFixture();
+
+    await (await auction.setEpochIndex(3)).wait(); // observed epoch = 4
+    await (await minter.setNextTokenId(103n)).wait();
+
+    await expect(
+      auction.settleThroughAdapterWithForwardedEpoch(await adapter.getAddress(), bob.address, 9, "0x")
+    )
+      .to.be.revertedWithCustomError(adapter, "EpochMismatch")
+      .withArgs(4n, 9n);
+  });
+
+  it("settle reverts when minter nextId drifts from expected id", async function () {
+    const { bob, minter, auction, adapter } = await deployFixture();
+
+    await (await auction.setEpochIndex(1)).wait(); // expected epoch = 2, expected id = 101
+    await (await minter.setNextTokenId(555n)).wait();
+
+    await expect(auction.settleThroughAdapter(await adapter.getAddress(), bob.address, "0x"))
+      .to.be.revertedWithCustomError(adapter, "MintIdMismatch")
+      .withArgs(2n, 101n, 555n);
+  });
+
+  it("settle reverts when epoch is below epochBase", async function () {
+    const { bob, auction, adapter } = await deployFixture({ epochBase: 5n });
+
+    await (await auction.setEpochIndex(3)).wait(); // observed epoch = 4 (< epochBase=5)
+
+    await expect(auction.settleThroughAdapter(await adapter.getAddress(), bob.address, "0x"))
+      .to.be.revertedWithCustomError(adapter, "EpochBeforeBase")
+      .withArgs(4n, 5n);
   });
 });

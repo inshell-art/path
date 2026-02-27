@@ -60,21 +60,6 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.getMovementQuota(movements.THOUGHT)).to.equal(2n);
   });
 
-  it("burn requires owner/approval", async function () {
-    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
-    const [, alice, bob] = await ethers.getSigners();
-
-    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
-    await (await nft.safeMint(alice.address, 11n, "0x")).wait();
-
-    await expect(nft.connect(bob).burn(11n)).to.be.revertedWith("ERR_NOT_OWNER");
-
-    await (await nft.connect(alice).approve(bob.address, 11n)).wait();
-    await (await nft.connect(bob).burn(11n)).wait();
-
-    await expectAnyRevert(nft.ownerOf(11n));
-  });
-
   it("tokenURI returns base URI + token id", async function () {
     const { deployer, nft, roles } = await deployPathNftEnv(ethers);
     const [, alice] = await ethers.getSigners();

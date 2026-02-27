@@ -34,8 +34,8 @@ async function main() {
 
   const [, buyer] = await ethers.getSigners();
   const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
-  const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft);
   const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter);
+  const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft);
 
   const k = toBigInt(deployment.config.k);
   const genesisPrice = toBigInt(deployment.config.genesisPrice);
@@ -47,7 +47,6 @@ async function main() {
     : toBigInt(latestBlock.timestamp) + 2n;
 
   let saleTime = baseTime;
-  let expectedTokenId = toBigInt(await minter.nextId());
   const initialState = await auction.getState();
   let previousEpoch = toBigInt(initialState[0]);
 
@@ -60,6 +59,7 @@ async function main() {
 
     const curveActiveBefore = await auction.curveActive();
     const stateBefore = await auction.getState();
+    const expectedTokenId = toBigInt(await minter.nextId());
 
     const expectedAsk = curveActiveBefore
       ? askAt(saleTime, k, toBigInt(stateBefore[2]), toBigInt(stateBefore[3]))
@@ -90,14 +90,15 @@ async function main() {
     const floorPrice = toBigInt(stateAfter[3]);
     const immediateAsk = askAt(startTime, k, anchorTime, floorPrice);
     const pump = immediateAsk - floorPrice;
-    const tokenId = toBigInt(sale.tokenId);
+    const tokenId = expectedTokenId;
     const mintedOwner = await nft.ownerOf(tokenId);
 
     const checks = {
       askMatchesQuote: toBigInt(sale.price) === expectedAsk,
       treasuryDeltaMatchesPrice: treasuryAfter - treasuryBefore === toBigInt(sale.price),
       epochIncrementedByOne: epochIndex === previousEpoch + 1n,
-      eventMatchesState: toBigInt(sale.anchorA) === anchorTime && toBigInt(sale.floorB) === floorPrice,
+      saleEpochMatchesState: toBigInt(sale.epochIndex) === epochIndex,
+      eventMatchesState: toBigInt(sale.nextAnchorA) === anchorTime && toBigInt(sale.nextFloorB) === floorPrice,
       priceAboveOrEqualFloor: toBigInt(sale.price) >= floorPrice,
       mintedIdIsExpected: tokenId === expectedTokenId,
       mintedOwnerMatchesBuyer: mintedOwner.toLowerCase() === buyer.address.toLowerCase()
@@ -126,7 +127,6 @@ async function main() {
     });
 
     previousEpoch = epochIndex;
-    expectedTokenId += 1n;
   }
 
   const allChecksPass = records.every((r) => Object.values(r.checks).every(Boolean));

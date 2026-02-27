@@ -10,11 +10,18 @@ import {IPathNFT} from "./interfaces/IPathNFT.sol";
 contract PathMinter is AccessControl, IPathMinter {
     bytes32 public constant SALES_ROLE = keccak256("SALES_ROLE");
     bytes32 public constant RESERVED_ROLE = keccak256("RESERVED_ROLE");
+    bytes32 public constant FROZEN_SALES_ADMIN_ROLE = keccak256("FROZEN_SALES_ADMIN_ROLE");
 
-    uint256 private constant MAX_MINUS_ONE = type(uint256).max - 1;
+    uint256 public constant SPARK_BASE = 1_000_000_000_000_000;
+
+    error BadSalesCaller(address caller, address expected);
+
+    event SalesCallerFrozen(address indexed caller);
 
     address public immutable pathNft;
     uint256 public nextId;
+    address public salesCaller;
+    bool public salesCallerFrozen;
     uint64 private immutable _reservedCap;
     uint64 private _reservedRemaining;
 
@@ -23,6 +30,7 @@ contract PathMinter is AccessControl, IPathMinter {
         require(pathNftAddr != address(0), "ZERO_PATH_NFT");
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _setRoleAdmin(FROZEN_SALES_ADMIN_ROLE, FROZEN_SALES_ADMIN_ROLE);
         pathNft = pathNftAddr;
         nextId = firstTokenId;
         _reservedCap = reservedCap_;
@@ -37,8 +45,19 @@ contract PathMinter is AccessControl, IPathMinter {
         return _reservedRemaining;
     }
 
-    function mintPublic(address to, bytes calldata data) external override onlyRole(SALES_ROLE) returns (uint256 id) {
+    function mintPublic(address to, bytes calldata data) external override returns (uint256 id) {
+        if (!salesCallerFrozen) {
+            _checkRole(SALES_ROLE, msg.sender);
+            salesCaller = msg.sender;
+            salesCallerFrozen = true;
+            _setRoleAdmin(SALES_ROLE, FROZEN_SALES_ADMIN_ROLE);
+            emit SalesCallerFrozen(msg.sender);
+        } else if (msg.sender != salesCaller) {
+            revert BadSalesCaller(msg.sender, salesCaller);
+        }
+
         id = nextId;
+        require(id < SPARK_BASE, "PUBLIC_ID_DOMAIN_EXHAUSTED");
         IPathNFT(pathNft).safeMint(to, id, data);
         nextId = id + 1;
     }
@@ -53,7 +72,7 @@ contract PathMinter is AccessControl, IPathMinter {
         require(remaining > 0, "NO_RESERVED_LEFT");
 
         uint64 mintedSoFar = _reservedCap - remaining;
-        id = MAX_MINUS_ONE - uint256(mintedSoFar);
+        id = SPARK_BASE + uint256(mintedSoFar);
 
         IPathNFT(pathNft).safeMint(to, id, data);
         _reservedRemaining = remaining - 1;

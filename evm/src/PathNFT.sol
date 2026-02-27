@@ -39,11 +39,6 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
         _baseTokenUri = baseUri_;
     }
 
-    function burn(uint256 tokenId) external override {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERR_NOT_OWNER");
-        _burn(tokenId);
-    }
-
     function safeMint(address recipient, uint256 tokenId, bytes calldata data) external override onlyRole(MINTER_ROLE) {
         _safeMint(recipient, tokenId, data);
         _stage[tokenId] = 0;

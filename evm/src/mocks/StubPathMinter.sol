@@ -11,6 +11,10 @@ contract StubPathMinter {
         nextTokenId = firstId;
     }
 
+    function nextId() external view returns (uint256) {
+        return nextTokenId;
+    }
+
     function setNextTokenId(uint256 tokenId) external {
         nextTokenId = tokenId;
     }

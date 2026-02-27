@@ -5,7 +5,8 @@ const K = 600n;
 const GENESIS_PRICE = 1_000n;
 const GENESIS_FLOOR = 900n;
 const PTS = 1n;
-const FIRST_PUBLIC_ID = 0n;
+const FIRST_PUBLIC_ID = 1n;
+const EPOCH_BASE = 1n;
 const RESERVED_CAP = 3n;
 
 const NAME = "PATH NFT";
@@ -143,7 +144,13 @@ async function estimateDeployments(ethers, deployer) {
   const minterGas = await ethers.provider.estimateGas(minterTx);
 
   const Adapter = await ethers.getContractFactory("PathMinterAdapter", deployer);
-  const adapterTx = await Adapter.getDeployTransaction(deployer.address, DUMMY_ADDRESS, DUMMY_ADDRESS);
+  const adapterTx = await Adapter.getDeployTransaction(
+    deployer.address,
+    DUMMY_ADDRESS,
+    DUMMY_ADDRESS,
+    FIRST_PUBLIC_ID,
+    EPOCH_BASE
+  );
   adapterTx.from = deployer.address;
   const adapterGas = await ethers.provider.estimateGas(adapterTx);
 
@@ -182,7 +189,13 @@ async function estimateWiringGas(ethers, deployer) {
   await minter.waitForDeployment();
 
   const Adapter = await ethers.getContractFactory("PathMinterAdapter", deployer);
-  const adapter = await Adapter.deploy(deployer.address, ethers.ZeroAddress, await minter.getAddress());
+  const adapter = await Adapter.deploy(
+    deployer.address,
+    ethers.ZeroAddress,
+    await minter.getAddress(),
+    FIRST_PUBLIC_ID,
+    EPOCH_BASE
+  );
   await adapter.waitForDeployment();
 
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);

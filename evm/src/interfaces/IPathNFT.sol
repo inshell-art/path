@@ -4,8 +4,6 @@ pragma solidity ^0.8.24;
 interface IPathNFT {
     function safeMint(address recipient, uint256 tokenId, bytes calldata data) external;
 
-    function burn(uint256 tokenId) external;
-
     function setMovementConfig(bytes32 movement, address minter, uint32 quota) external;
 
     function getAuthorizedMinter(bytes32 movement) external view returns (address);

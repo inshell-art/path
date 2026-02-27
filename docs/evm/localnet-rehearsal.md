@@ -26,13 +26,14 @@ Terminal B:
 cd evm
 npm run deploy:local:eth
 npm run smoke:local:eth
+npm run serial:bids:local:eth
 npm run scenario:local:eth
 ```
 
 Expected:
 
 - Deployment file written to `evm/deployments/localhost-eth.json`
-- Smoke bid succeeds and mints token `0`
+- Smoke bid succeeds and mints token `1`
 - Scenario report in `evm/deployments/reports/localhost-path-cascade-eth-report.json` has `"allChecksPass": true`
 
 ## 2) Open interactive console
@@ -61,6 +62,8 @@ Read wiring/config:
 await auction.getConfig();      // open, genesis, floor, k, pts
 await auction.getState();       // epoch, start, anchor, floor, curveActive
 await adapter.getConfig();      // auction + minter addresses
+await adapter.getAuthorizedAuction(); // explicit auction getter
+await adapter.getMinterTarget();      // explicit minter getter
 await minter.pathNft();         // should point at PathNFT
 await minter.nextId();          // next public token id
 await nft.name();               // PATH NFT
@@ -70,13 +73,21 @@ await nft.symbol();             // PATH
 ## 3) Run one live auction sale
 
 ```js
+const expectedTokenId = await minter.nextId();
 const ask = await auction.getCurrentPrice();
 const tx = await auction.connect(buyer).bid(ask, { value: ask });
 await tx.wait();
 
 await minter.nextId();          // increments by 1
-await nft.ownerOf((await minter.nextId()) - 1n); // buyer owns latest minted token
+await nft.ownerOf(expectedTokenId); // buyer owns latest minted token
 await auction.epochIndex();     // increments by 1
+
+// coupling invariant (configured in adapter):
+// tokenId = tokenBase + (epochIndex - epochBase)
+const tokenBase = BigInt(d.config.tokenBase ?? d.config.firstPublicId);
+const epochBase = BigInt(d.config.epochBase ?? 1);
+const epoch = await auction.epochIndex();
+tokenBase + (epoch - epochBase) === expectedTokenId;
 ```
 
 ## 4) Observe the cascade curve
@@ -151,12 +162,13 @@ await (await minter.mintSparker(buyer.address, "0x")).wait();
 await minter.getReservedRemaining();
 ```
 
-Reserved IDs are minted from a very high range (`2^256 - 2`, decreasing), not from the public sequence.
+Reserved IDs are minted from `SPARK_BASE` (`1e15`) upward and are disjoint from public IDs.
+Public minting is bounded to `< SPARK_BASE`.
 
 ## 7) Quick failure-mode checks
 
 ```js
-await adapter.settle(buyer.address, "0x");                 // expected revert: ONLY_AUCTION
+await adapter.settle(buyer.address, 1, "0x");              // expected revert: ONLY_AUCTION
 await auction.connect(buyer).bid(1n, { value: 1n });       // expected revert: ASK_ABOVE_MAX_PRICE
 ```
 

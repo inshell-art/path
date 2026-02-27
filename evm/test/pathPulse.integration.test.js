@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { GENESIS_PRICE, K, LARGE_MAX_PRICE, PTS } from "./helpers/constants.js";
-import { deployPathPulseEthEnv } from "./helpers/fixtures.js";
+import { FIRST_PUBLIC_ID, GENESIS_PRICE, K, LARGE_MAX_PRICE, PTS } from "./helpers/constants.js";
+import { deployPathPulseEthEnv, getSaleEventFromReceipt } from "./helpers/fixtures.js";
 import { deriveGenesisState, deriveNextState, expectedAsk, priceAt } from "./helpers/pulseModel.js";
 import { mine, setNextBlockTimestamp } from "./helpers/time.js";
 
@@ -54,13 +54,15 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
     const ask = await auction.getCurrentPrice();
     const treasuryBefore = await ethers.provider.getBalance(treasury.address);
 
-    await (await auction.connect(alice).bid(ask, { value: ask })).wait();
+    const receipt = await (await auction.connect(alice).bid(ask, { value: ask })).wait();
+    const sale = await getSaleEventFromReceipt(auction, receipt);
 
     const treasuryAfter = await ethers.provider.getBalance(treasury.address);
 
-    expect(await nft.ownerOf(0n)).to.equal(alice.address);
+    expect(await nft.ownerOf(FIRST_PUBLIC_ID)).to.equal(alice.address);
     expect(await auction.curveActive()).to.equal(true);
     expect(await auction.epochIndex()).to.equal(1n);
+    expect(sale.epochIndex).to.equal(1n);
     expect(treasuryAfter - treasuryBefore).to.equal(ask);
   });
 
@@ -78,8 +80,8 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
     ask = await quoteAskAt(auction, t2);
     await (await auction.connect(bob).bid(ask, { value: ask })).wait();
 
-    expect(await nft.ownerOf(0n)).to.equal(alice.address);
-    expect(await nft.ownerOf(1n)).to.equal(bob.address);
+    expect(await nft.ownerOf(FIRST_PUBLIC_ID)).to.equal(alice.address);
+    expect(await nft.ownerOf(FIRST_PUBLIC_ID + 1n)).to.equal(bob.address);
     expect(await auction.epochIndex()).to.equal(2n);
   });
 
@@ -162,7 +164,7 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
       const ask = await quoteAskAt(auction, saleTime);
       await (await auction.connect(alice).bid(ask, { value: ask })).wait();
 
-      expect(await nft.ownerOf(i)).to.equal(alice.address);
+      expect(await nft.ownerOf(FIRST_PUBLIC_ID + i)).to.equal(alice.address);
     }
 
     expect(await auction.epochIndex()).to.equal(totalBids);

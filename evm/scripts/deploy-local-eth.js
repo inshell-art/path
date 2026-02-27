@@ -8,7 +8,8 @@ const K = 600n;
 const GENESIS_PRICE = 1_000n;
 const GENESIS_FLOOR = 900n;
 const PTS = 1n;
-const FIRST_PUBLIC_ID = 0n;
+const FIRST_PUBLIC_ID = 1n;
+const EPOCH_BASE = 1n;
 const RESERVED_CAP = 3n;
 
 const NAME = "PATH NFT";
@@ -48,7 +49,9 @@ async function main() {
   const adapter = await PathMinterAdapter.deploy(
     deployer.address,
     ethers.ZeroAddress,
-    await minter.getAddress()
+    await minter.getAddress(),
+    FIRST_PUBLIC_ID,
+    EPOCH_BASE
   );
   await adapter.waitForDeployment();
 
@@ -91,6 +94,8 @@ async function main() {
       genesisFloor: GENESIS_FLOOR.toString(),
       pts: PTS.toString(),
       firstPublicId: FIRST_PUBLIC_ID.toString(),
+      tokenBase: FIRST_PUBLIC_ID.toString(),
+      epochBase: EPOCH_BASE.toString(),
       reservedCap: RESERVED_CAP.toString()
     },
     roles: {

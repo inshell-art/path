@@ -38,6 +38,7 @@ npm run evm:local:eth
 # or use root helper scripts:
 ./scripts/deploy-eth-local.sh
 ./scripts/smoke-eth-local.sh
+./scripts/serial-bids-eth-local.sh
 ./scripts/scenario-eth-local.sh
 ```
 

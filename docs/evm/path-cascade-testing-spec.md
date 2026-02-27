@@ -13,7 +13,7 @@ Validate that the Solidity PATH stack preserves the same critical behavior as Ca
 1. `PathNFT` invariants
 
 - Role gates (`MINTER_ROLE`, admin-only config).
-- Mint/burn/approval behavior.
+- Mint/approval behavior.
 - Movement consumption rules:
   - authorized minter only
   - claimer checks
@@ -27,7 +27,8 @@ Validate that the Solidity PATH stack preserves the same critical behavior as Ca
 
 - `SALES_ROLE` and `RESERVED_ROLE` enforcement.
 - Public IDs increment sequentially.
-- Reserved IDs count down from `2^256 - 2`.
+- Public ID domain is bounded to `< SPARK_BASE`.
+- Reserved IDs start at `SPARK_BASE` and increment.
 - Reserved pool exhaustion reverts.
 - Downstream NFT mint revert rolls back `nextId`.
 
@@ -35,14 +36,16 @@ Validate that the Solidity PATH stack preserves the same critical behavior as Ca
 
 - Owner-only config updates.
 - Non-zero config validation.
+- Explicit getters (`getAuthorizedAuction`, `getMinterTarget`) mirror wiring.
 - `settle` callable only by registered auction.
-- `settle` forwards buyer/data and returns minted ID.
+- `settle` forwards buyer/epoch/data and returns minted ID.
 
 4. Integrated ETH cascade (`PulseAuction`)
 
 - Cannot bid before open time.
-- Genesis bid activates curve and mints token 0.
+- Genesis bid activates curve and mints token 1.
 - Subsequent bids mint sequential token IDs.
+- Auction remains token-id agnostic; settlement details are adapter/minter responsibilities.
 - Ask price follows hyperbolic model over time.
 - One-bid-per-block guard works.
 - Stress test with 20 sequential bids remains stable.

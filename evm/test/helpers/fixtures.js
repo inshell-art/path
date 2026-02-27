@@ -1,5 +1,6 @@
 import {
   BASE_URI,
+  EPOCH_BASE,
   FIRST_PUBLIC_ID,
   GENESIS_FLOOR,
   GENESIS_PRICE,
@@ -81,7 +82,13 @@ export async function deployPathPulseEthEnv(ethers, { startDelaySec = 0n } = {})
   await minter.waitForDeployment();
 
   const Adapter = await ethers.getContractFactory("PathMinterAdapter", deployer);
-  const adapter = await Adapter.deploy(deployer.address, ethers.ZeroAddress, await minter.getAddress());
+  const adapter = await Adapter.deploy(
+    deployer.address,
+    ethers.ZeroAddress,
+    await minter.getAddress(),
+    FIRST_PUBLIC_ID,
+    EPOCH_BASE
+  );
   await adapter.waitForDeployment();
 
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);
