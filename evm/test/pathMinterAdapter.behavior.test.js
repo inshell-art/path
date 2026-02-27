@@ -98,6 +98,17 @@ describe("PathMinterAdapter (Solidity)", function () {
     expect(await minter.nextTokenId()).to.equal(107n);
   });
 
+  it("settle maps non-default epochBase/tokenBase with tokenId = tokenBase + (epoch - epochBase)", async function () {
+    const { bob, minter, auction, adapter } = await deployFixture({ tokenBase: 1_000n, epochBase: 10n });
+
+    await (await auction.setEpochIndex(12)).wait(); // next sale epoch = 13
+    await (await minter.setNextTokenId(1_003n)).wait(); // 1000 + (13 - 10) = 1003
+
+    await expect(auction.settleThroughAdapter(await adapter.getAddress(), bob.address, "0x"))
+      .to.emit(adapter, "EpochMinted")
+      .withArgs(13n, 1_003n, bob.address);
+  });
+
   it("settle reverts on auction epoch mismatch", async function () {
     const { bob, minter, auction, adapter } = await deployFixture();
 
@@ -130,5 +141,33 @@ describe("PathMinterAdapter (Solidity)", function () {
     await expect(auction.settleThroughAdapter(await adapter.getAddress(), bob.address, "0x"))
       .to.be.revertedWithCustomError(adapter, "EpochBeforeBase")
       .withArgs(4n, 5n);
+  });
+
+  it("settle reverts when minter returns a token id different from expected", async function () {
+    const [deployer, bob] = await ethers.getSigners();
+
+    const BadMinter = await ethers.getContractFactory("StubPathMinterBadReturn", deployer);
+    const minter = await BadMinter.deploy(100n);
+    await minter.waitForDeployment();
+
+    const StubAuction = await ethers.getContractFactory("StubPulseAuction", deployer);
+    const auction = await StubAuction.deploy();
+    await auction.waitForDeployment();
+
+    const Adapter = await ethers.getContractFactory("PathMinterAdapter", deployer);
+    const adapter = await Adapter.deploy(
+      deployer.address,
+      await auction.getAddress(),
+      await minter.getAddress(),
+      100n,
+      1n
+    );
+    await adapter.waitForDeployment();
+
+    await expect(auction.settleThroughAdapter(await adapter.getAddress(), bob.address, "0x"))
+      .to.be.revertedWithCustomError(adapter, "MintIdMismatch")
+      .withArgs(1n, 100n, 101n);
+
+    expect(await minter.nextTokenId()).to.equal(100n);
   });
 });

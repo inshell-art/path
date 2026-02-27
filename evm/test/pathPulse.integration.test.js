@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { FIRST_PUBLIC_ID, GENESIS_PRICE, K, LARGE_MAX_PRICE, PTS } from "./helpers/constants.js";
-import { deployPathPulseEthEnv, getSaleEventFromReceipt } from "./helpers/fixtures.js";
+import { FIRST_PUBLIC_ID, GENESIS_PRICE, K, PTS } from "./helpers/constants.js";
+import { deployPathPulseErc20Env, deployPathPulseEthEnv, getSaleEventFromReceipt } from "./helpers/fixtures.js";
 import { deriveGenesisState, deriveNextState, expectedAsk, priceAt } from "./helpers/pulseModel.js";
 import { mine, setNextBlockTimestamp } from "./helpers/time.js";
 
@@ -9,6 +9,15 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
   let conn;
   let ethers;
   let provider;
+
+  async function expectAnyRevert(txPromise) {
+    try {
+      await txPromise;
+      expect.fail("expected tx to revert");
+    } catch (error) {
+      expect(error).to.exist;
+    }
+  }
 
   beforeEach(async function () {
     conn = await hre.network.connect();
@@ -64,6 +73,69 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
     expect(await auction.epochIndex()).to.equal(1n);
     expect(sale.epochIndex).to.equal(1n);
     expect(treasuryAfter - treasuryBefore).to.equal(ask);
+  });
+
+  it("refunds ETH overpayment and only forwards ask to treasury", async function () {
+    const { auction, alice, treasury } = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
+    const auctionAddr = await auction.getAddress();
+
+    const ask = await auction.getCurrentPrice();
+    const overpay = ask + 123n;
+    const treasuryBefore = await ethers.provider.getBalance(treasury.address);
+
+    await (await auction.connect(alice).bid(ask, { value: overpay })).wait();
+
+    const treasuryAfter = await ethers.provider.getBalance(treasury.address);
+    const auctionBalance = await ethers.provider.getBalance(auctionAddr);
+
+    expect(treasuryAfter - treasuryBefore).to.equal(ask);
+    expect(auctionBalance).to.equal(0n);
+  });
+
+  it("settles ERC20 payment path and rejects accidental ETH", async function () {
+    const { auction, paymentToken, alice, treasury, nft } = await deployPathPulseErc20Env(ethers, { startDelaySec: 0n });
+    const ask = await auction.getCurrentPrice();
+    const mintAmount = ask * 2n;
+
+    await (await paymentToken.mint(alice.address, mintAmount)).wait();
+    await (await paymentToken.connect(alice).approve(await auction.getAddress(), mintAmount)).wait();
+
+    await expect(auction.connect(alice).bid(ask, { value: 1n })).to.be.revertedWith("ETH_NOT_ACCEPTED");
+
+    const treasuryBefore = await paymentToken.balanceOf(treasury.address);
+
+    await (await auction.connect(alice).bid(ask)).wait();
+
+    const treasuryAfter = await paymentToken.balanceOf(treasury.address);
+    expect(treasuryAfter - treasuryBefore).to.equal(ask);
+    expect(await paymentToken.balanceOf(alice.address)).to.equal(mintAmount - ask);
+    expect(await nft.ownerOf(FIRST_PUBLIC_ID)).to.equal(alice.address);
+  });
+
+  it("first successful auction sale freezes sales caller to adapter", async function () {
+    const { auction, adapter, minter, bob, roles } = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
+    const ask = await auction.getCurrentPrice();
+
+    await (await auction.bid(ask, { value: ask })).wait();
+
+    expect(await minter.salesCaller()).to.equal(await adapter.getAddress());
+    expect(await minter.salesCallerFrozen()).to.equal(true);
+    expect(await minter.getRoleAdmin(roles.SALES_ROLE)).to.equal(await minter.FROZEN_SALES_ADMIN_ROLE());
+    expect(await minter.hasRole(roles.SALES_ROLE, await adapter.getAddress())).to.equal(true);
+    await expectAnyRevert(minter.grantRole(roles.SALES_ROLE, bob.address));
+  });
+
+  it("reverts first auction settlement when public id drift already happened", async function () {
+    const { auction, adapter, minter, deployer, roles, alice } = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
+
+    await (await minter.grantRole(roles.SALES_ROLE, deployer.address)).wait();
+    await (await minter.mintPublic(deployer.address, "0x")).wait();
+
+    const ask = await auction.getCurrentPrice();
+
+    await expect(auction.connect(alice).bid(ask, { value: ask }))
+      .to.be.revertedWithCustomError(adapter, "MintIdMismatch")
+      .withArgs(1n, FIRST_PUBLIC_ID, FIRST_PUBLIC_ID + 1n);
   });
 
   it("second bid in later block mints next token id", async function () {

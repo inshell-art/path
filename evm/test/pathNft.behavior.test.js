@@ -114,6 +114,25 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.getStageMinted(22n)).to.equal(0n);
   });
 
+  it("consumeUnit accepts operator approval via setApprovalForAll", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, alice, bob] = await ethers.getSigners();
+
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 1)).wait();
+    await (await nft.safeMint(alice.address, 23n, "0x")).wait();
+
+    await (await nft.connect(alice).setApprovalForAll(bob.address, true)).wait();
+    await (await mover.connect(bob).consume(await nft.getAddress(), 23n, movements.THOUGHT, bob.address)).wait();
+
+    expect(await nft.getStage(23n)).to.equal(1n);
+    expect(await nft.getStageMinted(23n)).to.equal(0n);
+  });
+
   it("consumeUnit enforces movement order and advances stage by quota", async function () {
     const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
     const [, alice] = await ethers.getSigners();
@@ -170,5 +189,31 @@ describe("PathNFT (Solidity)", function () {
     await (await nft.setMovementConfig(movements.WILL, alice.address, 3)).wait();
     expect(await nft.getAuthorizedMinter(movements.WILL)).to.equal(alice.address);
     expect(await nft.getMovementQuota(movements.WILL)).to.equal(3n);
+  });
+
+  it("emits MovementFrozen only on first consume of each movement", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, alice] = await ethers.getSigners();
+
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 2)).wait();
+    await (await nft.setMovementConfig(movements.WILL, await mover.getAddress(), 1)).wait();
+    await (await nft.safeMint(alice.address, 51n, "0x")).wait();
+
+    const first = await (await mover.connect(alice).consume(await nft.getAddress(), 51n, movements.THOUGHT, alice.address)).wait();
+    const second = await (await mover.connect(alice).consume(await nft.getAddress(), 51n, movements.THOUGHT, alice.address)).wait();
+    const third = await (await mover.connect(alice).consume(await nft.getAddress(), 51n, movements.WILL, alice.address)).wait();
+
+    const frozenLogs = await nft.queryFilter(nft.filters.MovementFrozen(), first.blockNumber, third.blockNumber);
+    const thoughtFrozen = frozenLogs.filter((log) => log.args.movement === movements.THOUGHT);
+    const willFrozen = frozenLogs.filter((log) => log.args.movement === movements.WILL);
+
+    expect(second.status).to.equal(1);
+    expect(thoughtFrozen.length).to.equal(1);
+    expect(willFrozen.length).to.equal(1);
   });
 });

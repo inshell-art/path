@@ -67,7 +67,7 @@ export async function deployPathMinterEnv(ethers, { firstPublicId = FIRST_PUBLIC
   };
 }
 
-export async function deployPathPulseEthEnv(ethers, { startDelaySec = 0n } = {}) {
+async function deployPathPulseEnv(ethers, { startDelaySec = 0n, paymentToken = ethers.ZeroAddress } = {}) {
   const [deployer, alice, bob, treasury] = await ethers.getSigners();
 
   const nftEnv = await deployPathNftEnv(ethers, { admin: deployer.address });
@@ -98,7 +98,7 @@ export async function deployPathPulseEthEnv(ethers, { startDelaySec = 0n } = {})
     GENESIS_PRICE,
     GENESIS_FLOOR,
     PTS,
-    ethers.ZeroAddress,
+    paymentToken,
     treasury.address,
     await adapter.getAddress()
   );
@@ -123,6 +123,27 @@ export async function deployPathPulseEthEnv(ethers, { startDelaySec = 0n } = {})
       RESERVED_ROLE: roleId(ethers, "RESERVED_ROLE")
     }
   };
+}
+
+export async function deployPathPulseEthEnv(ethers, { startDelaySec = 0n } = {}) {
+  return deployPathPulseEnv(ethers, { startDelaySec, paymentToken: ethers.ZeroAddress });
+}
+
+export async function deployPathPulseErc20Env(
+  ethers,
+  { startDelaySec = 0n, tokenName = "Mock USD", tokenSymbol = "mUSD", tokenDecimals = 18 } = {}
+) {
+  const [deployer] = await ethers.getSigners();
+  const MockErc20 = await ethers.getContractFactory("MockERC20", deployer);
+  const paymentToken = await MockErc20.deploy(tokenName, tokenSymbol, tokenDecimals);
+  await paymentToken.waitForDeployment();
+
+  const env = await deployPathPulseEnv(ethers, {
+    startDelaySec,
+    paymentToken: await paymentToken.getAddress()
+  });
+
+  return { ...env, paymentToken };
 }
 
 export async function getSaleEventFromReceipt(auction, receipt) {

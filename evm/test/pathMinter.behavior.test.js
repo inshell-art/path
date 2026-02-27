@@ -35,6 +35,19 @@ describe("PathMinter (Solidity)", function () {
     expect(await minter.salesCallerFrozen()).to.equal(false);
   });
 
+  it("constructor rejects zero admin or zero path nft address", async function () {
+    const [deployer] = await ethers.getSigners();
+    const Minter = await ethers.getContractFactory("PathMinter", deployer);
+
+    await expect(
+      Minter.deploy(ethers.ZeroAddress, deployer.address, FIRST_PUBLIC_ID, RESERVED_CAP)
+    ).to.be.revertedWith("ZERO_ADMIN");
+
+    await expect(
+      Minter.deploy(deployer.address, ethers.ZeroAddress, FIRST_PUBLIC_ID, RESERVED_CAP)
+    ).to.be.revertedWith("ZERO_PATH_NFT");
+  });
+
   it("mintPublic requires SALES_ROLE", async function () {
     const { deployer, nft, minter, roles } = await deployPathMinterEnv(ethers);
     const [, alice] = await ethers.getSigners();
@@ -78,7 +91,9 @@ describe("PathMinter (Solidity)", function () {
     await (await minter.grantRole(roles.SALES_ROLE, alice.address)).wait();
     await (await minter.grantRole(roles.SALES_ROLE, bob.address)).wait();
 
-    await (await minter.connect(alice).mintPublic(alice.address, "0x")).wait();
+    await expect(minter.connect(alice).mintPublic(alice.address, "0x"))
+      .to.emit(minter, "SalesCallerFrozen")
+      .withArgs(alice.address);
 
     expect(await minter.salesCaller()).to.equal(alice.address);
     expect(await minter.salesCallerFrozen()).to.equal(true);
