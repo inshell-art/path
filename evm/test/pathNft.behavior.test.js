@@ -60,14 +60,39 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.getMovementQuota(movements.THOUGHT)).to.equal(2n);
   });
 
-  it("tokenURI returns base URI + token id", async function () {
-    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+  it("tokenURI returns on-chain metadata with raw svg using movement-config quotas", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
     const [, alice] = await ethers.getSigners();
 
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
     await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 1)).wait();
+    await (await nft.setMovementConfig(movements.WILL, await mover.getAddress(), 4)).wait();
+    await (await nft.setMovementConfig(movements.AWA, await mover.getAddress(), 1)).wait();
     await (await nft.safeMint(alice.address, 5n, "0x1234")).wait();
 
-    expect(await nft.tokenURI(5n)).to.equal("5");
+    const uri0 = await nft.tokenURI(5n);
+
+    expect(uri0).to.contain("data:application/json;utf8,");
+    expect(uri0).to.contain('"name":"PATH #5"');
+    expect(uri0).to.contain('"stage":"THOUGHT"');
+    expect(uri0).to.contain('"thought":"Minted(0/1)"');
+    expect(uri0).to.contain('"will":"Minted(0/4)"');
+    expect(uri0).to.contain('"awa":"Minted(0/1)"');
+    expect(uri0).to.contain('"image_data":"<svg');
+    expect(uri0).to.contain("id='will-box'");
+
+    await (await mover.connect(alice).consume(await nft.getAddress(), 5n, movements.THOUGHT, alice.address)).wait();
+    await (await mover.connect(alice).consume(await nft.getAddress(), 5n, movements.WILL, alice.address)).wait();
+
+    const uri1 = await nft.tokenURI(5n);
+    expect(uri1).to.contain('"stage":"WILL"');
+    expect(uri1).to.contain('"thought":"Minted(1/1)"');
+    expect(uri1).to.contain('"will":"Minted(1/4)"');
+    expect(uri1).to.contain("id='will-fill' x='270' y='270' width='15'");
   });
 
   it("consumeUnit enforces authorized movement minter", async function () {

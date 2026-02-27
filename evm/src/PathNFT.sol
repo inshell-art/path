@@ -24,6 +24,16 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
     mapping(bytes32 movement => bool frozen) private _movementFrozen;
     mapping(bytes32 movement => address minter) private _authorizedMinter;
 
+    struct RenderState {
+        uint8 stage;
+        uint32 thoughtQuota;
+        uint32 willQuota;
+        uint32 awaQuota;
+        uint32 thoughtMinted;
+        uint32 willMinted;
+        uint32 awaMinted;
+    }
+
     event MovementConsumed(uint256 indexed pathId, bytes32 indexed movement, address indexed claimer, uint32 serial);
     event MovementFrozen(bytes32 indexed movement);
 
@@ -120,7 +130,75 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         require(_exists(tokenId), "ERC721: invalid token ID");
-        return string.concat(_baseTokenUri, Strings.toString(tokenId));
+        return _tokenUriData(tokenId);
+    }
+
+    function _tokenUriData(uint256 tokenId) internal view returns (string memory) {
+        RenderState memory state = _tokenRenderState(tokenId);
+        string memory tokenIdStr = Strings.toString(tokenId);
+        string memory stageLabel = _stageLabel(state.stage);
+        string memory thoughtProgress = _manifestProgress(state.thoughtMinted, state.thoughtQuota);
+        string memory willProgress = _manifestProgress(state.willMinted, state.willQuota);
+        string memory awaProgress = _manifestProgress(state.awaMinted, state.awaQuota);
+        string memory svg = _buildSvg(state.thoughtMinted, state.willMinted, state.awaMinted, state.willQuota);
+
+        return string.concat(
+            "data:application/json;utf8,",
+            _metadataJson(tokenIdStr, stageLabel, thoughtProgress, willProgress, awaProgress, svg)
+        );
+    }
+
+    function _metadataJson(
+        string memory tokenIdStr,
+        string memory stageLabel,
+        string memory thoughtProgress,
+        string memory willProgress,
+        string memory awaProgress,
+        string memory svg
+    ) internal pure returns (string memory) {
+        string memory head = string.concat(
+            '{"name":"PATH #',
+            tokenIdStr,
+            '","token":"',
+            tokenIdStr,
+            '","stage":"',
+            stageLabel,
+            '",'
+        );
+        string memory body = string.concat(
+            '"thought":"',
+            thoughtProgress,
+            '","will":"',
+            willProgress,
+            '","awa":"',
+            awaProgress,
+            '",'
+        );
+        string memory tail = string.concat(
+            '"image":"data:image/svg+xml;utf8,',
+            svg,
+            '","image_data":"',
+            svg,
+            '"}'
+        );
+
+        return string.concat(head, body, tail);
+    }
+
+    function _tokenRenderState(uint256 tokenId) internal view returns (RenderState memory state) {
+        state.stage = _stage[tokenId];
+        uint32 stageMinted = _stageMinted[tokenId];
+        state.thoughtQuota = _movementQuota[MOVEMENT_THOUGHT];
+        state.willQuota = _movementQuota[MOVEMENT_WILL];
+        state.awaQuota = _movementQuota[MOVEMENT_AWA];
+
+        (state.thoughtMinted, state.willMinted, state.awaMinted) = _progressCounts(
+            state.stage,
+            stageMinted,
+            state.thoughtQuota,
+            state.willQuota,
+            state.awaQuota
+        );
     }
 
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
@@ -149,5 +227,98 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
             return MOVEMENT_AWA;
         }
         revert("BAD_STAGE");
+    }
+
+    function _progressCounts(
+        uint8 stage,
+        uint32 stageMinted,
+        uint32 thoughtQuota,
+        uint32 willQuota,
+        uint32 awaQuota
+    ) internal pure returns (uint32 thoughtMinted, uint32 willMinted, uint32 awaMinted) {
+        thoughtMinted = stage > 0 ? thoughtQuota : stageMinted;
+
+        if (stage > 1) {
+            willMinted = willQuota;
+        } else if (stage == 1) {
+            willMinted = stageMinted;
+        } else {
+            willMinted = 0;
+        }
+
+        if (stage > 2) {
+            awaMinted = awaQuota;
+        } else if (stage == 2) {
+            awaMinted = stageMinted;
+        } else {
+            awaMinted = 0;
+        }
+    }
+
+    function _stageLabel(uint8 stage) internal pure returns (string memory) {
+        if (stage == 0) {
+            return "THOUGHT";
+        }
+        if (stage == 1) {
+            return "WILL";
+        }
+        if (stage == 2) {
+            return "AWA";
+        }
+        if (stage == 3) {
+            return "COMPLETE";
+        }
+        return "UNKNOWN";
+    }
+
+    function _manifestProgress(uint32 minted, uint32 quota) internal pure returns (string memory) {
+        return string.concat(
+            string.concat("Minted(", Strings.toString(uint256(minted))),
+            string.concat("/", string.concat(Strings.toString(uint256(quota)), ")"))
+        );
+    }
+
+    function _buildSvg(
+        uint32 thoughtMinted,
+        uint32 willMinted,
+        uint32 awaMinted,
+        uint32 willQuota
+    ) internal pure returns (string memory) {
+        string memory thoughtDisplay = thoughtMinted > 0 ? "inline" : "none";
+        string memory willDisplay = willMinted > 0 ? "inline" : "none";
+        string memory awaDisplay = awaMinted > 0 ? "inline" : "none";
+
+        uint256 willFillWidth = 0;
+        if (willQuota > 0 && willMinted > 0) {
+            willFillWidth = (60 * uint256(willMinted)) / uint256(willQuota);
+            if (willFillWidth > 60) {
+                willFillWidth = 60;
+            }
+        }
+
+        string memory willFillRect = "";
+        if (willMinted > 0 && willFillWidth > 0) {
+            willFillRect = string.concat(
+                "<rect id='will-fill' x='270' y='270' width='",
+                Strings.toString(willFillWidth),
+                "' height='60' fill='white' display='inline'/>"
+            );
+        }
+
+        return string.concat(
+            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600' width='600' height='600' role='img' aria-label='PATH progress'>",
+            "<rect width='600' height='600' fill='black'/>",
+            "<rect id='thought-box' x='180' y='270' width='60' height='60' fill='white' display='",
+            thoughtDisplay,
+            "'/>",
+            "<rect id='will-box' x='270' y='270' width='60' height='60' fill='none' stroke='white' stroke-width='4' display='",
+            willDisplay,
+            "'/>",
+            willFillRect,
+            "<rect id='awa-box' x='360' y='270' width='60' height='60' fill='white' display='",
+            awaDisplay,
+            "'/>",
+            "</svg>"
+        );
     }
 }
