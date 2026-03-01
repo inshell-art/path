@@ -112,30 +112,31 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
     expect(await nft.ownerOf(FIRST_PUBLIC_ID)).to.equal(alice.address);
   });
 
-  it("first successful auction sale freezes sales caller to adapter", async function () {
+  it("fixture freezes sales caller to adapter before first sale", async function () {
     const { auction, adapter, minter, bob, roles } = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
-    const ask = await auction.getCurrentPrice();
-
-    await (await auction.bid(ask, { value: ask })).wait();
 
     expect(await minter.salesCaller()).to.equal(await adapter.getAddress());
     expect(await minter.salesCallerFrozen()).to.equal(true);
     expect(await minter.getRoleAdmin(roles.SALES_ROLE)).to.equal(await minter.FROZEN_SALES_ADMIN_ROLE());
     expect(await minter.hasRole(roles.SALES_ROLE, await adapter.getAddress())).to.equal(true);
     await expectAnyRevert(minter.grantRole(roles.SALES_ROLE, bob.address));
+
+    const ask = await auction.getCurrentPrice();
+    await (await auction.bid(ask, { value: ask })).wait();
   });
 
-  it("reverts first auction settlement when public id drift already happened", async function () {
-    const { auction, adapter, minter, deployer, roles, alice } = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
-
-    await (await minter.grantRole(roles.SALES_ROLE, deployer.address)).wait();
-    await (await minter.mintPublic(deployer.address, "0x")).wait();
+  it("reverts settlement when sales caller is frozen to a non-adapter address", async function () {
+    const [deployer] = await ethers.getSigners();
+    const { auction, adapter, minter, alice } = await deployPathPulseEthEnv(ethers, {
+      startDelaySec: 0n,
+      freezeSalesCallerTo: deployer.address
+    });
 
     const ask = await auction.getCurrentPrice();
 
     await expect(auction.connect(alice).bid(ask, { value: ask }))
-      .to.be.revertedWithCustomError(adapter, "MintIdMismatch")
-      .withArgs(1n, FIRST_PUBLIC_ID, FIRST_PUBLIC_ID + 1n);
+      .to.be.revertedWithCustomError(minter, "BadSalesCaller")
+      .withArgs(await adapter.getAddress(), deployer.address);
   });
 
   it("second bid in later block mints next token id", async function () {

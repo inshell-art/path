@@ -2,18 +2,27 @@
 pragma solidity ^0.8.24;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {IERC4906} from "@openzeppelin/contracts/interfaces/IERC4906.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {IPathNFT} from "./interfaces/IPathNFT.sol";
 
 /// @notice ERC-721 PATH NFT with staged movement progression.
 /// @dev Solidity port of `legacy/cairo/contracts/path_nft/src/path_nft.cairo`.
-contract PathNFT is ERC721, AccessControl, IPathNFT {
+contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes4 private constant _INTERFACE_ID_ERC4906 = 0x49064906;
 
     bytes32 public constant MOVEMENT_THOUGHT = bytes32("THOUGHT");
     bytes32 public constant MOVEMENT_WILL = bytes32("WILL");
     bytes32 public constant MOVEMENT_AWA = bytes32("AWA");
+    bytes32 private constant _CONSUME_AUTHORIZATION_TYPEHASH = keccak256(
+        "ConsumeAuthorization(address pathNft,uint256 chainId,uint256 pathId,bytes32 movement,address claimer,address executor,uint256 nonce,uint256 deadline)"
+    );
 
     string private _baseTokenUri;
 
@@ -23,6 +32,7 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
     mapping(bytes32 movement => uint32 quota) private _movementQuota;
     mapping(bytes32 movement => bool frozen) private _movementFrozen;
     mapping(bytes32 movement => address minter) private _authorizedMinter;
+    mapping(address claimer => uint256 nonce) private _consumeNonce;
 
     struct RenderState {
         uint8 stage;
@@ -90,17 +100,25 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
         return _movementQuota[movement];
     }
 
-    function consumeUnit(uint256 pathId, bytes32 movement, address claimer) external override returns (uint32 serial) {
+    function getConsumeNonce(address claimer) external view override returns (uint256) {
+        return _consumeNonce[claimer];
+    }
+
+    function consumeUnit(
+        uint256 pathId,
+        bytes32 movement,
+        address claimer,
+        uint256 deadline,
+        bytes calldata signature
+    ) external override returns (uint32 serial) {
         _assertValidMovement(movement);
 
         address authorized = _authorizedMinter[movement];
         require(authorized != address(0) && _msgSender() == authorized, "ERR_UNAUTHORIZED_MINTER");
-        require(claimer == tx.origin, "BAD_CLAIMER");
-        require(_exists(pathId), "ERC721: invalid token ID");
+        uint256 nonce = _validateConsumeAuthorization(pathId, movement, claimer, _msgSender(), deadline, signature);
 
         uint8 current = _stage[pathId];
-        bytes32 expected = _expectedMovementForStage(current);
-        require(movement == expected, "BAD_MOVEMENT_ORDER");
+        require(movement == _expectedMovementForStage(current), "BAD_MOVEMENT_ORDER");
 
         require(_isApprovedOrOwner(claimer, pathId), "ERR_NOT_OWNER");
 
@@ -112,6 +130,7 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
 
         serial = minted;
         uint32 mintedNext = minted + 1;
+        _consumeNonce[claimer] = nonce + 1;
 
         if (!_movementFrozen[movement]) {
             _movementFrozen[movement] = true;
@@ -125,7 +144,37 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
             _stageMinted[pathId] = mintedNext;
         }
 
+        emit MetadataUpdate(pathId);
         emit MovementConsumed(pathId, movement, claimer, serial);
+    }
+
+    function _validateConsumeAuthorization(
+        uint256 pathId,
+        bytes32 movement,
+        address claimer,
+        address executor,
+        uint256 deadline,
+        bytes calldata signature
+    ) internal view returns (uint256 nonce) {
+        require(block.timestamp <= deadline, "CONSUME_AUTH_EXPIRED");
+        require(_exists(pathId), "ERC721: invalid token ID");
+
+        nonce = _consumeNonce[claimer];
+        bytes32 structHash = keccak256(
+            abi.encode(
+                _CONSUME_AUTHORIZATION_TYPEHASH,
+                address(this),
+                uint256(block.chainid),
+                pathId,
+                movement,
+                claimer,
+                executor,
+                nonce,
+                deadline
+            )
+        );
+        bytes32 digest = ECDSA.toEthSignedMessageHash(structHash);
+        require(SignatureChecker.isValidSignatureNow(claimer, digest, signature), "BAD_CONSUME_AUTH");
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
@@ -141,48 +190,85 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
         string memory willProgress = _manifestProgress(state.willMinted, state.willQuota);
         string memory awaProgress = _manifestProgress(state.awaMinted, state.awaQuota);
         string memory svg = _buildSvg(state.thoughtMinted, state.willMinted, state.awaMinted, state.willQuota);
-
-        return string.concat(
-            "data:application/json;utf8,",
-            _metadataJson(tokenIdStr, stageLabel, thoughtProgress, willProgress, awaProgress, svg)
+        string memory image = string.concat(
+            "data:image/svg+xml;base64,",
+            Base64.encode(bytes(svg))
         );
+        string memory attrs = _attributesJson(stageLabel, thoughtProgress, willProgress, awaProgress);
+        string memory json = _metadataJson(
+            tokenIdStr,
+            image,
+            attrs,
+            stageLabel,
+            thoughtProgress,
+            willProgress,
+            awaProgress,
+            svg
+        );
+
+        return string.concat("data:application/json;base64,", Base64.encode(bytes(json)));
     }
 
     function _metadataJson(
         string memory tokenIdStr,
+        string memory image,
+        string memory attrs,
         string memory stageLabel,
         string memory thoughtProgress,
         string memory willProgress,
         string memory awaProgress,
         string memory svg
     ) internal pure returns (string memory) {
-        string memory head = string.concat(
-            '{"name":"PATH #',
-            tokenIdStr,
-            '","token":"',
-            tokenIdStr,
-            '","stage":"',
-            stageLabel,
-            '",'
+        return string(
+            abi.encodePacked(
+                '{"name":"PATH #',
+                tokenIdStr,
+                '","description":"',
+                _description(),
+                '","image":"',
+                image,
+                '","attributes":',
+                attrs,
+                ',"token":"',
+                tokenIdStr,
+                '","stage":"',
+                stageLabel,
+                '","thought":"',
+                thoughtProgress,
+                '","will":"',
+                willProgress,
+                '","awa":"',
+                awaProgress,
+                '","image_data":"',
+                svg,
+                '"}'
+            )
         );
-        string memory body = string.concat(
-            '"thought":"',
-            thoughtProgress,
-            '","will":"',
-            willProgress,
-            '","awa":"',
-            awaProgress,
-            '",'
-        );
-        string memory tail = string.concat(
-            '"image":"data:image/svg+xml;utf8,',
-            svg,
-            '","image_data":"',
-            svg,
-            '"}'
-        );
+    }
 
-        return string.concat(head, body, tail);
+    function _description() internal pure returns (string memory) {
+        return "PATH is a permission token. Holding PATH authorizes minting THOUGHT to WILL to AWA in order. The image and traits show quota usage and progress for this PATH token.";
+    }
+
+    function _attributesJson(
+        string memory stageLabel,
+        string memory thoughtProgress,
+        string memory willProgress,
+        string memory awaProgress
+    ) internal pure returns (string memory) {
+        return string(
+            abi.encodePacked(
+                '[{"trait_type":"Stage","value":"',
+                stageLabel,
+                '"},{"trait_type":"THOUGHT","value":"',
+                thoughtProgress,
+                '"},{"trait_type":"WILL","value":"',
+                willProgress,
+                '"},{"trait_type":"AWA","value":"',
+                awaProgress,
+                '"}]'
+            )
+        );
     }
 
     function _tokenRenderState(uint256 tokenId) internal view returns (RenderState memory state) {
@@ -201,8 +287,13 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
         );
     }
 
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
-        return super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, AccessControl, IERC165)
+        returns (bool)
+    {
+        return interfaceId == _INTERFACE_ID_ERC4906 || super.supportsInterface(interfaceId);
     }
 
     function _baseURI() internal view override returns (string memory) {
@@ -311,7 +402,7 @@ contract PathNFT is ERC721, AccessControl, IPathNFT {
             "<rect id='thought-box' x='180' y='270' width='60' height='60' fill='white' display='",
             thoughtDisplay,
             "'/>",
-            "<rect id='will-box' x='270' y='270' width='60' height='60' fill='none' stroke='white' stroke-width='4' display='",
+            "<rect id='will-box' x='270' y='270' width='60' height='60' fill='none' display='",
             willDisplay,
             "'/>",
             willFillRect,

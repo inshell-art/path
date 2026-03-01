@@ -67,7 +67,10 @@ export async function deployPathMinterEnv(ethers, { firstPublicId = FIRST_PUBLIC
   };
 }
 
-async function deployPathPulseEnv(ethers, { startDelaySec = 0n, paymentToken = ethers.ZeroAddress } = {}) {
+async function deployPathPulseEnv(
+  ethers,
+  { startDelaySec = 0n, paymentToken = ethers.ZeroAddress, freezeSalesCallerTo } = {}
+) {
   const [deployer, alice, bob, treasury] = await ethers.getSigners();
 
   const nftEnv = await deployPathNftEnv(ethers, { admin: deployer.address });
@@ -105,8 +108,13 @@ async function deployPathPulseEnv(ethers, { startDelaySec = 0n, paymentToken = e
   await auction.waitForDeployment();
 
   await (await adapter.setAuction(await auction.getAddress())).wait();
+  await (await adapter.freezeWiring()).wait();
   await (await nftEnv.nft.grantRole(nftEnv.roles.MINTER_ROLE, await minter.getAddress())).wait();
-  await (await minter.grantRole(roleId(ethers, "SALES_ROLE"), await adapter.getAddress())).wait();
+  const defaultSalesCaller = await adapter.getAddress();
+  const salesCaller = freezeSalesCallerTo ?? defaultSalesCaller;
+  const salesRole = roleId(ethers, "SALES_ROLE");
+  await (await minter.grantRole(salesRole, salesCaller)).wait();
+  await (await minter.freezeSalesCaller(salesCaller)).wait();
 
   return {
     deployer,
@@ -125,8 +133,15 @@ async function deployPathPulseEnv(ethers, { startDelaySec = 0n, paymentToken = e
   };
 }
 
-export async function deployPathPulseEthEnv(ethers, { startDelaySec = 0n } = {}) {
-  return deployPathPulseEnv(ethers, { startDelaySec, paymentToken: ethers.ZeroAddress });
+export async function deployPathPulseEthEnv(
+  ethers,
+  { startDelaySec = 0n, freezeSalesCallerTo } = {}
+) {
+  return deployPathPulseEnv(ethers, {
+    startDelaySec,
+    paymentToken: ethers.ZeroAddress,
+    freezeSalesCallerTo
+  });
 }
 
 export async function deployPathPulseErc20Env(

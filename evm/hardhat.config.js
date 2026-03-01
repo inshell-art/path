@@ -3,7 +3,16 @@ import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-et
 /** @type {import("hardhat/config").HardhatUserConfig} */
 export default {
   plugins: [hardhatToolboxMochaEthers],
-  solidity: "0.8.24",
+  solidity: {
+    version: "0.8.24",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      },
+      viaIR: true
+    }
+  },
   paths: {
     sources: "./src",
     tests: "./test",

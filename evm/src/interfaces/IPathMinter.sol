@@ -8,6 +8,8 @@ interface IPathMinter {
 
     function getReservedRemaining() external view returns (uint64);
 
+    function freezeSalesCaller(address expectedCaller) external;
+
     function mintPublic(address to, bytes calldata data) external returns (uint256);
 
     function mintSparker(address to, bytes calldata data) external returns (uint256);

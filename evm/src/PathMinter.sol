@@ -15,6 +15,7 @@ contract PathMinter is AccessControl, IPathMinter {
     uint256 public constant SPARK_BASE = 1_000_000_000_000_000;
 
     error BadSalesCaller(address caller, address expected);
+    error SalesCallerNotFrozen();
 
     event SalesCallerFrozen(address indexed caller);
 
@@ -45,14 +46,23 @@ contract PathMinter is AccessControl, IPathMinter {
         return _reservedRemaining;
     }
 
+    function freezeSalesCaller(address expectedCaller) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(!salesCallerFrozen, "SALES_CALLER_FROZEN");
+        require(expectedCaller != address(0), "ZERO_SALES_CALLER");
+        require(hasRole(SALES_ROLE, expectedCaller), "MISSING_SALES_ROLE");
+
+        salesCaller = expectedCaller;
+        salesCallerFrozen = true;
+        _setRoleAdmin(SALES_ROLE, FROZEN_SALES_ADMIN_ROLE);
+
+        emit SalesCallerFrozen(expectedCaller);
+    }
+
     function mintPublic(address to, bytes calldata data) external override returns (uint256 id) {
         if (!salesCallerFrozen) {
-            _checkRole(SALES_ROLE, msg.sender);
-            salesCaller = msg.sender;
-            salesCallerFrozen = true;
-            _setRoleAdmin(SALES_ROLE, FROZEN_SALES_ADMIN_ROLE);
-            emit SalesCallerFrozen(msg.sender);
-        } else if (msg.sender != salesCaller) {
+            revert SalesCallerNotFrozen();
+        }
+        if (msg.sender != salesCaller) {
             revert BadSalesCaller(msg.sender, salesCaller);
         }
 

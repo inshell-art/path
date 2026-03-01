@@ -14,5 +14,13 @@ interface IPathNFT {
 
     function getMovementQuota(bytes32 movement) external view returns (uint32);
 
-    function consumeUnit(uint256 pathId, bytes32 movement, address claimer) external returns (uint32);
+    function getConsumeNonce(address claimer) external view returns (uint256);
+
+    function consumeUnit(
+        uint256 pathId,
+        bytes32 movement,
+        address claimer,
+        uint256 deadline,
+        bytes calldata signature
+    ) external returns (uint32);
 }

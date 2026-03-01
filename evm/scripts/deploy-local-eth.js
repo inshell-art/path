@@ -69,8 +69,10 @@ async function main() {
   await auction.waitForDeployment();
 
   await (await adapter.setAuction(await auction.getAddress())).wait();
+  await (await adapter.freezeWiring()).wait();
   await (await nft.grantRole(minterRole, await minter.getAddress())).wait();
   await (await minter.grantRole(salesRole, await adapter.getAddress())).wait();
+  await (await minter.freezeSalesCaller(await adapter.getAddress())).wait();
 
   const deployment = {
     network: conn.networkName,

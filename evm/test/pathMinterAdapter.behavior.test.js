@@ -46,11 +46,13 @@ describe("PathMinterAdapter (Solidity)", function () {
     expect(minterAddr).to.equal(await minter.getAddress());
     expect(await adapter.getAuthorizedAuction()).to.equal(await auction.getAddress());
     expect(await adapter.getMinterTarget()).to.equal(await minter.getAddress());
+    expect(await adapter.getFunction("target")()).to.equal(await auction.getAddress());
     expect(await adapter.tokenBase()).to.equal(tokenBase);
     expect(await adapter.epochBase()).to.equal(epochBase);
+    expect(await adapter.wiringFrozen()).to.equal(false);
   });
 
-  it("owner-only updates auction/minter and rejects zero", async function () {
+  it("owner-only updates auction/minter, rejects zero, and freezes wiring one-way", async function () {
     const { alice, bob, minter, adapter } = await deployFixture();
 
     await expect(adapter.connect(alice).setAuction(bob.address)).to.be.revertedWith(
@@ -71,6 +73,17 @@ describe("PathMinterAdapter (Solidity)", function () {
     const [, minterAddr] = await adapter.getConfig();
     expect(minterAddr).to.equal(await minter.getAddress());
     expect(await adapter.getMinterTarget()).to.equal(await minter.getAddress());
+
+    await expect(adapter.connect(alice).freezeWiring()).to.be.revertedWith("Ownable: caller is not the owner");
+    await expect(adapter.freezeWiring()).to.emit(adapter, "WiringFrozenSet");
+    expect(await adapter.wiringFrozen()).to.equal(true);
+
+    await expect(adapter.setAuction(bob.address))
+      .to.be.revertedWithCustomError(adapter, "WiringFrozen");
+    await expect(adapter.setMinter(await minter.getAddress()))
+      .to.be.revertedWithCustomError(adapter, "WiringFrozen");
+    await expect(adapter.freezeWiring())
+      .to.be.revertedWithCustomError(adapter, "WiringFrozen");
   });
 
   it("settle is callable only by configured auction", async function () {

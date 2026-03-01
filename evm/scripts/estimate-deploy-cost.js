@@ -215,15 +215,20 @@ async function estimateWiringGas(ethers, deployer) {
   const salesRole = ethers.id("SALES_ROLE");
 
   const setAuctionGas = await adapter.setAuction.estimateGas(await auction.getAddress());
+  const freezeWiringGas = await adapter.freezeWiring.estimateGas();
   const grantMinterRoleGas = await nft.grantRole.estimateGas(minterRole, await minter.getAddress());
   const grantSalesRoleGas = await minter.grantRole.estimateGas(salesRole, await adapter.getAddress());
+  const freezeSalesCallerGas = await minter.freezeSalesCaller.estimateGas(await adapter.getAddress());
 
-  const totalGas = setAuctionGas + grantMinterRoleGas + grantSalesRoleGas;
+  const totalGas =
+    setAuctionGas + freezeWiringGas + grantMinterRoleGas + grantSalesRoleGas + freezeSalesCallerGas;
 
   return {
     setAuctionGas,
+    freezeWiringGas,
     grantMinterRoleGas,
     grantSalesRoleGas,
+    freezeSalesCallerGas,
     totalGas
   };
 }
@@ -264,8 +269,10 @@ async function main() {
   console.log("");
   console.log("Estimated wiring gas:");
   printRow("adapter.setAuction", wiring.setAuctionGas, gasPrice.gwei, ethUsd.usd);
+  printRow("adapter.freezeWiring", wiring.freezeWiringGas, gasPrice.gwei, ethUsd.usd);
   printRow("nft.grantRole", wiring.grantMinterRoleGas, gasPrice.gwei, ethUsd.usd);
   printRow("minter.grantRole", wiring.grantSalesRoleGas, gasPrice.gwei, ethUsd.usd);
+  printRow("minter.freezeSales", wiring.freezeSalesCallerGas, gasPrice.gwei, ethUsd.usd);
   printRow("WIRING TOTAL", wiring.totalGas, gasPrice.gwei, ethUsd.usd);
 
   console.log("");

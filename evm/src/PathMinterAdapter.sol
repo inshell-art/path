@@ -13,14 +13,17 @@ contract PathMinterAdapter is Ownable, IPulseAdapter {
     error EpochMismatch(uint256 observed, uint256 forwarded);
     error EpochBeforeBase(uint256 epoch, uint256 epochBase);
     error MintIdMismatch(uint256 epoch, uint256 expected, uint256 observed);
+    error WiringFrozen();
 
     address public auction;
     address public minter;
     uint256 public immutable tokenBase;
     uint256 public immutable epochBase;
+    bool public wiringFrozen;
 
     event AuctionSet(address indexed oldAuction, address indexed newAuction);
     event MinterSet(address indexed oldMinter, address indexed newMinter);
+    event WiringFrozenSet();
     event EpochMinted(uint256 indexed epoch, uint256 indexed tokenId, address indexed to);
 
     constructor(address owner_, address auction_, address minter_, uint256 tokenBase_, uint256 epochBase_) {
@@ -33,6 +36,7 @@ contract PathMinterAdapter is Ownable, IPulseAdapter {
     }
 
     function setAuction(address auction_) external onlyOwner {
+        if (wiringFrozen) revert WiringFrozen();
         require(auction_ != address(0), "ZERO_AUCTION");
         address old = auction;
         auction = auction_;
@@ -40,10 +44,17 @@ contract PathMinterAdapter is Ownable, IPulseAdapter {
     }
 
     function setMinter(address minter_) external onlyOwner {
+        if (wiringFrozen) revert WiringFrozen();
         require(minter_ != address(0), "ZERO_MINTER");
         address old = minter;
         minter = minter_;
         emit MinterSet(old, minter_);
+    }
+
+    function freezeWiring() external onlyOwner {
+        if (wiringFrozen) revert WiringFrozen();
+        wiringFrozen = true;
+        emit WiringFrozenSet();
     }
 
     function getConfig() external view returns (address auction_, address minter_) {
@@ -56,6 +67,10 @@ contract PathMinterAdapter is Ownable, IPulseAdapter {
 
     function getMinterTarget() external view returns (address) {
         return minter;
+    }
+
+    function target() external view override returns (address) {
+        return auction;
     }
 
     function settle(address buyer, uint64 epochIndex, bytes calldata data) external override returns (uint256 tokenId) {
