@@ -163,28 +163,107 @@ SNAP_DIR="$BUNDLE_DIR/snapshots"
 mkdir -p "$SNAP_DIR"
 
 APPLIED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+APPLY_EXECUTION_MODE="stub"
+DEPLOY_FILE=""
+DEPLOY_LOG=""
+DEPLOY_COMMAND=""
 
-export APPLIED_AT TXS_PATH SNAP_DIR
+if [[ "$LANE_FROM_RUN" == "deploy" ]]; then
+  mkdir -p "$BUNDLE_DIR/deployments"
+  DEPLOY_CMD=()
+
+  case "$NETWORK_FROM_RUN" in
+    devnet)
+      DEPLOY_FILE="$BUNDLE_DIR/deployments/localhost-eth.json"
+      DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
+      DEPLOY_CMD=(npm run evm:deploy:local:eth)
+      ;;
+    sepolia)
+      DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
+      DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
+      DEPLOY_CMD=(npm --prefix evm exec -- hardhat run scripts/deploy-local-eth.js --network sepolia)
+      ;;
+    mainnet)
+      DEPLOY_FILE="$BUNDLE_DIR/deployments/mainnet-eth.json"
+      DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
+      DEPLOY_CMD=(npm --prefix evm exec -- hardhat run scripts/deploy-local-eth.js --network mainnet)
+      ;;
+  esac
+
+  if [[ "${#DEPLOY_CMD[@]}" -gt 0 ]]; then
+    DEPLOY_COMMAND="${DEPLOY_CMD[*]}"
+    echo "Executing deploy lane command: ${DEPLOY_COMMAND}"
+    DEPLOY_OUT_FILE="$DEPLOY_FILE" "${DEPLOY_CMD[@]}" | tee "$DEPLOY_LOG"
+    APPLY_EXECUTION_MODE="deployed"
+  fi
+fi
+
+export APPLIED_AT TXS_PATH SNAP_DIR APPLY_EXECUTION_MODE DEPLOY_FILE DEPLOY_LOG DEPLOY_COMMAND NETWORK_FROM_RUN LANE_FROM_RUN
 python3 - <<'PY'
 import json
 import os
 from pathlib import Path
 
 applied_at = os.environ["APPLIED_AT"]
+execution_mode = os.environ.get("APPLY_EXECUTION_MODE", "stub")
+deployment_file = os.environ.get("DEPLOY_FILE", "")
+deploy_log = os.environ.get("DEPLOY_LOG", "")
+deploy_command = os.environ.get("DEPLOY_COMMAND", "")
+network = os.environ.get("NETWORK_FROM_RUN", "")
+lane = os.environ.get("LANE_FROM_RUN", "")
 
 (Path(os.environ["TXS_PATH"]).parent).mkdir(parents=True, exist_ok=True)
 (Path(os.environ["SNAP_DIR"])).mkdir(parents=True, exist_ok=True)
 
-(Path(os.environ["TXS_PATH"])).write_text(json.dumps({
-    "applied_at": applied_at,
-    "txs": ["0xSTUB_TX"],
-    "notes": "Scaffold stub. Replace with real tx hashes."
-}, indent=2, sort_keys=True) + "\n")
+deployment = {}
+if deployment_file and Path(deployment_file).exists():
+    try:
+        deployment = json.loads(Path(deployment_file).read_text())
+    except Exception:
+        deployment = {}
 
-(Path(os.environ["SNAP_DIR"]) / "post_state.json").write_text(json.dumps({
+txs = []
+if execution_mode == "deployed":
+    deploy_txs = deployment.get("deployTxs", {})
+    for _, tx_hash in deploy_txs.items():
+        if isinstance(tx_hash, str) and tx_hash.startswith("0x") and len(tx_hash) > 2:
+            txs.append(tx_hash)
+else:
+    txs = ["0xSTUB_TX"]
+
+txs_payload = {
     "applied_at": applied_at,
-    "notes": "Scaffold stub. Replace with real snapshots."
-}, indent=2, sort_keys=True) + "\n")
+    "network": network,
+    "lane": lane,
+    "execution_mode": execution_mode,
+    "txs": txs,
+    "notes": "Deploy lane executes configured deploy command and records deployment tx hashes when available." if execution_mode == "deployed" else "Scaffold stub. Replace with real tx hashes."
+}
+if deployment_file:
+    txs_payload["deployment_file"] = deployment_file
+if deploy_log:
+    txs_payload["deploy_log"] = deploy_log
+if deploy_command:
+    txs_payload["deploy_command"] = deploy_command
+
+(Path(os.environ["TXS_PATH"])).write_text(json.dumps(txs_payload, indent=2, sort_keys=True) + "\n")
+
+snapshot_payload = {
+    "applied_at": applied_at,
+    "network": network,
+    "lane": lane,
+    "execution_mode": execution_mode,
+    "notes": "Contains post-apply deployment snapshot."
+}
+if deployment:
+    snapshot_payload["deployment"] = {
+        "network": deployment.get("network"),
+        "chainId": deployment.get("chainId"),
+        "deployer": deployment.get("deployer"),
+        "contracts": deployment.get("contracts", {})
+    }
+
+(Path(os.environ["SNAP_DIR"]) / "post_state.json").write_text(json.dumps(snapshot_payload, indent=2, sort_keys=True) + "\n")
 PY
 
-echo "Apply stub complete. Wrote txs.json and snapshots/ in $BUNDLE_DIR"
+echo "Apply complete. Wrote txs.json and snapshots/ in $BUNDLE_DIR"

@@ -80,6 +80,12 @@ async function main() {
     pathMinterAdapter: await adapter.getAddress(),
     pulseAuction: await auction.getAddress()
   };
+  const deployTxs = {
+    pathNft: nft.deploymentTransaction()?.hash ?? null,
+    pathMinter: minter.deploymentTransaction()?.hash ?? null,
+    pathMinterAdapter: adapter.deploymentTransaction()?.hash ?? null,
+    pulseAuction: auction.deploymentTransaction()?.hash ?? null
+  };
   const codeHashes = {};
   for (const [name, address] of Object.entries(contractAddresses)) {
     const code = await ethers.provider.getCode(address);
@@ -93,6 +99,7 @@ async function main() {
     treasury: treasury.address,
     paymentToken: ethers.ZeroAddress,
     contracts: contractAddresses,
+    deployTxs,
     codeHashes,
     config: {
       name: NAME,
@@ -114,9 +121,10 @@ async function main() {
     }
   };
 
-  const deploymentsDir = path.resolve(here, "../deployments");
-  await fs.mkdir(deploymentsDir, { recursive: true });
-  const outFile = path.join(deploymentsDir, `${conn.networkName}-eth.json`);
+  const outFile = process.env.DEPLOY_OUT_FILE
+    ? path.resolve(process.env.DEPLOY_OUT_FILE)
+    : path.join(path.resolve(here, "../deployments"), `${conn.networkName}-eth.json`);
+  await fs.mkdir(path.dirname(outFile), { recursive: true });
   await fs.writeFile(outFile, `${JSON.stringify(deployment, null, 2)}\n`, "utf8");
 
   console.log(`[deploy-local-eth] deployment saved to ${outFile}`);
