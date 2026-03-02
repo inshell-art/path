@@ -5,6 +5,7 @@ Purpose: deploy contracts and capture addresses using the `deploy` lane rules.
 Prereqs:
 - Deploy lane policy is configured for this network.
 - Deployer keystore is available in signing context.
+- Working tree is committed (no tracked diffs), and `HEAD` will not change between `bundle` and `apply`.
 
 Steps:
 1. Run plan to generate intents.
@@ -12,8 +13,10 @@ Steps:
 3. Human approves the intent meaning.
 4. Apply in signing context only.
 5. Record tx hashes, post-deploy snapshots, and EIP-1559 fee evidence.
+6. If `HEAD` changes after `bundle` (including new commits), create a new `RUN_ID` and re-run `bundle -> verify -> approve -> apply`.
 
 Stop conditions:
 - Any required check fails.
 - Intent hash changes after approval.
 - You are not in the correct OPSEC compartment.
+- `run.json` commit pin does not match current `HEAD`.
