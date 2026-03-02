@@ -4,6 +4,18 @@
     "http://127.0.0.1:8545",
     "http://localhost:8545"
   ],
+  "signer_alias_map": {
+    "DEVNET_DEPLOY_SW_A": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+  },
+  "path": {
+    "movement_config": {
+      "mode": "allow_unset",
+      "expected": {}
+    },
+    "sale_handshake": {
+      "mode": "execute_bid"
+    }
+  },
   "lanes": {
     "observe": {
       "writes": false,
@@ -37,7 +49,8 @@
         "rpc_allowlist",
         "signer_allowlist",
         "bytecode_hash",
-        "proxy_implementation"
+        "proxy_implementation",
+        "path_invariants"
       ],
       "fee_policy": {
         "max_fee_per_gas_gwei": "<SET_ME>",

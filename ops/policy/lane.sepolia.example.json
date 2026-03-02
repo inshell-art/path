@@ -5,6 +5,18 @@
     "https://sepolia.infura.io/v3/<API_KEY>",
     "https://ethereum-sepolia-rpc.publicnode.com"
   ],
+  "signer_alias_map": {
+    "SEPOLIA_DEPLOY_SW_A": "<SET_SEPOLIA_DEPLOYER_ADDRESS>"
+  },
+  "path": {
+    "movement_config": {
+      "mode": "allow_unset",
+      "expected": {}
+    },
+    "sale_handshake": {
+      "mode": "skip"
+    }
+  },
   "lanes": {
     "observe": {
       "writes": false,
@@ -38,7 +50,8 @@
         "rpc_allowlist",
         "signer_allowlist",
         "bytecode_hash",
-        "proxy_implementation"
+        "proxy_implementation",
+        "path_invariants"
       ],
       "fee_policy": {
         "max_fee_per_gas_gwei": "<SET_ME>",

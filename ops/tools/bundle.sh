@@ -32,6 +32,37 @@ fi
 
 mkdir -p "$BUNDLE_DIR"
 
+PATH_INVARIANTS_REQUIRED=0
+POLICY_FILE=""
+for candidate in \
+  "$ROOT/ops/policy/lane.${NETWORK}.json" \
+  "$ROOT/ops/policy/${NETWORK}.policy.json" \
+  "$ROOT/ops/policy/lane.${NETWORK}.example.json" \
+  "$ROOT/ops/policy/${NETWORK}.policy.example.json"
+do
+  if [[ -f "$candidate" ]]; then
+    POLICY_FILE="$candidate"
+    break
+  fi
+done
+
+if [[ -n "$POLICY_FILE" ]]; then
+  PATH_INVARIANTS_REQUIRED=$(POLICY_FILE="$POLICY_FILE" RUN_LANE="$LANE" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+policy = json.loads(Path(os.environ["POLICY_FILE"]).read_text())
+required = policy.get("lanes", {}).get(os.environ["RUN_LANE"], {}).get("required_checks", [])
+print("1" if "path_invariants" in required else "0")
+PY
+)
+fi
+
+if [[ "$PATH_INVARIANTS_REQUIRED" == "1" ]]; then
+  NETWORK="$NETWORK" LANE="$LANE" OUT_FILE="$BUNDLE_DIR/checks.path.json" POLICY_FILE="$POLICY_FILE" "$ROOT/ops/tools/generate_path_checks.sh"
+fi
+
 GIT_COMMIT=$(git rev-parse HEAD)
 CREATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -78,6 +109,8 @@ checks = {
 (bundle_dir / "checks.json").write_text(json.dumps(checks, indent=2, sort_keys=True) + "\n")
 
 immutable_files = ["run.json", "intent.json", "checks.json"]
+if (bundle_dir / "checks.path.json").exists():
+    immutable_files.append("checks.path.json")
 items = []
 for name in immutable_files:
     data = (bundle_dir / name).read_bytes()

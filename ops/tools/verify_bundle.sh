@@ -161,4 +161,76 @@ if [[ "$LANE_OK" != "ok" ]]; then
   exit 2
 fi
 
+PATH_INVARIANTS_REQUIRED=$(POLICY_FILE="$POLICY_FILE" RUN_LANE="$LANE_FROM_RUN" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+policy_path = Path(os.environ["POLICY_FILE"])
+run_lane = os.environ["RUN_LANE"]
+policy = json.loads(policy_path.read_text())
+required = policy.get("lanes", {}).get(run_lane, {}).get("required_checks", [])
+print("yes" if "path_invariants" in required else "no")
+PY
+)
+
+if [[ "$PATH_INVARIANTS_REQUIRED" == "yes" ]]; then
+  if [[ ! -f "$BUNDLE_DIR/checks.path.json" ]]; then
+    echo "Lane '$LANE_FROM_RUN' requires path_invariants but checks.path.json is missing" >&2
+    exit 2
+  fi
+
+  BUNDLE_DIR="$BUNDLE_DIR" POLICY_FILE="$POLICY_FILE" RUN_LANE="$LANE_FROM_RUN" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+bundle_dir = Path(os.environ["BUNDLE_DIR"])
+manifest = json.loads((bundle_dir / "bundle_manifest.json").read_text())
+paths = {item.get("path") for item in manifest.get("immutable_files", [])}
+if "checks.path.json" not in paths:
+    raise SystemExit("bundle_manifest.json is missing checks.path.json in immutable_files")
+
+checks = json.loads((bundle_dir / "checks.path.json").read_text())
+required_checks_map = checks.get("required_checks", {})
+path_invariants = checks.get("path_invariants", {})
+
+policy_path = Path(os.environ["POLICY_FILE"])
+run_lane = os.environ["RUN_LANE"]
+policy = json.loads(policy_path.read_text())
+policy_required = policy.get("lanes", {}).get(run_lane, {}).get("required_checks", [])
+
+required_path_invariants = [
+    "adapter_wiring_frozen",
+    "sales_caller_frozen_to_adapter",
+    "epoch_token_coupling_holds",
+    "role_owner_hygiene_ok",
+    "auction_config_matches",
+    "sale_handshake_ok",
+    "movement_config_policy_ok",
+    "signed_consume_path_ok",
+]
+
+failed_required_checks = []
+for check_name in policy_required:
+    if check_name == "path_invariants":
+        continue
+    if required_checks_map.get(check_name) is not True:
+        failed_required_checks.append(check_name)
+
+failed_path_invariants = [k for k in required_path_invariants if path_invariants.get(k) is not True]
+if "path_invariants" in policy_required and failed_path_invariants:
+    failed_required_checks.append("path_invariants")
+
+if failed_required_checks:
+    raise SystemExit(f"required checks failed: {', '.join(sorted(set(failed_required_checks)))}")
+if failed_path_invariants:
+    raise SystemExit(f"path invariants failed: {', '.join(failed_path_invariants)}")
+if checks.get("pass") is not True:
+    raise SystemExit("checks.path.json has pass=false")
+print("Required checks verified")
+print("Path invariants verified")
+PY
+fi
+
 echo "Bundle verified: $BUNDLE_DIR"

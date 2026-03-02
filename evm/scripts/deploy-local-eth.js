@@ -74,18 +74,26 @@ async function main() {
   await (await minter.grantRole(salesRole, await adapter.getAddress())).wait();
   await (await minter.freezeSalesCaller(await adapter.getAddress())).wait();
 
+  const contractAddresses = {
+    pathNft: await nft.getAddress(),
+    pathMinter: await minter.getAddress(),
+    pathMinterAdapter: await adapter.getAddress(),
+    pulseAuction: await auction.getAddress()
+  };
+  const codeHashes = {};
+  for (const [name, address] of Object.entries(contractAddresses)) {
+    const code = await ethers.provider.getCode(address);
+    codeHashes[name] = ethers.keccak256(code);
+  }
+
   const deployment = {
     network: conn.networkName,
     chainId: Number(networkInfo.chainId),
     deployer: deployer.address,
     treasury: treasury.address,
     paymentToken: ethers.ZeroAddress,
-    contracts: {
-      pathNft: await nft.getAddress(),
-      pathMinter: await minter.getAddress(),
-      pathMinterAdapter: await adapter.getAddress(),
-      pulseAuction: await auction.getAddress()
-    },
+    contracts: contractAddresses,
+    codeHashes,
     config: {
       name: NAME,
       symbol: SYMBOL,
