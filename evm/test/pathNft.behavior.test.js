@@ -13,6 +13,13 @@ describe("PathNFT (Solidity)", function () {
     return JSON.parse(Buffer.from(b64, "base64").toString("utf8"));
   }
 
+  function decodeContractMetadata(uri) {
+    const prefix = "data:application/json;base64,";
+    expect(uri.startsWith(prefix)).to.equal(true);
+    const b64 = uri.slice(prefix.length);
+    return JSON.parse(Buffer.from(b64, "base64").toString("utf8"));
+  }
+
   async function expectAnyRevert(txPromise) {
     try {
       await txPromise;
@@ -166,6 +173,16 @@ describe("PathNFT (Solidity)", function () {
     const willTrait1 = m1.attributes.find((x) => x.trait_type === "WILL");
     expect(willTrait1.value).to.equal("Minted(1/4)");
     expect(m1.image_data).to.contain("id='will-fill' x='270' y='270' width='15'");
+  });
+
+  it("contractURI returns on-chain collection metadata", async function () {
+    const { nft } = await deployPathNftEnv(ethers);
+    const metadata = decodeContractMetadata(await nft.contractURI());
+
+    expect(metadata.name).to.equal("PATH");
+    expect(metadata.description).to.be.a("string");
+    expect(metadata.image.startsWith("data:image/svg+xml;base64,")).to.equal(true);
+    expect(metadata.external_link).to.equal("https://github.com/inshell-art/path");
   });
 
   it("supports ERC-4906 and emits MetadataUpdate on consumeUnit", async function () {

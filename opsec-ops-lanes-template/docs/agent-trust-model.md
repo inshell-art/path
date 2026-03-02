@@ -17,6 +17,10 @@ then the agent response MUST be in this order:
 - A) Minimal Evidence Pack
 - B) Common Answer
 
+For audit prompts (`run audit`, `show audit findings`, `what did audit verify`), use the same order and add:
+- findings-first ordering (`critical -> high -> medium -> low`)
+- explicit `VERIFIED` vs `INFERRED` labeling
+
 ## 1) Trust the verifiers, not the agent
 
 Treat agent output as untrusted suggestions until reproducible by deterministic checks.
@@ -32,7 +36,11 @@ Every agent statement about correctness should be labeled as one of:
 - `PINNED`: verified and tied to a specific commit/tag.
 - `ON_CHAIN`: verified from chain receipts/events/transactions.
 
+For audit interpretation:
+- `INFERRED`: reasoned from indirect artifacts; not directly proven by deterministic verifier output.
+
 `PROPOSED` must never be presented as `VERIFIED`.
+`INFERRED` must never be presented as `VERIFIED`.
 
 ## 3) Minimal Evidence Pack + Common Answer (required order)
 

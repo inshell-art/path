@@ -52,7 +52,7 @@ Ops-lanes template is vendored at `opsec-ops-lanes-template/` and downstream ins
 - `artifacts/` (generated evidence)
 - `bundles/` (immutable CI/CD bundles)
 
-Vendored source: `https://github.com/inshell-art/opsec-ops-lanes-template` at commit `c274fda`.
+Vendored source: `https://github.com/inshell-art/opsec-ops-lanes-template` at commit `e2a67a3`.
 
 Quick rehearsal (bundle + verify only):
 
@@ -70,6 +70,17 @@ NETWORK=sepolia RUN_ID=<same_run_id> POSTCONDITIONS_STATUS=pass npm run ops:post
 ```
 
 Local ops env variable examples are in `ops/env.example` (do not commit secrets).
+
+Quick local audit (devnet):
+
+```bash
+AUDIT_ID=$(date -u +%Y%m%dT%H%M%SZ)-devnet-audit
+NETWORK=devnet AUDIT_ID=$AUDIT_ID RUN_IDS=<run1,run2> npm run ops:audit:plan
+NETWORK=devnet AUDIT_ID=$AUDIT_ID npm run ops:audit:collect
+NETWORK=devnet AUDIT_ID=$AUDIT_ID npm run ops:audit:verify
+NETWORK=devnet AUDIT_ID=$AUDIT_ID npm run ops:audit:report
+NETWORK=devnet AUDIT_ID=$AUDIT_ID AUDIT_APPROVER=<name> npm run ops:audit:signoff
+```
 
 ## Cairo/Starknet (legacy)
 

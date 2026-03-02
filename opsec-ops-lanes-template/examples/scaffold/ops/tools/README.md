@@ -8,10 +8,18 @@ Expected behavior by script:
 - `approve_bundle.sh` records human approval tied to the bundle hash.
 - `apply_bundle.sh` executes the approved bundle in signing context only.
 - `postconditions.sh` records post-apply verification and writes `postconditions.json`.
+- `audit_plan.sh` creates `audit_plan.json`.
+- `audit_collect.sh` indexes evidence files and writes `audit_evidence_index.json`.
+- `audit_verify.sh` runs control checks and writes `audit_verification.json`.
+- `audit_report.sh` generates `audit_report.json` and `findings.json`.
+- `audit_signoff.sh` writes `signoff.json` linked to the report hash.
 
 All write operations must use keystore mode only. Do not use accounts-file signing.
 
 Optional bundle tooling (reference implementations):
 - `bundle.sh`, `verify_bundle.sh`, `approve_bundle.sh`, `apply_bundle.sh`
+
+Optional audit tooling (reference implementations):
+- `audit_plan.sh`, `audit_collect.sh`, `audit_verify.sh`, `audit_report.sh`, `audit_signoff.sh`
 
 Review and adapt these scripts before use.

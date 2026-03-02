@@ -6,6 +6,7 @@ Suggested files:
 - `deploy.md`
 - `handoff.md`
 - `govern.md`
+- `audit.md`
 
 Each runbook should reference:
 - `docs/ops-lanes-agent.md`

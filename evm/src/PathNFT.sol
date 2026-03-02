@@ -182,6 +182,22 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
         return _tokenUriData(tokenId);
     }
 
+    /// @notice Contract-level metadata used by marketplaces that support collection metadata.
+    function contractURI() external pure returns (string memory) {
+        string memory svg = _contractSvg();
+        string memory image = string.concat("data:image/svg+xml;base64,", Base64.encode(bytes(svg)));
+        string memory json = string(
+            abi.encodePacked(
+                '{"name":"PATH","description":"',
+                _contractDescription(),
+                '","image":"',
+                image,
+                '","external_link":"https://github.com/inshell-art/path"}'
+            )
+        );
+        return string.concat("data:application/json;base64,", Base64.encode(bytes(json)));
+    }
+
     function _tokenUriData(uint256 tokenId) internal view returns (string memory) {
         RenderState memory state = _tokenRenderState(tokenId);
         string memory tokenIdStr = Strings.toString(tokenId);
@@ -248,6 +264,19 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
 
     function _description() internal pure returns (string memory) {
         return "PATH is a permission token. Holding PATH authorizes minting THOUGHT to WILL to AWA in order. The image and traits show quota usage and progress for this PATH token.";
+    }
+
+    function _contractDescription() internal pure returns (string memory) {
+        return "PATH is a permission token used to authorize Inshell generative artworks. Each PATH progresses through THOUGHT, WILL, and AWA by consuming movement units.";
+    }
+
+    function _contractSvg() internal pure returns (string memory) {
+        return string.concat(
+            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600' width='600' height='600' role='img' aria-label='PATH collection'>",
+            "<rect width='600' height='600' fill='black'/>",
+            "<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='64' font-family='monospace'>PATH</text>",
+            "</svg>"
+        );
     }
 
     function _attributesJson(

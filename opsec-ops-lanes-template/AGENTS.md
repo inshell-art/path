@@ -54,6 +54,25 @@ Rule: if a command was not run, say it was not run and keep the claim non-`VERIF
 `Common Answer`
 - Verify step succeeded for `RUN_ID=<id>`.
 
+## Audit Response Contract (MUST)
+
+Downstream repos should also copy/paste:
+- `docs/snippets/root-AGENTS-audit-response-contract.md`
+
+### Trigger rule (unambiguous)
+If the user asks to:
+- run audit steps (`audit_plan`, `audit_collect`, `audit_verify`, `audit_report`, `audit_signoff`, `audit-all`), or
+- show audit findings, or
+- explain what audit verified,
+then the response MUST use:
+- A) Minimal Evidence Pack
+- B) Common Answer
+
+### Audit-specific rules
+- findings-first ordering (`critical -> high -> medium -> low`)
+- explicit distinction between `VERIFIED` and `INFERRED`
+- never present `INFERRED` as `VERIFIED`
+
 ## Where it lives in downstream repos
 - Subtree (current default): `opsec-ops-lanes-template/`
 - Submodule (optional): `ops-template/` or another stable path

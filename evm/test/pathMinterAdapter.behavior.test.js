@@ -14,7 +14,7 @@ describe("PathMinterAdapter (Solidity)", function () {
     await conn.close();
   });
 
-  async function deployFixture({ tokenBase = 100n, epochBase = 1n } = {}) {
+  async function deployFixture({ tokenBase = 100n, epochBase = 1n, freezeWiring = false } = {}) {
     const [deployer, alice, bob] = await ethers.getSigners();
 
     const StubMinter = await ethers.getContractFactory("StubPathMinter", deployer);
@@ -34,6 +34,9 @@ describe("PathMinterAdapter (Solidity)", function () {
       epochBase
     );
     await adapter.waitForDeployment();
+    if (freezeWiring) {
+      await (await adapter.freezeWiring()).wait();
+    }
 
     return { deployer, alice, bob, minter, auction, adapter, tokenBase, epochBase };
   }
@@ -95,8 +98,14 @@ describe("PathMinterAdapter (Solidity)", function () {
     );
   });
 
+  it("settle requires wiring to be frozen", async function () {
+    const { bob, auction, adapter } = await deployFixture();
+    await expect(auction.settleThroughAdapter(await adapter.getAddress(), bob.address, "0x"))
+      .to.be.revertedWithCustomError(adapter, "WiringNotFrozen");
+  });
+
   it("settle enforces epoch-to-token coupling and mints expected id", async function () {
-    const { bob, minter, auction, adapter } = await deployFixture();
+    const { bob, minter, auction, adapter } = await deployFixture({ freezeWiring: true });
     const payload = "0x11223344";
 
     await (await auction.setEpochIndex(6)).wait(); // next sale epoch = 7
@@ -112,7 +121,11 @@ describe("PathMinterAdapter (Solidity)", function () {
   });
 
   it("settle maps non-default epochBase/tokenBase with tokenId = tokenBase + (epoch - epochBase)", async function () {
-    const { bob, minter, auction, adapter } = await deployFixture({ tokenBase: 1_000n, epochBase: 10n });
+    const { bob, minter, auction, adapter } = await deployFixture({
+      tokenBase: 1_000n,
+      epochBase: 10n,
+      freezeWiring: true
+    });
 
     await (await auction.setEpochIndex(12)).wait(); // next sale epoch = 13
     await (await minter.setNextTokenId(1_003n)).wait(); // 1000 + (13 - 10) = 1003
@@ -123,7 +136,7 @@ describe("PathMinterAdapter (Solidity)", function () {
   });
 
   it("settle reverts on auction epoch mismatch", async function () {
-    const { bob, minter, auction, adapter } = await deployFixture();
+    const { bob, minter, auction, adapter } = await deployFixture({ freezeWiring: true });
 
     await (await auction.setEpochIndex(3)).wait(); // observed epoch = 4
     await (await minter.setNextTokenId(103n)).wait();
@@ -136,7 +149,7 @@ describe("PathMinterAdapter (Solidity)", function () {
   });
 
   it("settle reverts when minter nextId drifts from expected id", async function () {
-    const { bob, minter, auction, adapter } = await deployFixture();
+    const { bob, minter, auction, adapter } = await deployFixture({ freezeWiring: true });
 
     await (await auction.setEpochIndex(1)).wait(); // expected epoch = 2, expected id = 101
     await (await minter.setNextTokenId(555n)).wait();
@@ -147,7 +160,7 @@ describe("PathMinterAdapter (Solidity)", function () {
   });
 
   it("settle reverts when epoch is below epochBase", async function () {
-    const { bob, auction, adapter } = await deployFixture({ epochBase: 5n });
+    const { bob, auction, adapter } = await deployFixture({ epochBase: 5n, freezeWiring: true });
 
     await (await auction.setEpochIndex(3)).wait(); // observed epoch = 4 (< epochBase=5)
 
@@ -176,6 +189,7 @@ describe("PathMinterAdapter (Solidity)", function () {
       1n
     );
     await adapter.waitForDeployment();
+    await (await adapter.freezeWiring()).wait();
 
     await expect(auction.settleThroughAdapter(await adapter.getAddress(), bob.address, "0x"))
       .to.be.revertedWithCustomError(adapter, "MintIdMismatch")

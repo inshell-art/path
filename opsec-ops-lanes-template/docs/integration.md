@@ -25,6 +25,7 @@ downstream-repo/
       lane.devnet.json          # your real policy (no secrets)
       lane.sepolia.json         # your real policy (no secrets)
       lane.mainnet.json
+      audit.policy.json
     runbooks/
       deploy.md
       handoff.md
@@ -35,6 +36,10 @@ downstream-repo/
     sepolia/current/            # generated artifacts (safe to commit if redacted)
     sepolia/runs/<run_id>/
     mainnet/current/
+  audits/
+    devnet/<audit_id>/
+    sepolia/<audit_id>/
+    mainnet/<audit_id>/
   .env.example                  # env vars with local paths (no secrets)
   .gitignore
 ```
@@ -79,6 +84,7 @@ git commit -am "Update ops-template"
 - `ops-template/policy/devnet.policy.example.json` → `ops/policy/lane.devnet.json`
 - `ops-template/policy/sepolia.policy.example.json` → `ops/policy/lane.sepolia.json`
 - `ops-template/policy/mainnet.policy.example.json` → `ops/policy/lane.mainnet.json`
+- `ops-template/policy/audit.policy.example.json` → `ops/policy/audit.policy.json`
 
 2) Define your signer aliases (EOA + Safe addresses) in `artifacts/<net>/current/addresses.json`.
 

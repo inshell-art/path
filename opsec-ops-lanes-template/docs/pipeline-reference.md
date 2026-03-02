@@ -7,6 +7,7 @@ For trust tiers and claim-verification format, see `docs/agent-trust-model.md`.
 - `NETWORK` (`devnet` | `sepolia` | `mainnet`)
 - `LANE` (`observe` | `plan` | `deploy` | `handoff` | `govern` | `treasury` | `operate` | `emergency`)
 - `RUN_ID` (string; CI can default to `YYYYMMDDTHHMMSSZ-<short_sha>`)
+- `AUDIT_ID` (string; for periodic/release audit runs)
 - Optional: `BUNDLE_PATH` (local path to a bundle directory)
 - Optional (mainnet only): `REHEARSAL_PROOF_RUN_ID` (run id of the rehearsal proof bundle)
 - Backward-compatible proof env fallback: `DEVNET_PROOF_RUN_ID`, then `SEPOLIA_PROOF_RUN_ID`
@@ -50,6 +51,13 @@ For trust tiers and claim-verification format, see `docs/agent-trust-model.md`.
    - Run `ops/tools/postconditions.sh` to record on-chain verification.
    - Set `POSTCONDITIONS_STATUS=pass` after verification.
    - Persist `txs.json`, `snapshots/*`, and `postconditions.json`.
+
+6. Periodic/release audit (recommended):
+   - `ops/tools/audit_plan.sh`
+   - `ops/tools/audit_collect.sh`
+   - `ops/tools/audit_verify.sh`
+   - `ops/tools/audit_report.sh`
+   - optional `ops/tools/audit_signoff.sh`
 
 Note: mainnet write lanes default to:
 - `gates.require_rehearsal_proof: true`

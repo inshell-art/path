@@ -14,6 +14,7 @@ contract PathMinterAdapter is Ownable, IPulseAdapter {
     error EpochBeforeBase(uint256 epoch, uint256 epochBase);
     error MintIdMismatch(uint256 epoch, uint256 expected, uint256 observed);
     error WiringFrozen();
+    error WiringNotFrozen();
 
     address public auction;
     address public minter;
@@ -75,6 +76,7 @@ contract PathMinterAdapter is Ownable, IPulseAdapter {
 
     function settle(address buyer, uint64 epochIndex, bytes calldata data) external override returns (uint256 tokenId) {
         if (msg.sender != auction) revert NotAuction();
+        if (!wiringFrozen) revert WiringNotFrozen();
 
         uint256 epoch = uint256(IPulseAuction(auction).getEpochIndex()) + 1;
         if (epoch != uint256(epochIndex)) revert EpochMismatch(epoch, uint256(epochIndex));

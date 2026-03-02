@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-03-01
+
+### feat: audit module v1 (opt-in)
+
+- Added audit module docs:
+  - `docs/audit-framework.md`
+  - `docs/audit-runbook.md`
+  - `docs/audit-controls-catalog.md`
+  - `docs/snippets/root-AGENTS-audit-response-contract.md`
+- Added audit schemas:
+  - `schemas/audit_plan.schema.json`
+  - `schemas/audit_report.schema.json`
+  - `schemas/audit_finding.schema.json`
+- Added audit policy templates:
+  - `policy/audit.policy.example.json`
+  - `examples/scaffold/ops/policy/audit.policy.example.json`
+- Added scaffold audit tools and make targets:
+  - `audit_plan.sh`, `audit_collect.sh`, `audit_verify.sh`, `audit_report.sh`, `audit_signoff.sh`
+  - `audit-plan`, `audit-collect`, `audit-verify`, `audit-report`, `audit-signoff`, `audit-all`
+- Added scaffold audit artifacts fixture:
+  - `examples/scaffold/audits/devnet/audit-20260222-example/*`
+- Added optional CI entrypoint:
+  - `examples/scaffold/.github/workflows/ops_audit.yml`
+
+Compatibility:
+- Existing lane flow remains unchanged (`bundle -> verify -> approve -> apply -> postconditions`).
+- Audit module is opt-in for the first release cycle.
+
 ## 2026-02-22
 
 ### breaking: devnet-first rehearsal and generic proof gating

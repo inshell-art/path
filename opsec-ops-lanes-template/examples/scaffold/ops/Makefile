@@ -5,8 +5,10 @@ NETWORK ?=
 LANE ?=
 RUN_ID ?=
 BUNDLE_PATH ?=
+AUDIT_ID ?=
+AUDIT_PATH ?=
 
-.PHONY: bundle verify approve apply postconditions scan-secrets
+.PHONY: bundle verify approve apply postconditions audit-plan audit-collect audit-verify audit-report audit-signoff audit-all scan-secrets
 
 bundle:
 	NETWORK=$(NETWORK) LANE=$(LANE) RUN_ID=$(RUN_ID) $(ROOT)/ops/tools/bundle.sh
@@ -22,6 +24,23 @@ apply:
 
 postconditions:
 	NETWORK=$(NETWORK) RUN_ID=$(RUN_ID) BUNDLE_PATH=$(BUNDLE_PATH) $(ROOT)/ops/tools/postconditions.sh
+
+audit-plan:
+	NETWORK=$(NETWORK) AUDIT_ID=$(AUDIT_ID) AUDIT_PATH=$(AUDIT_PATH) $(ROOT)/ops/tools/audit_plan.sh
+
+audit-collect:
+	NETWORK=$(NETWORK) AUDIT_ID=$(AUDIT_ID) AUDIT_PATH=$(AUDIT_PATH) $(ROOT)/ops/tools/audit_collect.sh
+
+audit-verify:
+	NETWORK=$(NETWORK) AUDIT_ID=$(AUDIT_ID) AUDIT_PATH=$(AUDIT_PATH) $(ROOT)/ops/tools/audit_verify.sh
+
+audit-report:
+	NETWORK=$(NETWORK) AUDIT_ID=$(AUDIT_ID) AUDIT_PATH=$(AUDIT_PATH) $(ROOT)/ops/tools/audit_report.sh
+
+audit-signoff:
+	NETWORK=$(NETWORK) AUDIT_ID=$(AUDIT_ID) AUDIT_PATH=$(AUDIT_PATH) $(ROOT)/ops/tools/audit_signoff.sh
+
+audit-all: audit-plan audit-collect audit-verify audit-report
 
 scan-secrets:
 	@if command -v gitleaks >/dev/null 2>&1; then \

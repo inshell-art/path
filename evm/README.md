@@ -65,5 +65,7 @@ Outputs:
 
 ## Notes
 
-- `PathNFT.tokenURI` returns `baseUri + tokenId`.
+- `PathNFT.tokenURI` returns on-chain metadata as a data URL: `data:application/json;base64,<...>`, with embedded image at `image = data:image/svg+xml;base64,<...>`.
+- `PathNFT` emits EIP-4906 `MetadataUpdate(tokenId)` on progression (`consumeUnit`) so indexers can refresh metadata.
+- `PathNFT.contractURI` is available for optional contract-level collection metadata.
 - This EVM stack has no separate renderer contract.
