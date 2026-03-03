@@ -57,6 +57,41 @@ npm run smoke:local:eth
 npm run scenario:local:eth
 ```
 
+Optional deploy parameter overrides (constructor inputs):
+
+- Environment variables (`DEPLOY_*`)
+- npm run args (`--deploy-*`), which map to script params
+- JSON params file (`DEPLOY_PARAMS_FILE=...` or `--deploy-params-file=...`)
+
+Precedence: npm args (`--deploy-*`) > env vars > params file > built-in defaults.
+
+Examples:
+
+```bash
+# Override by env vars
+DEPLOY_FIRST_PUBLIC_ID=7 DEPLOY_EPOCH_BASE=7 DEPLOY_RESERVED_CAP=5 npm run deploy:local:eth
+
+# Override by npm args
+npm run deploy:local:eth --deploy-first-public-id=7 --deploy-epoch-base=7 --deploy-reserved-cap=5 --deploy-name="PATH NFT Custom"
+
+# Override via params file
+cat > /tmp/path.deploy.local.json <<'JSON'
+{
+  "name": "PATH NFT Local",
+  "symbol": "PATHL",
+  "firstPublicId": "1",
+  "epochBase": "1",
+  "reservedCap": "3",
+  "genesisPrice": "1000",
+  "genesisFloor": "900",
+  "k": "600",
+  "pts": "1",
+  "paymentToken": "0x0000000000000000000000000000000000000000"
+}
+JSON
+DEPLOY_PARAMS_FILE=/tmp/path.deploy.local.json npm run deploy:local:eth
+```
+
 Outputs:
 
 - deployment metadata: `evm/deployments/localhost-eth.json`
