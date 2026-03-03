@@ -10,6 +10,10 @@ const DEFAULT_OUT_FILE = path.resolve(here, "../deployments/reports/localhost-to
 const TARGET_THOUGHT_QUOTA = 1n;
 const TARGET_WILL_QUOTA = 4n;
 const TARGET_AWA_QUOTA = 1n;
+const BLANK_APPROACH_A = {
+  title: "A",
+  label: "Centered 0.5% square dot per blank movement slot"
+};
 
 function escapeHtml(value) {
   return String(value)
@@ -112,40 +116,122 @@ function makeProfiles(thoughtQuota, willQuota, awaQuota) {
   };
 
   add("Fresh", 0n, 0n, 0n);
-  add("Thought Started", thoughtQuota > 0n ? 1n : 0n, 0n, 0n);
-  add("Will Started", thoughtQuota, willQuota > 0n ? 1n : 0n, 0n);
-  add("Will Mid", thoughtQuota, willQuota > 1n ? willQuota / 2n : willQuota, 0n);
-  add("Will Complete", thoughtQuota, willQuota, 0n);
+
+  if (thoughtQuota > 0n) {
+    add(`Thought ${thoughtQuota}/${thoughtQuota}`, thoughtQuota, 0n, 0n);
+  }
+
+  if (willQuota > 0n) {
+    for (let minted = 1n; minted <= willQuota; minted += 1n) {
+      add(`Will ${minted}/${willQuota}`, thoughtQuota, minted, 0n);
+    }
+  }
+
+  if (awaQuota > 0n) {
+    for (let minted = 1n; minted <= awaQuota; minted += 1n) {
+      add(`Awa ${minted}/${awaQuota}`, thoughtQuota, willQuota, minted);
+    }
+  }
+
   add("Complete", thoughtQuota, willQuota, awaQuota);
 
   return profiles;
 }
 
-async function signConsumeAuthorization(nft, chainId, claimerSigner, executor, tokenId, movement, deadline) {
+function blankMarkerSvg(slotX, slotY) {
+  const canvasSize = 600;
+  const cubeSize = 60;
+  const dotSize = canvasSize / 200;
+  const dotOffset = (cubeSize - dotSize) / 2;
+  return `<rect id='blank-mark-a' x='${slotX + dotOffset}' y='${slotY + dotOffset}' width='${dotSize}' height='${dotSize}' fill='white'/>`;
+}
+
+function buildPathProgressSvg(state) {
+  const thoughtDisplay = state.thoughtMinted > 0n ? "inline" : "none";
+  const willDisplay = state.willMinted > 0n ? "inline" : "none";
+  const awaDisplay = state.awaMinted > 0n ? "inline" : "none";
+
+  let willFillWidth = 0n;
+  if (state.willQuota > 0n && state.willMinted > 0n) {
+    willFillWidth = (60n * state.willMinted) / state.willQuota;
+    if (willFillWidth > 60n) {
+      willFillWidth = 60n;
+    }
+  }
+
+  const willFillRect = state.willMinted > 0n && willFillWidth > 0n
+    ? `<rect id='will-fill' x='270' y='270' width='${willFillWidth}' height='60' fill='white' display='inline'/>`
+    : "";
+  const blankMarks = [
+    state.thoughtMinted === 0n ? blankMarkerSvg(180, 270) : "",
+    state.willMinted === 0n ? blankMarkerSvg(270, 270) : "",
+    state.awaMinted === 0n ? blankMarkerSvg(360, 270) : ""
+  ].join("");
+
+  return [
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600' width='600' height='600' role='img' aria-label='PATH progress'>",
+    "<rect width='600' height='600' fill='black'/>",
+    blankMarks,
+    "<rect id='thought-box' x='180' y='270' width='60' height='60' fill='white' display='",
+    thoughtDisplay,
+    "'/>",
+    "<rect id='will-box' x='270' y='270' width='60' height='60' fill='none' display='",
+    willDisplay,
+    "'/>",
+    willFillRect,
+    "<rect id='awa-box' x='360' y='270' width='60' height='60' fill='white' display='",
+    awaDisplay,
+    "'/>",
+    "</svg>"
+  ].join("");
+}
+
+function svgToDataUri(svg) {
+  return `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
+}
+
+function progressLabel(minted, quota) {
+  return `Minted(${minted}/${quota})`;
+}
+
+async function signConsumeAuthorization(ethers, nft, chainId, claimerSigner, executor, tokenId, movement, deadline) {
   const pathNft = await nft.getAddress();
-  const typeHash = hre.ethers.id(
+  const typeHash = ethers.id(
     "ConsumeAuthorization(address pathNft,uint256 chainId,uint256 pathId,bytes32 movement,address claimer,address executor,uint256 nonce,uint256 deadline)"
   );
   const nonce = await nft.getConsumeNonce(claimerSigner.address);
-  const encoded = hre.ethers.AbiCoder.defaultAbiCoder().encode(
+  const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
     ["bytes32", "address", "uint256", "uint256", "bytes32", "address", "address", "uint256", "uint256"],
     [typeHash, pathNft, chainId, tokenId, movement, claimerSigner.address, executor, nonce, deadline]
   );
-  const structHash = hre.ethers.keccak256(encoded);
-  const signature = await claimerSigner.signMessage(hre.ethers.getBytes(structHash));
+  const structHash = ethers.keccak256(encoded);
+  const signature = await claimerSigner.signMessage(ethers.getBytes(structHash));
   return { signature, deadline };
 }
 
-async function consumeUnits(nft, signer, chainId, tokenId, movement, count) {
+async function consumeUnits(ethers, nft, signer, chainId, tokenId, movement, count) {
   for (let i = 0n; i < count; i += 1n) {
     const now = BigInt((await signer.provider.getBlock("latest")).timestamp);
     const deadline = now + 3_600n;
-    const auth = await signConsumeAuthorization(nft, chainId, signer, signer.address, tokenId, movement, deadline);
+    const auth = await signConsumeAuthorization(ethers, nft, chainId, signer, signer.address, tokenId, movement, deadline);
     await (
       await nft
         .connect(signer)
         .consumeUnit(tokenId, movement, signer.address, auth.deadline, auth.signature)
     ).wait();
+  }
+}
+
+async function firstUnmintedTokenId(nft, fromTokenId) {
+  let tokenId = fromTokenId;
+  // Local preview mints only a small set, so a linear probe is fine.
+  for (;;) {
+    try {
+      await nft.ownerOf(tokenId);
+      tokenId += 1n;
+    } catch {
+      return tokenId;
+    }
   }
 }
 
@@ -169,6 +255,7 @@ async function main() {
   const MOVEMENT_WILL = ethers.encodeBytes32String("WILL");
   const MOVEMENT_AWA = ethers.encodeBytes32String("AWA");
   const SALES_ROLE = ethers.id("SALES_ROLE");
+  const MINTER_ROLE = await nft.MINTER_ROLE();
 
   let thoughtConfig;
   let willConfig;
@@ -216,14 +303,23 @@ async function main() {
   }
 
   let mintSigner = admin;
+  let mintMode = "minter";
+  let fallbackNextTokenId = await minter.nextId();
   const salesFrozen = await minter.salesCallerFrozen();
   if (salesFrozen) {
     const salesCaller = await minter.salesCaller();
     const callerSigner = signerByAddress.get(salesCaller.toLowerCase());
-    if (!callerSigner) {
-      throw new Error("Sales caller is frozen to an unknown address. Redeploy local stack to generate gallery.");
+    if (callerSigner) {
+      mintSigner = callerSigner;
+    } else {
+      // Local signer list does not include the frozen caller (for example adapter).
+      // Fall back to direct NFT minting for visual previews.
+      mintMode = "nft";
+      if (!(await nft.hasRole(MINTER_ROLE, admin.address))) {
+        await (await nft.grantRole(MINTER_ROLE, admin.address)).wait();
+      }
+      fallbackNextTokenId = await firstUnmintedTokenId(nft, fallbackNextTokenId);
     }
-    mintSigner = callerSigner;
   } else {
     await (await minter.grantRole(SALES_ROLE, admin.address)).wait();
     await (await minter.freezeSalesCaller(admin.address)).wait();
@@ -236,25 +332,43 @@ async function main() {
   const cards = [];
 
   for (const profile of profiles) {
-    const tokenId = await minter.nextId();
-    await (await minter.connect(mintSigner).mintPublic(ownerSigner.address, "0x")).wait();
+    let tokenId;
+    if (mintMode === "minter") {
+      tokenId = await minter.nextId();
+      await (await minter.connect(mintSigner).mintPublic(ownerSigner.address, "0x")).wait();
+    } else {
+      tokenId = fallbackNextTokenId;
+      await (await nft.connect(admin).safe_mint(ownerSigner.address, tokenId, "0x")).wait();
+      fallbackNextTokenId = tokenId + 1n;
+    }
 
     if (bootstrapMovements) {
-      await consumeUnits(nft, thoughtSigner, chainId, tokenId, MOVEMENT_THOUGHT, profile.thought);
-      await consumeUnits(nft, willSigner, chainId, tokenId, MOVEMENT_WILL, profile.will);
-      await consumeUnits(nft, awaSigner, chainId, tokenId, MOVEMENT_AWA, profile.awa);
+      await consumeUnits(ethers, nft, thoughtSigner, chainId, tokenId, MOVEMENT_THOUGHT, profile.thought);
+      await consumeUnits(ethers, nft, willSigner, chainId, tokenId, MOVEMENT_WILL, profile.will);
+      await consumeUnits(ethers, nft, awaSigner, chainId, tokenId, MOVEMENT_AWA, profile.awa);
     }
 
     const tokenUri = await nft.tokenURI(tokenId);
     const metadata = decodeMetadata(tokenUri);
+    const attributes = normalizeAttributes(metadata.attributes);
+    const attrsByType = new Map(attributes.map((a) => [a.traitType, a.value]));
 
     cards.push({
       tokenId: tokenId.toString(),
       label: profile.label,
       stage: metadata.stage ?? "UNKNOWN",
-      attributes: normalizeAttributes(metadata.attributes),
+      attributes,
       image: metadata.image ?? "",
-      description: metadata.description ?? ""
+      description: metadata.description ?? "",
+      thoughtProgress: metadata.thought ?? attrsByType.get("THOUGHT") ?? "n/a",
+      willProgress: metadata.will ?? attrsByType.get("WILL") ?? "n/a",
+      awaProgress: metadata.awa ?? attrsByType.get("AWA") ?? "n/a",
+      renderState: {
+        thoughtMinted: profile.thought,
+        willMinted: profile.will,
+        awaMinted: profile.awa,
+        willQuota: willConfig.quota
+      }
     });
   }
 
@@ -312,6 +426,94 @@ ${valueRows}
           </article>
     `;
   }).join("\n");
+
+  const previewThoughtQuota = thoughtConfig.quota > 0n ? thoughtConfig.quota : 1n;
+  const syntheticBlankSamples = [
+    {
+      tokenId: "P-1",
+      label: "Preview Will 0/10",
+      stage: "WILL",
+      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
+      willProgress: progressLabel(0n, 10n),
+      awaProgress: progressLabel(0n, 3n),
+      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 0n, awaMinted: 0n, willQuota: 10n }
+    },
+    {
+      tokenId: "P-2",
+      label: "Preview Will 2/10",
+      stage: "WILL",
+      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
+      willProgress: progressLabel(2n, 10n),
+      awaProgress: progressLabel(0n, 3n),
+      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 2n, awaMinted: 0n, willQuota: 10n }
+    },
+    {
+      tokenId: "P-3",
+      label: "Preview Will 5/10",
+      stage: "WILL",
+      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
+      willProgress: progressLabel(5n, 10n),
+      awaProgress: progressLabel(0n, 3n),
+      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 5n, awaMinted: 0n, willQuota: 10n }
+    },
+    {
+      tokenId: "P-4",
+      label: "Preview Will 9/10",
+      stage: "WILL",
+      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
+      willProgress: progressLabel(9n, 10n),
+      awaProgress: progressLabel(0n, 3n),
+      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 9n, awaMinted: 0n, willQuota: 10n }
+    },
+    {
+      tokenId: "P-5",
+      label: "Preview Awa 1/3",
+      stage: "AWA",
+      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
+      willProgress: progressLabel(10n, 10n),
+      awaProgress: progressLabel(1n, 3n),
+      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 10n, awaMinted: 1n, willQuota: 10n }
+    },
+    {
+      tokenId: "P-6",
+      label: "Preview Complete 3/3",
+      stage: "COMPLETE",
+      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
+      willProgress: progressLabel(10n, 10n),
+      awaProgress: progressLabel(3n, 3n),
+      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 10n, awaMinted: 3n, willQuota: 10n }
+    }
+  ];
+  const blankSamples = [...cards, ...syntheticBlankSamples];
+  const blankSampleRows = blankSamples.map((card) => {
+    const svg = buildPathProgressSvg(card.renderState);
+    const image = svgToDataUri(svg);
+    return `
+                <article class="blank-sample">
+                  <div class="blank-sample-image">
+                    <img src="${escapeHtml(image)}" alt="PATH #${escapeHtml(card.tokenId)} blank approach ${escapeHtml(BLANK_APPROACH_A.title)}" />
+                  </div>
+                  <div class="blank-sample-meta">
+                    <p class="blank-sample-title">#${escapeHtml(card.tokenId)} · ${escapeHtml(card.label)}</p>
+                    <p>STAGE <span>${escapeHtml(card.stage)}</span></p>
+                    <p>THOUGHT <span>${escapeHtml(card.thoughtProgress)}</span></p>
+                    <p>WILL <span>${escapeHtml(card.willProgress)}</span></p>
+                    <p>AWA <span>${escapeHtml(card.awaProgress)}</span></p>
+                  </div>
+                </article>
+    `;
+  }).join("\n");
+  const blankApproachColumn = `
+            <article class="blank-variant-col">
+              <header class="blank-variant-head">
+                <h3>Approach ${escapeHtml(BLANK_APPROACH_A.title)}</h3>
+                <p>${escapeHtml(BLANK_APPROACH_A.label)}</p>
+              </header>
+              <div class="blank-sample-grid">
+${blankSampleRows}
+              </div>
+            </article>
+  `;
 
   const html = `<!doctype html>
 <html lang="en">
@@ -489,6 +691,91 @@ ${valueRows}
         color: #eef4ff;
         border-bottom-color: #eef4ff;
         font-weight: 600;
+      }
+      .blank-lab {
+        margin-top: 16px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #0d1525;
+      }
+      .blank-lab h2 {
+        margin: 0;
+        font-size: 24px;
+        letter-spacing: -0.02em;
+      }
+      .blank-lab-note {
+        margin: 8px 0 0;
+        color: #a7b7d0;
+        font-size: 14px;
+      }
+      .blank-lab-grid {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .blank-variant-col {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #0b1220;
+        overflow: hidden;
+      }
+      .blank-variant-head {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .blank-variant-head h3 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.02em;
+      }
+      .blank-variant-head p {
+        margin: 4px 0 0;
+        color: #99acc9;
+        font-size: 13px;
+      }
+      .blank-sample-grid {
+        padding: 10px;
+        display: grid;
+        gap: 10px;
+        max-height: 780px;
+        overflow: auto;
+      }
+      .blank-sample {
+        border: 1px solid #22324a;
+        border-radius: 10px;
+        background: #0c1527;
+        overflow: hidden;
+      }
+      .blank-sample-image {
+        padding: 8px;
+        border-bottom: 1px solid #22324a;
+      }
+      .blank-sample-image img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+      }
+      .blank-sample-meta {
+        padding: 9px 10px 10px;
+      }
+      .blank-sample-title {
+        margin: 0 0 6px;
+        color: #e5ecfa;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .blank-sample-meta p {
+        margin: 4px 0 0;
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 12px;
+        color: #95aac9;
+      }
+      .blank-sample-meta span {
+        color: #f0f5ff;
       }
       .layout {
         margin-top: 14px;
@@ -749,6 +1036,9 @@ ${valueRows}
         .results-top {
           flex-direction: column;
         }
+        .blank-lab-grid {
+          grid-template-columns: 1fr;
+        }
       }
       @media (max-width: 640px) {
         .topbar {
@@ -827,6 +1117,15 @@ ${valueRows}
             <a class="tab" href="#traits-panel">Traits</a>
             <a class="tab" href="#">Activity</a>
           </nav>
+          <section class="blank-lab">
+            <h2>Blank Look Lab</h2>
+            <p class="blank-lab-note">
+              Approach A only: a centered 0.5% square dot for each blank movement slot, shown across on-chain and preview states.
+            </p>
+            <div class="blank-lab-grid">
+${blankApproachColumn}
+            </div>
+          </section>
           <section class="layout">
             <aside class="sidebar" id="traits-panel">
               <div class="sidebar-head">
