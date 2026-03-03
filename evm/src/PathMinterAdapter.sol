@@ -7,7 +7,7 @@ import {IPulseAdapter} from "./interfaces/IPulseAdapter.sol";
 import {IPulseAuction} from "./interfaces/IPulseAuction.sol";
 
 /// @notice Adapter that allows PulseAuction to settle into PathMinter.
-/// @dev Solidity port of `legacy/cairo/contracts/path_minter_adapter/src/path_minter_adapter.cairo`.
+/// @dev Current canonical implementation for PATH/Pulse settlement.
 contract PathMinterAdapter is Ownable, IPulseAdapter {
     error NotAuction();
     error EpochMismatch(uint256 observed, uint256 forwarded);

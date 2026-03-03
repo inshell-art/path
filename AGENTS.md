@@ -1,33 +1,23 @@
 # AGENTS
 
 ## Overview
-- PATH smart contracts with Solidity/EVM as the primary implementation.
-- Legacy Cairo/Starknet code is preserved under `legacy/cairo/`.
+- PATH smart contracts with Solidity/EVM.
 - Primary workflows: Hardhat compile/test and local ETH deployment rehearsal.
 
 ## Project layout
 - `evm/`: Solidity contracts, tests, and local deployment scripts.
-- `legacy/cairo/contracts/`: legacy PathNFT, PathMinter, PathMinterAdapter, PathLook.
-- `legacy/cairo/interfaces/`: legacy shared Cairo interfaces.
-- `legacy/cairo/crates/`: legacy test support and e2e helpers.
-- `contracts/`, `interfaces/`, `crates/`: compatibility symlinks to `legacy/cairo/*`.
-- `vendors/`: vendored dependencies (pulse, pprf, step-curve).
-- `scripts/`: root helpers (EVM local deploy/smoke/scenario + legacy Starknet scripts).
-- `workbook/`: runbooks + devnet/sepolia workbooks.
+- `vendors/`: vendored dependencies (pulse).
+- `scripts/`: root helpers for EVM local deploy/smoke/scenario.
+- `workbook/`: runbooks and operational notes.
 
 ## Install
 - `pnpm install` (optional; for husky hooks only).
-- Required tools (primary): `node`, `npm`.
-- Required tools (legacy): `scarb`, `sncast`, `starknet-devnet`, `jq`, `python3`.
+- Required tools: `node`, `npm`.
 
 ## Build / Lint / Format / Test
 - EVM compile: `npm run evm:compile`.
 - EVM tests: `npm run evm:test`.
 - EVM deploy-cost estimate: `npm run evm:estimate:deploy:cost`.
-- Legacy Cairo build: `scarb build` (root) or `scarb build -p path_nft` (per package).
-- Legacy Cairo unit tests: `npm run cairo:test:unit`.
-- Legacy Cairo full tests: `npm run cairo:test:full`.
-- Legacy format/lint: `scarb fmt` and `scarb lint`.
 
 ## EVM local entrypoints
 - Start local node: `npm run evm:node`
@@ -35,34 +25,16 @@
 - Smoke: `npm run evm:smoke:local:eth` or `./scripts/smoke-eth-local.sh`
 - Scenario: `npm run evm:scenario:local:eth` or `./scripts/scenario-eth-local.sh`
 
-## Legacy devnet entrypoints
-- Devnet runtime is managed in `../localnet` (see `../localnet/README.md`).
-- Legacy devnet scripts live under `scripts/devnet/`.
-- Devnet workbook lives under `workbook/`.
-
-## Legacy Sepolia local deploy (no CI/CD)
-- Create `scripts/.env.sepolia.local` with `RPC_URL`, `SNCAST_ACCOUNTS_FILE`, `SNCAST_ACCOUNTS_NAMESPACE`, and `DECLARE_PROFILE/DEPLOY_PROFILE`.
-- Create `scripts/params.sepolia.local` with `PAYTOKEN`, `TREASURY`, and any constructor overrides.
-- Optional: set `PPRF_ADDR` and `STEP_CURVE_ADDR` in `scripts/params.sepolia.local` to reuse existing glyph deployments.
-- Declare: `npm run legacy:declare:sepolia`.
-- Deploy: `npm run legacy:deploy:sepolia`.
-- Configure roles: `npm run legacy:config:sepolia`.
-- Verify wiring: `npm run legacy:verify:sepolia`.
-- If using v0_10 RPC, the scripts use `scripts/sepolia_declare_v3.py` and `scripts/sepolia_invoke_v3.py` helpers for v3 transactions.
-- Artifacts live under `output/sepolia/` (`classes.sepolia.json`, `addresses.sepolia.json`, `addresses.sepolia.env`, `deploy.params.sepolia.json`, and per-contract declare/deploy JSON logs).
-
 ## Definition of done
 - Relevant builds/tests pass.
 - For EVM changes: `npm run evm:compile` and `npm run evm:test`.
-- For legacy Cairo changes: `scarb fmt` and `scarb lint` for touched packages.
 - No unintended changes in `vendors/`, `output/`, or `workbook/` artifacts.
 - Docs updated when interfaces or behavior change.
 
 ## Coding conventions
 - Follow existing Solidity style in `evm/`; use explicit visibility and role checks.
-- Follow existing Cairo style in `legacy/cairo/`; prefer `snake_case` names.
 - Keep movement labels (`THOUGHT`, `WILL`, `AWA`) and constants consistent.
-- Use `ByteArray` for string outputs and keep edits ASCII by default.
+- Keep edits ASCII by default.
 
 ## Boundaries (do not touch unless asked)
 - `vendors/` vendored code or submodules.

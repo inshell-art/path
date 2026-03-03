@@ -4,10 +4,10 @@ This folder contains the Ethereum Solidity port for the PATH stack in this repo.
 
 Core contracts:
 
-- `evm/src/PathNFT.sol` ports `legacy/cairo/contracts/path_nft/src/path_nft.cairo`
-- `evm/src/PathMinter.sol` ports `legacy/cairo/contracts/path_minter/src/path_minter.cairo`
-- `evm/src/PathMinterAdapter.sol` ports `legacy/cairo/contracts/path_minter_adapter/src/path_minter_adapter.cairo`
-- `evm/src/PulseAuction.sol` ports `vendors/pulse/legacy/cairo/crates/pulse_auction/src/pulse_auction.cairo`
+- `evm/src/PathNFT.sol`
+- `evm/src/PathMinter.sol`
+- `evm/src/PathMinterAdapter.sol`
+- `evm/src/PulseAuction.sol`
 
 Test mocks:
 

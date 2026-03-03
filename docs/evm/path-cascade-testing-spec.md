@@ -2,7 +2,7 @@
 
 ## Goal
 
-Validate that the Solidity PATH stack preserves the same critical behavior as Cairo:
+Validate that the Solidity PATH stack preserves the critical PATH behavior:
 
 - Auction timing and cascade curve mechanics.
 - Auction-to-adapter-to-minter-to-NFT settlement chain.
@@ -21,7 +21,7 @@ Validate that the Solidity PATH stack preserves the same critical behavior as Ca
   - movement order (`THOUGHT -> WILL -> AWA`)
   - quota progression and stage transitions
   - movement freeze behavior
-- `tokenURI` returns `baseUri + tokenId`.
+- `tokenURI` returns on-chain JSON data URI metadata with embedded SVG image.
 
 2. `PathMinter` invariants
 

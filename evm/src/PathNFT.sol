@@ -12,7 +12,7 @@ import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/Signa
 import {IPathNFT} from "./interfaces/IPathNFT.sol";
 
 /// @notice ERC-721 PATH NFT with staged movement progression.
-/// @dev Solidity port of `legacy/cairo/contracts/path_nft/src/path_nft.cairo`.
+/// @dev Current canonical implementation for the PATH NFT.
 contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes4 private constant _INTERFACE_ID_ERC4906 = 0x49064906;
@@ -65,7 +65,7 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
         _stageMinted[tokenId] = 0;
     }
 
-    /// @notice Snake-case alias maintained for Cairo parity.
+    /// @notice Snake-case alias kept for backward compatibility with older integrations.
     function safe_mint(address recipient, uint256 tokenId, bytes calldata data) external onlyRole(MINTER_ROLE) {
         _safeMint(recipient, tokenId, data);
         _stage[tokenId] = 0;

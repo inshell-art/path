@@ -1,39 +1,43 @@
 # Devnet runbook
 
 ## A) Preflight checklist
-- correct network selected (devnet)
-- correct RPC reachable
-- deployer funded (minimal STRK)
-- multisig funded (minimal STRK)
-- signers available (Mac A, Ledger, Mac B)
-- “no browsing” rule confirmed for signer environments
+- correct network selected (`devnet`)
+- local EVM node reachable (`http://127.0.0.1:8545`)
+- tracked git tree clean before bundle/apply
+- signer context ready for `SIGNING_OS=1` apply step
 
-## B) Execute scripts (exact commands)
+## B) Execute rehearsal
+Terminal 1:
 ```bash
-source scripts/devnet/00_env.sh
-scripts/devnet/01_preflight.sh
-scripts/devnet/10_group_A_utils.sh
-scripts/devnet/20_group_C_path_core.sh
-scripts/devnet/30_group_B_renderer.sh
-scripts/devnet/40_group_D_pulse.sh
-scripts/devnet/50_group_E_movements.sh
+npm run evm:node
 ```
 
-All‑in‑one:
+Terminal 2:
 ```bash
-scripts/devnet/rehearse_all.sh
+npm run evm:compile
+npm run evm:test
+
+RUN_ID=devnet-deploy-$(date -u +%Y%m%dT%H%M%SZ)
+NETWORK=devnet LANE=deploy RUN_ID=$RUN_ID npm run ops:bundle
+NETWORK=devnet RUN_ID=$RUN_ID npm run ops:verify
+NETWORK=devnet RUN_ID=$RUN_ID npm run ops:approve
+SIGNING_OS=1 NETWORK=devnet RUN_ID=$RUN_ID npm run ops:apply
+NETWORK=devnet RUN_ID=$RUN_ID POSTCONDITIONS_STATUS=pass npm run ops:postconditions
 ```
 
-## C) Verification steps
+## C) Verification
+- verify command exits `0`
+- `bundles/devnet/$RUN_ID/` contains:
+  - `run.json`, `intent.json`, `checks.json`, `bundle_manifest.json`
+  - `approval.json`, `txs.json`, `postconditions.json`
+  - `deployments/localhost-eth.json` (for deploy lane)
+
+## D) Optional audit
 ```bash
-scripts/devnet/05_smoke_e2e.sh
+AUDIT_ID=$(date -u +%Y%m%dT%H%M%SZ)-devnet-audit
+NETWORK=devnet AUDIT_ID=$AUDIT_ID RUN_IDS=$RUN_ID npm run ops:audit:plan
+NETWORK=devnet AUDIT_ID=$AUDIT_ID npm run ops:audit:collect
+NETWORK=devnet AUDIT_ID=$AUDIT_ID npm run ops:audit:verify
+NETWORK=devnet AUDIT_ID=$AUDIT_ID npm run ops:audit:report
+NETWORK=devnet AUDIT_ID=$AUDIT_ID AUDIT_APPROVER=<name> npm run ops:audit:signoff
 ```
-
-## D) Logging
-- append to `workbook/runs/run-YYYYMMDD.md`
-- include: class hashes, addresses, tx hashes, and any anomalies
-
-## E) Failure handling
-- declare ok but deploy failed → rerun the failed group only
-- renderer failed → rerun Group B after confirming token id
-- pulse failed → rerun Group D after verifying adapter wiring

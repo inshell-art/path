@@ -7,7 +7,7 @@
 All runbooks assume:
 - env files live outside the repo (e.g., `~/.config/inshell/path/env/<network>.env`)
 - scripts are run from the repo root
-  - devnet uses `scripts/devnet/*`
-  - sepolia uses `scripts/*-sepolia.sh`
-  - mainnet mirrors sepolia (when mainnet scripts are added)
-- artifacts are written to `workbook/artifacts/<network>/...`
+  - use ops-lane commands (`npm run ops:*`)
+- EVM deploy/test entrypoints are in `npm run evm:*`
+- lane artifacts are written to `bundles/<network>/<run_id>/`
+- audit artifacts are written to `audits/<network>/<audit_id>/`

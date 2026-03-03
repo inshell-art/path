@@ -1,2 +1,1 @@
-scarb fmt --check
-scarb lint
+npm run evm:compile

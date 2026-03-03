@@ -6,7 +6,7 @@ import {IPathMinter} from "./interfaces/IPathMinter.sol";
 import {IPathNFT} from "./interfaces/IPathNFT.sol";
 
 /// @notice Shared minting proxy for PathNFT.
-/// @dev Solidity port of `legacy/cairo/contracts/path_minter/src/path_minter.cairo`.
+/// @dev Current canonical implementation for PATH minting.
 contract PathMinter is AccessControl, IPathMinter {
     bytes32 public constant SALES_ROLE = keccak256("SALES_ROLE");
     bytes32 public constant RESERVED_ROLE = keccak256("RESERVED_ROLE");

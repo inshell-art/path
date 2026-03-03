@@ -31,12 +31,6 @@
     "ops:audit:signoff": "make -C ops audit-signoff",
     "ops:audit:all": "make -C ops audit-all",
     "ops:scan-secrets": "make -C ops scan-secrets",
-    "cairo:test:unit": "./scripts/test-unit.sh",
-    "cairo:test:full": "./scripts/test-full.sh",
-    "legacy:declare:sepolia": "./scripts/declare-sepolia.sh",
-    "legacy:deploy:sepolia": "./scripts/deploy-sepolia.sh",
-    "legacy:config:sepolia": "./scripts/config-sepolia.sh",
-    "legacy:verify:sepolia": "./scripts/verify-sepolia.sh",
     "prepare": "husky"
   },
   "repository": {

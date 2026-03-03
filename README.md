@@ -1,7 +1,6 @@
 # PATH Protocol
 
 Primary implementation is now Solidity/EVM in `evm/`.
-Legacy Cairo/Starknet contracts and scripts are still available for maintenance and historical deploys.
 
 ## EVM (primary)
 
@@ -81,56 +80,3 @@ NETWORK=devnet AUDIT_ID=$AUDIT_ID npm run ops:audit:verify
 NETWORK=devnet AUDIT_ID=$AUDIT_ID npm run ops:audit:report
 NETWORK=devnet AUDIT_ID=$AUDIT_ID AUDIT_APPROVER=<name> npm run ops:audit:signoff
 ```
-
-## Cairo/Starknet (legacy)
-
-Legacy Cairo sources now live under `legacy/cairo/`:
-
-- `legacy/cairo/contracts`
-- `legacy/cairo/interfaces`
-- `legacy/cairo/crates`
-
-### Tests
-
-```bash
-npm run cairo:test:unit
-npm run cairo:test:full
-```
-
-### Sepolia runbook (legacy local deploy)
-
-Set local env/params (not committed):
-
-```bash
-cat > scripts/.env.sepolia.local <<'EOF'
-RPC_URL="https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_10/<key>"
-SNCAST_ACCOUNTS_FILE="$HOME/.starknet_accounts/sepolia_accounts.json"
-SNCAST_ACCOUNTS_NAMESPACE="alpha-sepolia"
-DECLARE_PROFILE="main-sep"
-DEPLOY_PROFILE="main-sep"
-CONFIG_PROFILE="pathnft_owner"
-ADMIN_PROFILE="PathNFT-owner"
-EOF
-
-cat > scripts/params.sepolia.local <<'EOF'
-PAYTOKEN="<STRK_SEPOLIA_ADDRESS>"
-TREASURY="<TREASURY_ADDRESS>"
-PPRF_ADDR=""
-STEP_CURVE_ADDR=""
-EOF
-```
-
-Declare + deploy + configure:
-
-```bash
-CLASS_PULSE="<pulse_class_hash>" npm run legacy:declare:sepolia
-npm run legacy:deploy:sepolia
-npm run legacy:config:sepolia
-npm run legacy:verify:sepolia
-```
-
-Artifacts:
-- `output/sepolia/classes.sepolia.json`
-- `output/sepolia/addresses.sepolia.json`
-- `output/sepolia/addresses.sepolia.env`
-- `output/sepolia/deploy.params.sepolia.json`
