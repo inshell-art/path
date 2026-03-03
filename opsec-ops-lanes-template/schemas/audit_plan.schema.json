@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Audit Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "audit_id",
+    "network",
+    "scope",
+    "time_window",
+    "run_ids",
+    "controls",
+    "auditor",
+    "repo_commit"
+  ],
+  "properties": {
+    "audit_id": {"type": "string"},
+    "network": {
+      "type": "string",
+      "enum": ["devnet", "sepolia", "mainnet"]
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "time_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": {"type": "string"},
+        "to": {"type": "string"}
+      }
+    },
+    "run_ids": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "controls": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "auditor": {"type": "string"},
+    "repo_commit": {"type": "string"},
+    "generated_at": {"type": "string"}
+  }
+}

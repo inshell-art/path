@@ -1,0 +1,26 @@
+{
+  "audit_id": "audit-20260222-example",
+  "auditor": "template",
+  "controls": [
+    "AUD-001",
+    "AUD-002",
+    "AUD-003",
+    "AUD-004",
+    "AUD-006",
+    "AUD-009"
+  ],
+  "generated_at": "2026-02-22T00:00:00Z",
+  "network": "devnet",
+  "repo_commit": "<PINNED_COMMIT>",
+  "run_ids": [
+    "devnet-example-run"
+  ],
+  "scope": {
+    "mode": "lane-process-controls",
+    "module": "ops-lanes-audit"
+  },
+  "time_window": {
+    "from": "2026-02-01T00:00:00Z",
+    "to": "2026-02-22T00:00:00Z"
+  }
+}

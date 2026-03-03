@@ -1,0 +1,16 @@
+{
+  "applied_at": "2026-03-02T12:45:51Z",
+  "deploy_command": "npm run evm:deploy:local:eth",
+  "deploy_log": "/Users/bigu/Projects/path/bundles/devnet/devnet-deploy-20260302T124522Z/deploy.deploy.log",
+  "deployment_file": "/Users/bigu/Projects/path/bundles/devnet/devnet-deploy-20260302T124522Z/deployments/localhost-eth.json",
+  "execution_mode": "deployed",
+  "lane": "deploy",
+  "network": "devnet",
+  "notes": "Deploy lane executes configured deploy command and records deployment tx hashes when available.",
+  "txs": [
+    "0xe2de0d36f569a5d5c96b167c42708d3c01fb42709dafb7fc236c6e80479b02f3",
+    "0x9b653d91ea8b2caf199a441658547ad48cb281bb417fbaab8e86f79f3b48e239",
+    "0xb2dd4669f9b3996f63fec7bf2e97041ee731692d387469ceff3ea0670c719e4e",
+    "0x9b230b2abbead362f4f666d5a38b42e9c00f024bffe1d88c440cf84f35a4dd07"
+  ]
+}

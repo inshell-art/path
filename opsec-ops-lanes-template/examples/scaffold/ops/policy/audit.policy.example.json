@@ -1,0 +1,45 @@
+{
+  "required_controls": {
+    "devnet": [
+      "AUD-001",
+      "AUD-002",
+      "AUD-003",
+      "AUD-004",
+      "AUD-006",
+      "AUD-009"
+    ],
+    "sepolia": [
+      "AUD-001",
+      "AUD-002",
+      "AUD-003",
+      "AUD-004",
+      "AUD-006",
+      "AUD-007",
+      "AUD-009"
+    ],
+    "mainnet": [
+      "AUD-001",
+      "AUD-002",
+      "AUD-003",
+      "AUD-004",
+      "AUD-005",
+      "AUD-006",
+      "AUD-007",
+      "AUD-008",
+      "AUD-009",
+      "AUD-010"
+    ]
+  },
+  "min_coverage_percent": 90,
+  "max_open_findings_by_severity": {
+    "critical": 0,
+    "high": 0,
+    "medium": 5,
+    "low": 50
+  },
+  "audit_frequency": "per_release",
+  "required_signoff_roles": [
+    "ops-owner",
+    "security-reviewer"
+  ]
+}

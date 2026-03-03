@@ -1,0 +1,10 @@
+{
+  "approved_at": "2026-03-02T12:45:46Z",
+  "approver": "bigu",
+  "bundle_hash": "422260ab780a72fa2739ee227924b88091aabcb8dec0827375ba21846e8b9f13",
+  "intent_hash": "e20108c5f94f15f9abbe44c33ef5e5074272a9a752ec02ac52796e5df46d47f8",
+  "lane": "deploy",
+  "network": "devnet",
+  "notes": "Human approval required. No manual calldata review.",
+  "run_id": "devnet-deploy-20260302T124522Z"
+}

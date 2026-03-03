@@ -1,0 +1,74 @@
+name: Ops Audit (CI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: "Target network"
+        type: choice
+        required: true
+        default: devnet
+        options:
+          - devnet
+          - sepolia
+          - mainnet
+      audit_id:
+        description: "Optional audit id (default: timestamp + short SHA)"
+        type: string
+        required: false
+      run_ids:
+        description: "Optional comma-separated run ids"
+        type: string
+        required: false
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Set inputs
+        id: params
+        run: |
+          if [[ -n "${{ inputs.network }}" ]]; then
+            echo "network=${{ inputs.network }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "network=devnet" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "${{ inputs.audit_id }}" ]]; then
+            echo "audit_id=${{ inputs.audit_id }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "audit_id=$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+          echo "run_ids=${{ inputs.run_ids }}" >> "$GITHUB_OUTPUT"
+      - name: Audit plan
+        env:
+          NETWORK: ${{ steps.params.outputs.network }}
+          AUDIT_ID: ${{ steps.params.outputs.audit_id }}
+          RUN_IDS: ${{ steps.params.outputs.run_ids }}
+        run: ./ops/tools/audit_plan.sh
+      - name: Audit collect
+        env:
+          NETWORK: ${{ steps.params.outputs.network }}
+          AUDIT_ID: ${{ steps.params.outputs.audit_id }}
+        run: ./ops/tools/audit_collect.sh
+      - name: Audit verify
+        env:
+          NETWORK: ${{ steps.params.outputs.network }}
+          AUDIT_ID: ${{ steps.params.outputs.audit_id }}
+        run: ./ops/tools/audit_verify.sh
+      - name: Audit report
+        env:
+          NETWORK: ${{ steps.params.outputs.network }}
+          AUDIT_ID: ${{ steps.params.outputs.audit_id }}
+        run: ./ops/tools/audit_report.sh
+      - name: Upload audit artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ops-audit-${{ steps.params.outputs.network }}-${{ steps.params.outputs.audit_id }}
+          path: audits/${{ steps.params.outputs.network }}/${{ steps.params.outputs.audit_id }}
+          if-no-files-found: error

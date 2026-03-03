@@ -1,0 +1,8 @@
+{
+  "checks_version": 1,
+  "lane": "deploy",
+  "network": "devnet",
+  "notes": "Scaffold stub. Replace with real checks/simulations.",
+  "pass": true,
+  "stub": true
+}
