@@ -407,6 +407,15 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
         string memory thoughtDisplay = thoughtMinted > 0 ? "inline" : "none";
         string memory willDisplay = willMinted > 0 ? "inline" : "none";
         string memory awaDisplay = awaMinted > 0 ? "inline" : "none";
+        string memory blankThought = thoughtMinted == 0
+            ? "<rect id='blank-mark-thought' x='207' y='297' width='3' height='3' fill='white'/>"
+            : "";
+        string memory blankWill = willMinted == 0
+            ? "<rect id='blank-mark-will' x='297' y='297' width='3' height='3' fill='white'/>"
+            : "";
+        string memory blankAwa = awaMinted == 0
+            ? "<rect id='blank-mark-awa' x='387' y='297' width='3' height='3' fill='white'/>"
+            : "";
 
         uint256 willFillWidth = 0;
         if (willQuota > 0 && willMinted > 0) {
@@ -428,6 +437,9 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
         return string.concat(
             "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600' width='600' height='600' role='img' aria-label='PATH progress'>",
             "<rect width='600' height='600' fill='black'/>",
+            blankThought,
+            blankWill,
+            blankAwa,
             "<rect id='thought-box' x='180' y='270' width='60' height='60' fill='white' display='",
             thoughtDisplay,
             "'/>",

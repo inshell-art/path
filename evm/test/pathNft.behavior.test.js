@@ -161,6 +161,9 @@ describe("PathNFT (Solidity)", function () {
     const svg0 = Buffer.from(m0.image.split(",")[1], "base64").toString("utf8");
     expect(svg0).to.contain("<svg");
     expect(svg0).to.contain("id='will-box'");
+    expect(svg0).to.contain("id='blank-mark-thought'");
+    expect(svg0).to.contain("id='blank-mark-will'");
+    expect(svg0).to.contain("id='blank-mark-awa'");
 
     await (await consumeViaMover(mover, alice, nft, 5n, movements.THOUGHT, alice)).wait();
     await (await consumeViaMover(mover, alice, nft, 5n, movements.WILL, alice)).wait();
@@ -173,6 +176,9 @@ describe("PathNFT (Solidity)", function () {
     const willTrait1 = m1.attributes.find((x) => x.trait_type === "WILL");
     expect(willTrait1.value).to.equal("Minted(1/4)");
     expect(m1.image_data).to.contain("id='will-fill' x='270' y='270' width='15'");
+    expect(m1.image_data).not.to.contain("id='blank-mark-thought'");
+    expect(m1.image_data).not.to.contain("id='blank-mark-will'");
+    expect(m1.image_data).to.contain("id='blank-mark-awa'");
   });
 
   it("contractURI returns on-chain collection metadata", async function () {

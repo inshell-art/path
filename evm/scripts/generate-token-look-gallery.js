@@ -10,10 +10,6 @@ const DEFAULT_OUT_FILE = path.resolve(here, "../deployments/reports/localhost-to
 const TARGET_THOUGHT_QUOTA = 1n;
 const TARGET_WILL_QUOTA = 4n;
 const TARGET_AWA_QUOTA = 1n;
-const BLANK_APPROACH_A = {
-  title: "A",
-  label: "Centered 0.5% square dot per blank movement slot"
-};
 
 function escapeHtml(value) {
   return String(value)
@@ -190,10 +186,6 @@ function svgToDataUri(svg) {
   return `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
 }
 
-function progressLabel(minted, quota) {
-  return `Minted(${minted}/${quota})`;
-}
-
 async function signConsumeAuthorization(ethers, nft, chainId, claimerSigner, executor, tokenId, movement, deadline) {
   const pathNft = await nft.getAddress();
   const typeHash = ethers.id(
@@ -352,23 +344,25 @@ async function main() {
     const metadata = decodeMetadata(tokenUri);
     const attributes = normalizeAttributes(metadata.attributes);
     const attrsByType = new Map(attributes.map((a) => [a.traitType, a.value]));
+    const renderState = {
+      thoughtMinted: profile.thought,
+      willMinted: profile.will,
+      awaMinted: profile.awa,
+      willQuota: willConfig.quota
+    };
+    const image = svgToDataUri(buildPathProgressSvg(renderState));
 
     cards.push({
       tokenId: tokenId.toString(),
       label: profile.label,
       stage: metadata.stage ?? "UNKNOWN",
       attributes,
-      image: metadata.image ?? "",
+      image,
       description: metadata.description ?? "",
       thoughtProgress: metadata.thought ?? attrsByType.get("THOUGHT") ?? "n/a",
       willProgress: metadata.will ?? attrsByType.get("WILL") ?? "n/a",
       awaProgress: metadata.awa ?? attrsByType.get("AWA") ?? "n/a",
-      renderState: {
-        thoughtMinted: profile.thought,
-        willMinted: profile.will,
-        awaMinted: profile.awa,
-        willQuota: willConfig.quota
-      }
+      renderState
     });
   }
 
@@ -426,94 +420,6 @@ ${valueRows}
           </article>
     `;
   }).join("\n");
-
-  const previewThoughtQuota = thoughtConfig.quota > 0n ? thoughtConfig.quota : 1n;
-  const syntheticBlankSamples = [
-    {
-      tokenId: "P-1",
-      label: "Preview Will 0/10",
-      stage: "WILL",
-      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
-      willProgress: progressLabel(0n, 10n),
-      awaProgress: progressLabel(0n, 3n),
-      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 0n, awaMinted: 0n, willQuota: 10n }
-    },
-    {
-      tokenId: "P-2",
-      label: "Preview Will 2/10",
-      stage: "WILL",
-      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
-      willProgress: progressLabel(2n, 10n),
-      awaProgress: progressLabel(0n, 3n),
-      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 2n, awaMinted: 0n, willQuota: 10n }
-    },
-    {
-      tokenId: "P-3",
-      label: "Preview Will 5/10",
-      stage: "WILL",
-      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
-      willProgress: progressLabel(5n, 10n),
-      awaProgress: progressLabel(0n, 3n),
-      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 5n, awaMinted: 0n, willQuota: 10n }
-    },
-    {
-      tokenId: "P-4",
-      label: "Preview Will 9/10",
-      stage: "WILL",
-      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
-      willProgress: progressLabel(9n, 10n),
-      awaProgress: progressLabel(0n, 3n),
-      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 9n, awaMinted: 0n, willQuota: 10n }
-    },
-    {
-      tokenId: "P-5",
-      label: "Preview Awa 1/3",
-      stage: "AWA",
-      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
-      willProgress: progressLabel(10n, 10n),
-      awaProgress: progressLabel(1n, 3n),
-      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 10n, awaMinted: 1n, willQuota: 10n }
-    },
-    {
-      tokenId: "P-6",
-      label: "Preview Complete 3/3",
-      stage: "COMPLETE",
-      thoughtProgress: progressLabel(previewThoughtQuota, previewThoughtQuota),
-      willProgress: progressLabel(10n, 10n),
-      awaProgress: progressLabel(3n, 3n),
-      renderState: { thoughtMinted: previewThoughtQuota, willMinted: 10n, awaMinted: 3n, willQuota: 10n }
-    }
-  ];
-  const blankSamples = [...cards, ...syntheticBlankSamples];
-  const blankSampleRows = blankSamples.map((card) => {
-    const svg = buildPathProgressSvg(card.renderState);
-    const image = svgToDataUri(svg);
-    return `
-                <article class="blank-sample">
-                  <div class="blank-sample-image">
-                    <img src="${escapeHtml(image)}" alt="PATH #${escapeHtml(card.tokenId)} blank approach ${escapeHtml(BLANK_APPROACH_A.title)}" />
-                  </div>
-                  <div class="blank-sample-meta">
-                    <p class="blank-sample-title">#${escapeHtml(card.tokenId)} · ${escapeHtml(card.label)}</p>
-                    <p>STAGE <span>${escapeHtml(card.stage)}</span></p>
-                    <p>THOUGHT <span>${escapeHtml(card.thoughtProgress)}</span></p>
-                    <p>WILL <span>${escapeHtml(card.willProgress)}</span></p>
-                    <p>AWA <span>${escapeHtml(card.awaProgress)}</span></p>
-                  </div>
-                </article>
-    `;
-  }).join("\n");
-  const blankApproachColumn = `
-            <article class="blank-variant-col">
-              <header class="blank-variant-head">
-                <h3>Approach ${escapeHtml(BLANK_APPROACH_A.title)}</h3>
-                <p>${escapeHtml(BLANK_APPROACH_A.label)}</p>
-              </header>
-              <div class="blank-sample-grid">
-${blankSampleRows}
-              </div>
-            </article>
-  `;
 
   const html = `<!doctype html>
 <html lang="en">
@@ -691,91 +597,6 @@ ${blankSampleRows}
         color: #eef4ff;
         border-bottom-color: #eef4ff;
         font-weight: 600;
-      }
-      .blank-lab {
-        margin-top: 16px;
-        padding: 14px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: #0d1525;
-      }
-      .blank-lab h2 {
-        margin: 0;
-        font-size: 24px;
-        letter-spacing: -0.02em;
-      }
-      .blank-lab-note {
-        margin: 8px 0 0;
-        color: #a7b7d0;
-        font-size: 14px;
-      }
-      .blank-lab-grid {
-        margin-top: 14px;
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 10px;
-      }
-      .blank-variant-col {
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: #0b1220;
-        overflow: hidden;
-      }
-      .blank-variant-head {
-        padding: 12px;
-        border-bottom: 1px solid var(--line);
-      }
-      .blank-variant-head h3 {
-        margin: 0;
-        font-size: 20px;
-        letter-spacing: -0.02em;
-      }
-      .blank-variant-head p {
-        margin: 4px 0 0;
-        color: #99acc9;
-        font-size: 13px;
-      }
-      .blank-sample-grid {
-        padding: 10px;
-        display: grid;
-        gap: 10px;
-        max-height: 780px;
-        overflow: auto;
-      }
-      .blank-sample {
-        border: 1px solid #22324a;
-        border-radius: 10px;
-        background: #0c1527;
-        overflow: hidden;
-      }
-      .blank-sample-image {
-        padding: 8px;
-        border-bottom: 1px solid #22324a;
-      }
-      .blank-sample-image img {
-        display: block;
-        width: 100%;
-        aspect-ratio: 1 / 1;
-      }
-      .blank-sample-meta {
-        padding: 9px 10px 10px;
-      }
-      .blank-sample-title {
-        margin: 0 0 6px;
-        color: #e5ecfa;
-        font-size: 13px;
-        font-weight: 600;
-      }
-      .blank-sample-meta p {
-        margin: 4px 0 0;
-        display: flex;
-        justify-content: space-between;
-        gap: 8px;
-        font-size: 12px;
-        color: #95aac9;
-      }
-      .blank-sample-meta span {
-        color: #f0f5ff;
       }
       .layout {
         margin-top: 14px;
@@ -1036,9 +857,6 @@ ${blankSampleRows}
         .results-top {
           flex-direction: column;
         }
-        .blank-lab-grid {
-          grid-template-columns: 1fr;
-        }
       }
       @media (max-width: 640px) {
         .topbar {
@@ -1117,15 +935,6 @@ ${blankSampleRows}
             <a class="tab" href="#traits-panel">Traits</a>
             <a class="tab" href="#">Activity</a>
           </nav>
-          <section class="blank-lab">
-            <h2>Blank Look Lab</h2>
-            <p class="blank-lab-note">
-              Approach A only: a centered 0.5% square dot for each blank movement slot, shown across on-chain and preview states.
-            </p>
-            <div class="blank-lab-grid">
-${blankApproachColumn}
-            </div>
-          </section>
           <section class="layout">
             <aside class="sidebar" id="traits-panel">
               <div class="sidebar-head">
