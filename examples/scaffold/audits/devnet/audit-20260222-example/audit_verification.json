@@ -1,0 +1,62 @@
+{
+  "audit_id": "audit-20260222-example",
+  "control_results": [
+    {
+      "control_id": "AUD-001",
+      "details": "All bundle manifests verified.",
+      "evidence_refs": [],
+      "repro_commands": [],
+      "status": "pass",
+      "tier": "VERIFIED"
+    },
+    {
+      "control_id": "AUD-002",
+      "details": "run.json commit pins match checkout.",
+      "evidence_refs": [],
+      "repro_commands": [],
+      "status": "pass",
+      "tier": "VERIFIED"
+    },
+    {
+      "control_id": "AUD-003",
+      "details": "Policy file exists and lanes are valid.",
+      "evidence_refs": [
+        "ops/policy/lane.devnet.example.json"
+      ],
+      "repro_commands": [],
+      "status": "pass",
+      "tier": "VERIFIED"
+    },
+    {
+      "control_id": "AUD-004",
+      "details": "Approval hash matches bundle hash.",
+      "evidence_refs": [],
+      "repro_commands": [],
+      "status": "pass",
+      "tier": "VERIFIED"
+    },
+    {
+      "control_id": "AUD-006",
+      "details": "postconditions.json status missing",
+      "evidence_refs": [
+        "bundles/devnet/devnet-example-run/postconditions.json"
+      ],
+      "repro_commands": [
+        "NETWORK=devnet RUN_ID=devnet-example-run ops/tools/postconditions.sh"
+      ],
+      "status": "fail",
+      "tier": "VERIFIED"
+    },
+    {
+      "control_id": "AUD-009",
+      "details": "Network consistency holds across artifacts.",
+      "evidence_refs": [],
+      "repro_commands": [],
+      "status": "pass",
+      "tier": "VERIFIED"
+    }
+  ],
+  "execution_errors": [],
+  "network": "devnet",
+  "verified_at": "2026-02-22T00:08:00Z"
+}

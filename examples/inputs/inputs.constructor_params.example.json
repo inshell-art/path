@@ -1,0 +1,21 @@
+{
+  "inputs_version": "1",
+  "network": "sepolia",
+  "lane": "deploy",
+  "run_id": "deploy-20260304T000000Z-example",
+  "kind": "constructor_params",
+  "created_at": "2026-03-04T00:00:00Z",
+  "source": {
+    "origin": "repo_file",
+    "path_hint": "examples/inputs/params.constructor_params.example.json",
+    "sha256": "<SOURCE_SHA256>"
+  },
+  "params": {
+    "name": "Ops Token",
+    "symbol": "OPS",
+    "paymentToken": "0x0000000000000000000000000000000000000011",
+    "treasury": "0x0000000000000000000000000000000000000022",
+    "openTime": 1735689600,
+    "startDelay": 3600
+  }
+}

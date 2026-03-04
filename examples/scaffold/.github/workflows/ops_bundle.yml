@@ -30,6 +30,10 @@ on:
         description: "Optional run id (default: timestamp + short SHA)"
         type: string
         required: false
+      inputs_json:
+        description: "Optional locked inputs wrapper JSON (required when lane policy requires inputs)"
+        type: string
+        required: false
 
 jobs:
   bundle:
@@ -52,7 +56,17 @@ jobs:
           NETWORK: ${{ inputs.network }}
           LANE: ${{ inputs.lane }}
           RUN_ID: ${{ steps.runid.outputs.run_id }}
+          INPUTS_JSON: ${{ inputs.inputs_json }}
         run: |
+          if [[ "$LANE" == "deploy" && ( "$NETWORK" == "sepolia" || "$NETWORK" == "mainnet" ) ]]; then
+            if [[ -z "$INPUTS_JSON" ]]; then
+              echo "inputs_json input is required for sepolia/mainnet deploy lane." >&2
+              exit 2
+            fi
+            INPUTS_TEMPLATE_PATH="${RUNNER_TEMP}/inputs.json"
+            printf '%s\n' "$INPUTS_JSON" > "$INPUTS_TEMPLATE_PATH"
+            export INPUTS_TEMPLATE="$INPUTS_TEMPLATE_PATH"
+          fi
           ./ops/tools/bundle.sh
       - name: Upload bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

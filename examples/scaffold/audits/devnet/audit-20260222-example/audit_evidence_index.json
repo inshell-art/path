@@ -1,0 +1,22 @@
+{
+  "audit_id": "audit-20260222-example",
+  "bundle_refs": [
+    {
+      "bundle_path": "bundles/devnet/devnet-example-run",
+      "exists": true,
+      "run_id": "devnet-example-run"
+    }
+  ],
+  "collect_time": "2026-02-22T00:05:00Z",
+  "files_indexed": [
+    {
+      "path": "bundles/devnet/devnet-example-run/bundle_manifest.json",
+      "sha256": "<SHA256_PLACEHOLDER>"
+    },
+    {
+      "path": "bundles/devnet/devnet-example-run/run.json",
+      "sha256": "<SHA256_PLACEHOLDER>"
+    }
+  ],
+  "network": "devnet"
+}

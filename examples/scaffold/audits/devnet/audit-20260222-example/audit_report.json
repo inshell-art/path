@@ -1,0 +1,31 @@
+{
+  "audit_id": "audit-20260222-example",
+  "coverage": {
+    "covered": 6,
+    "percent": 100,
+    "total": 6
+  },
+  "generated_at": "2026-02-22T00:10:00Z",
+  "inferred_claims": [
+    "AUD-006=fail"
+  ],
+  "limitations": [
+    "AUD-005 not in scope for this audit plan"
+  ],
+  "network": "devnet",
+  "repo_commit": "<PINNED_COMMIT>",
+  "status": "pass_with_findings",
+  "summary": {
+    "critical": 0,
+    "high": 0,
+    "low": 0,
+    "medium": 1
+  },
+  "verified_claims": [
+    "AUD-001=pass",
+    "AUD-002=pass",
+    "AUD-003=pass",
+    "AUD-004=pass",
+    "AUD-009=pass"
+  ]
+}

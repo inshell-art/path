@@ -28,18 +28,35 @@ bundles/
   - `run.json`
   - `intent.json` (EVM call or Safe transaction payload)
   - `checks.json` (must include policy-required identity checks for write lanes)
+  - for lanes with `required_inputs`, run `ops/tools/lock_inputs.sh` first and pass `INPUTS_TEMPLATE=<locked_wrapper_path>`
+  - `inputs.json` for lanes that declare `required_inputs` (Sepolia/Mainnet deploy default)
   - `bundle_manifest.json`
 - Upload bundle as CI artifact
 
 ### Local CD (Signing OS only)
 - Download bundle from AIRLOCK (untrusted input)
 - Verify manifest hashes + policy compatibility
+- Verify inputs pinning/coherence (`inputs.json` + `intent.json.inputs_sha256`) when required
 - Human approval recorded **before apply**
 - Apply with keystore + Ledger only (Safe signers for govern/treasury lanes)
 - Produce post-apply evidence (`txs.json`, `snapshots/*`), then run postconditions to generate `postconditions.json`
 
+### Audit lane-process assurance (periodic or release-gated)
+- Build an audit plan (`audit_plan.json`) over selected run ids
+- Collect evidence index from bundle artifacts (`audit_evidence_index.json`)
+- Verify controls (`audit_verification.json`) and produce findings/report
+- Record signoff tied to report hash (`signoff.json`, optional but recommended)
+
+Audit output contract (required every run):
+- `audit_plan.json`
+- `audit_evidence_index.json`
+- `audit_verification.json`
+- `audit_report.json`
+- `findings.json`
+
 ## No manual args at apply time
 Apply **must not** accept manual calldata, addresses, or tx hashes. It must read from the bundle artifacts.
+For lanes with required inputs, apply must set inputs path from the bundle internally and reject mismatched external overrides.
 
 ## No LLM in apply
 LLMs may be used to author scripts and docs, but **must never** be invoked at runtime for apply.
@@ -50,6 +67,9 @@ See `docs/agent-trust-model.md`.
 
 Downstream repos should paste the root-ready contract snippet into their repo root `AGENTS.md` so agent runners auto-load it:
 - `docs/snippets/root-AGENTS-ops-agent-contract.md`
+- `docs/snippets/root-AGENTS-audit-response-contract.md`
+
+Audit claims must explicitly separate `VERIFIED` from `INFERRED`.
 
 ## AIRLOCK integrity rules
 - AIRLOCK is **untrusted input**.

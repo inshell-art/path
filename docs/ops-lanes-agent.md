@@ -39,6 +39,7 @@ It is designed to work with the OPSEC compartments in **OPSEC × Ops-lanes Signe
    - validates format
    - verifies on-chain identity
    - persists into a file (so future steps read files, not clipboard)
+   - for high-entropy deploy data, use `ops/tools/lock_inputs.sh` and pass the result as `INPUTS_TEMPLATE` during bundle generation
 
 3) **Network-scoped bundles only.**  
    Bundles live under `bundles/<network>/<run_id>/` (and archives). Never mix networks.

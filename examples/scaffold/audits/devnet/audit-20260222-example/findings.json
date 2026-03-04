@@ -1,0 +1,20 @@
+{
+  "audit_id": "audit-20260222-example",
+  "findings": [
+    {
+      "control_id": "AUD-006",
+      "evidence_refs": [
+        "bundles/devnet/devnet-example-run/postconditions.json"
+      ],
+      "id": "F-AUD-006",
+      "owner": "ops-owner",
+      "repro_commands": [
+        "NETWORK=devnet RUN_ID=devnet-example-run ops/tools/verify_bundle.sh"
+      ],
+      "severity": "medium",
+      "status": "open",
+      "tier": "VERIFIED",
+      "title": "postconditions.json status missing"
+    }
+  ]
+}

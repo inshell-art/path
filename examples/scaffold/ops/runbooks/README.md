@@ -6,6 +6,10 @@ Suggested files:
 - `deploy.md`
 - `handoff.md`
 - `govern.md`
+- `audit.md`
+
+For release branches/tags, audit runbooks should include:
+- `make -C ops audit-gate NETWORK=<network> AUDIT_ID=<id>`
 
 Each runbook should reference:
 - `docs/ops-lanes-agent.md`

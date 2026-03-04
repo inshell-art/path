@@ -18,12 +18,20 @@ Goal: create a public-safe template repository named `opsec-ops-lanes-template`.
 - `docs/ops-lanes-agent.md`
 - `docs/opsec-ops-lanes-signer-map.md`
 - `docs/integration.md`
+- `docs/audit-framework.md`
+- `docs/audit-runbook.md`
+- `docs/audit-controls-catalog.md`
+- `docs/snippets/root-AGENTS-audit-response-contract.md`
+- `policy/audit.policy.example.json`
 - `policy/devnet.policy.example.json`
 - `policy/sepolia.policy.example.json`
 - `policy/mainnet.policy.example.json`
 - `schemas/intent.schema.json`
 - `schemas/checks.schema.json`
 - `schemas/approval.schema.json`
+- `schemas/audit_plan.schema.json`
+- `schemas/audit_report.schema.json`
+- `schemas/audit_finding.schema.json`
 - `examples/toy/...` (safe placeholder artifacts)
 
 ## Steps (local)

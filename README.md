@@ -15,13 +15,22 @@ This repo contains:
 - `docs/downstream-ops-contract.md` — required rules for downstream repos (CI/CD + signing).
 - `docs/pipeline-reference.md` — step-by-step pipeline reference (bundle → verify → approve → apply).
 - `docs/agent-trust-model.md` — trust tiers + evidence-pack requirements for agent claims.
+- `docs/audit-framework.md` — process-audit model for lane evidence.
+- `docs/audit-runbook.md` — deterministic audit operator flow.
+- `docs/audit-controls-catalog.md` — v1 control IDs and evidence mapping.
+- `docs/snippets/root-AGENTS-audit-response-contract.md` — root-ready audit response contract snippet.
 - `schemas/bundle_manifest.schema.json` — schema for bundle manifests (AIRLOCK integrity).
+- `schemas/audit_*.schema.json` — audit plan/report/findings schema set.
+- `schemas/inputs.schema.json` — schema for first-class high-entropy inputs wrapper.
+- `policy/audit.policy.example.json` — audit policy template (coverage and finding thresholds).
+- `examples/scaffold/.github/workflows/ops_audit.yml` — scheduled audit + release-gate CI example.
 
 ## What this template is (and is not)
 
 **It is:**
 - A disciplined process for *how* to deploy, handoff, and govern using deterministic intents + checks + approvals.
 - A way to make agent-assisted ops safer by forcing “meaning approval” and “reality verification”.
+- A first-class audit module for periodic/release process assurance over lane artifacts.
 
 **It is not:**
 - A wallet tutorial.
@@ -41,6 +50,7 @@ This repo **must stay public-safe**:
 - If policy requires rehearsal proof, Mainnet apply **refuses** without it.
   - Default example policy is Devnet-first.
   - Canonical proof env var is `REHEARSAL_PROOF_RUN_ID` (legacy proof env vars remain temporarily supported).
+- Sepolia/Mainnet deploy lanes require pinned `inputs.json` by default (`required_inputs` policy).
 
 See `docs/downstream-ops-contract.md`.
 For agent claim verification discipline, see `docs/agent-trust-model.md`.
@@ -72,6 +82,18 @@ See `docs/integration.md` for a full example, and `examples/scaffold/` for a run
 
 For a minimal CI/CD scaffold you can copy into a downstream repo, see:
 `examples/scaffold/`.
+For an audit fixture example, see:
+`examples/scaffold/audits/devnet/audit-20260222-example/`.
+
+Audit output contract (required):
+- `audit_plan.json`
+- `audit_evidence_index.json`
+- `audit_verification.json`
+- `audit_report.json`
+- `findings.json`
+
+Optional but recommended:
+- `signoff.json`
 
 ## License
 
