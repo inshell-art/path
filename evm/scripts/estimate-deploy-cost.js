@@ -1,6 +1,6 @@
 import hre from "hardhat";
 
-const START_DELAY_SEC = 0n;
+const OPEN_TIME_OFFSET_SEC = 60n;
 const K = 600n;
 const GENESIS_PRICE = 1_000n;
 const GENESIS_FLOOR = 900n;
@@ -14,6 +14,14 @@ const SYMBOL = "PATH";
 const BASE_URI = "";
 
 const DUMMY_ADDRESS = "0x000000000000000000000000000000000000dEaD";
+
+async function resolveOpenTime(provider) {
+  const latestBlock = await provider.getBlock("latest");
+  if (!latestBlock) {
+    throw new Error("Failed to read latest block for openTime");
+  }
+  return BigInt(latestBlock.timestamp) + OPEN_TIME_OFFSET_SEC;
+}
 
 function parsePositiveNumber(raw, name) {
   const n = Number(raw);
@@ -133,6 +141,8 @@ function printRow(label, gasUsed, gasPriceGwei, ethUsd) {
 }
 
 async function estimateDeployments(ethers, deployer) {
+  const openTime = await resolveOpenTime(ethers.provider);
+
   const Nft = await ethers.getContractFactory("PathNFT", deployer);
   const nftTx = await Nft.getDeployTransaction(deployer.address, NAME, SYMBOL, BASE_URI);
   nftTx.from = deployer.address;
@@ -156,7 +166,7 @@ async function estimateDeployments(ethers, deployer) {
 
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);
   const auctionTx = await Auction.getDeployTransaction(
-    START_DELAY_SEC,
+    openTime,
     K,
     GENESIS_PRICE,
     GENESIS_FLOOR,
@@ -180,6 +190,8 @@ async function estimateDeployments(ethers, deployer) {
 }
 
 async function estimateWiringGas(ethers, deployer) {
+  const openTime = await resolveOpenTime(ethers.provider);
+
   const Nft = await ethers.getContractFactory("PathNFT", deployer);
   const nft = await Nft.deploy(deployer.address, NAME, SYMBOL, BASE_URI);
   await nft.waitForDeployment();
@@ -200,7 +212,7 @@ async function estimateWiringGas(ethers, deployer) {
 
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);
   const auction = await Auction.deploy(
-    START_DELAY_SEC,
+    openTime,
     K,
     GENESIS_PRICE,
     GENESIS_FLOOR,

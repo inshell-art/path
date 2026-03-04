@@ -65,6 +65,12 @@ Optional deploy parameter overrides (constructor inputs):
 
 Precedence: npm args (`--deploy-*`) > env vars > params file > built-in defaults.
 
+Launch time inputs:
+
+- Preferred for formal launch: set absolute unix timestamp with `--deploy-open-time` or `DEPLOY_OPEN_TIME`.
+- Local/testing convenience: `--deploy-start-delay-sec` / `DEPLOY_START_DELAY_SEC` is still supported and is converted to `openTime = latestBlock.timestamp + startDelaySec` (with a one-second minimum lead so `0` opens on the next block).
+- Do not set both `openTime` and `startDelaySec` in the same deployment config.
+
 Examples:
 
 ```bash
@@ -74,11 +80,15 @@ DEPLOY_FIRST_PUBLIC_ID=7 DEPLOY_EPOCH_BASE=7 DEPLOY_RESERVED_CAP=5 npm run deplo
 # Override by npm args
 npm run deploy:local:eth --deploy-first-public-id=7 --deploy-epoch-base=7 --deploy-reserved-cap=5 --deploy-name="PATH NFT Custom"
 
+# Mainnet-style explicit launch time (unix seconds, UTC)
+DEPLOY_OPEN_TIME=1767225600 npm run deploy:local:eth
+
 # Override via params file
 cat > /tmp/path.deploy.local.json <<'JSON'
 {
   "name": "PATH NFT Local",
   "symbol": "PATHL",
+  "openTime": "1767225600",
   "firstPublicId": "1",
   "epochBase": "1",
   "reservedCap": "3",

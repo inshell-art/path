@@ -94,9 +94,17 @@ async function deployPathPulseEnv(
   );
   await adapter.waitForDeployment();
 
+  const latestBlock = await ethers.provider.getBlock("latest");
+  if (!latestBlock) {
+    throw new Error("failed to read latest block");
+  }
+  const latestTs = BigInt(latestBlock.timestamp);
+  const requestedOpenTime = latestTs + startDelaySec;
+  const openTime = requestedOpenTime > latestTs ? requestedOpenTime : latestTs + 1n;
+
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);
   const auction = await Auction.deploy(
-    startDelaySec,
+    openTime,
     K,
     GENESIS_PRICE,
     GENESIS_FLOOR,

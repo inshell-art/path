@@ -7,7 +7,6 @@ const DEFAULTS = {
   name: "PATH NFT",
   symbol: "PATH",
   baseUri: "",
-  startDelaySec: 0n,
   k: 600n,
   genesisPrice: 1_000n,
   genesisFloor: 900n,
@@ -23,6 +22,7 @@ const CLI_FLAG_MAP = {
   name: "name",
   symbol: "symbol",
   "base-uri": "baseUri",
+  "open-time": "openTime",
   "start-delay-sec": "startDelaySec",
   k: "k",
   "genesis-price": "genesisPrice",
@@ -40,6 +40,7 @@ const ENV_KEY_MAP = {
   DEPLOY_NAME: "name",
   DEPLOY_SYMBOL: "symbol",
   DEPLOY_BASE_URI: "baseUri",
+  DEPLOY_OPEN_TIME: "openTime",
   DEPLOY_START_DELAY_SEC: "startDelaySec",
   DEPLOY_K: "k",
   DEPLOY_GENESIS_PRICE: "genesisPrice",
@@ -57,6 +58,7 @@ const NPM_CONFIG_KEY_MAP = {
   npm_config_deploy_name: "name",
   npm_config_deploy_symbol: "symbol",
   npm_config_deploy_base_uri: "baseUri",
+  npm_config_deploy_open_time: "openTime",
   npm_config_deploy_start_delay_sec: "startDelaySec",
   npm_config_deploy_k: "k",
   npm_config_deploy_genesis_price: "genesisPrice",
@@ -148,6 +150,7 @@ function normalizeFileConfig(raw) {
     name: pickValue(source, ["name"]),
     symbol: pickValue(source, ["symbol"]),
     baseUri: pickValue(source, ["baseUri", "base_uri", "base-uri"]),
+    openTime: pickValue(source, ["openTime", "open_time", "open-time"]),
     startDelaySec: pickValue(source, ["startDelaySec", "start_delay_sec", "start-delay-sec"]),
     k: pickValue(source, ["k"]),
     genesisPrice: pickValue(source, ["genesisPrice", "genesis_price", "genesis-price"]),
@@ -203,12 +206,37 @@ function parseAddress(value, keyName, ethers, { allowZero = true } = {}) {
   return value;
 }
 
-function resolveDeployConfig({ cliConfig, npmConfig, envConfig, fileConfig, ethers, fallbackTreasury }) {
+const U64_MAX = (1n << 64n) - 1n;
+
+function isLocalLikeNetwork(networkName, chainId) {
+  if (networkName === "localhost" || networkName === "hardhat" || networkName === "anvil") {
+    return true;
+  }
+  return chainId === 31337n || chainId === 1337n;
+}
+
+function unixSecondsToIso(unixSeconds) {
+  const maxSafeUnix = BigInt(Math.floor(Number.MAX_SAFE_INTEGER / 1000));
+  if (unixSeconds > maxSafeUnix) {
+    throw new Error(`openTime too large for ISO conversion: ${unixSeconds.toString()}`);
+  }
+  return new Date(Number(unixSeconds) * 1000).toISOString();
+}
+
+function resolveDeployConfig({
+  cliConfig,
+  npmConfig,
+  envConfig,
+  fileConfig,
+  ethers,
+  fallbackTreasury,
+  networkName,
+  chainId
+}) {
   const merged = {
     name: coalesce(cliConfig.name, npmConfig.name, envConfig.name, fileConfig.name, DEFAULTS.name),
     symbol: coalesce(cliConfig.symbol, npmConfig.symbol, envConfig.symbol, fileConfig.symbol, DEFAULTS.symbol),
     baseUri: coalesce(cliConfig.baseUri, npmConfig.baseUri, envConfig.baseUri, fileConfig.baseUri, DEFAULTS.baseUri),
-    startDelaySec: parseUint(coalesce(cliConfig.startDelaySec, npmConfig.startDelaySec, envConfig.startDelaySec, fileConfig.startDelaySec, DEFAULTS.startDelaySec), "startDelaySec"),
     k: parseUint(coalesce(cliConfig.k, npmConfig.k, envConfig.k, fileConfig.k, DEFAULTS.k), "k"),
     genesisPrice: parseUint(coalesce(cliConfig.genesisPrice, npmConfig.genesisPrice, envConfig.genesisPrice, fileConfig.genesisPrice, DEFAULTS.genesisPrice), "genesisPrice"),
     genesisFloor: parseUint(coalesce(cliConfig.genesisFloor, npmConfig.genesisFloor, envConfig.genesisFloor, fileConfig.genesisFloor, DEFAULTS.genesisFloor), "genesisFloor"),
@@ -246,7 +274,80 @@ function resolveDeployConfig({ cliConfig, npmConfig, envConfig, fileConfig, ethe
   merged.paymentToken = parseAddress(String(paymentTokenInput), "paymentToken", ethers);
   merged.treasury = parseAddress(String(treasuryInput), "treasury", ethers, { allowZero: false });
 
+  const openTimeRaw = coalesce(cliConfig.openTime, npmConfig.openTime, envConfig.openTime, fileConfig.openTime);
+  const startDelayRaw = coalesce(
+    cliConfig.startDelaySec,
+    npmConfig.startDelaySec,
+    envConfig.startDelaySec,
+    fileConfig.startDelaySec
+  );
+
+  if (openTimeRaw !== undefined && startDelayRaw !== undefined) {
+    throw new Error("AMBIGUOUS_LAUNCH_TIME: set only one of openTime or startDelaySec");
+  }
+
+  if (openTimeRaw !== undefined) {
+    merged.openTime = parseUint(openTimeRaw, "openTime");
+    merged.openTimeSource = "explicit";
+    merged.startDelaySec = null;
+    if (merged.openTime > U64_MAX) {
+      throw new Error(`openTime exceeds uint64 max: ${merged.openTime.toString()}`);
+    }
+    merged.openTimeIso = unixSecondsToIso(merged.openTime);
+  } else if (startDelayRaw !== undefined) {
+    const startDelaySec = parseUint(startDelayRaw, "startDelaySec");
+    merged.openTime = null;
+    merged.openTimeSource = "derived_delay";
+    merged.startDelaySec = startDelaySec;
+    merged.openTimeIso = null;
+  } else if (isLocalLikeNetwork(networkName, chainId)) {
+    merged.openTime = null;
+    merged.openTimeSource = "default_local_now";
+    merged.startDelaySec = 0n;
+    merged.openTimeIso = null;
+  } else {
+    throw new Error("OPEN_TIME_REQUIRED: provide openTime (recommended) or startDelaySec");
+  }
+
   return merged;
+}
+
+async function readLatestTimestamp(provider) {
+  const latestBlock = await provider.getBlock("latest");
+  if (!latestBlock) {
+    throw new Error("Failed to read latest block");
+  }
+  return BigInt(latestBlock.timestamp);
+}
+
+async function resolveAuctionOpenTime({ provider, cfg }) {
+  const latestBlockTimestamp = await readLatestTimestamp(provider);
+  let openTime;
+
+  if (cfg.openTimeSource === "explicit") {
+    openTime = cfg.openTime;
+  } else {
+    const startDelaySec = cfg.startDelaySec ?? 0n;
+    const requestedOpenTime = latestBlockTimestamp + startDelaySec;
+    openTime = requestedOpenTime > latestBlockTimestamp
+      ? requestedOpenTime
+      : latestBlockTimestamp + 1n;
+  }
+
+  if (openTime > U64_MAX) {
+    throw new Error(`openTime exceeds uint64 max: ${openTime.toString()}`);
+  }
+  if (openTime < latestBlockTimestamp) {
+    throw new Error(
+      `OPEN_TIME_IN_PAST: openTime=${openTime.toString()} latestBlockTs=${latestBlockTimestamp.toString()}`
+    );
+  }
+
+  return {
+    openTime,
+    openTimeIso: unixSecondsToIso(openTime),
+    latestBlockTimestamp
+  };
 }
 
 async function main() {
@@ -269,7 +370,9 @@ async function main() {
     envConfig,
     fileConfig,
     ethers,
-    fallbackTreasury: defaultTreasurySigner.address
+    fallbackTreasury: defaultTreasurySigner.address,
+    networkName: conn.networkName,
+    chainId: networkInfo.chainId
   });
 
   const PathNFT = await ethers.getContractFactory("PathNFT", deployer);
@@ -300,9 +403,14 @@ async function main() {
   );
   await adapter.waitForDeployment();
 
+  const resolvedLaunch = await resolveAuctionOpenTime({
+    provider: ethers.provider,
+    cfg
+  });
+
   const PulseAuction = await ethers.getContractFactory("PulseAuction", deployer);
   const auction = await PulseAuction.deploy(
-    cfg.startDelaySec,
+    resolvedLaunch.openTime,
     cfg.k,
     cfg.genesisPrice,
     cfg.genesisFloor,
@@ -340,6 +448,7 @@ async function main() {
   const deployment = {
     network: conn.networkName,
     chainId: Number(networkInfo.chainId),
+    launchResolutionBlockTimestamp: resolvedLaunch.latestBlockTimestamp.toString(),
     deployer: deployer.address,
     treasury: cfg.treasury,
     paymentToken: cfg.paymentToken,
@@ -350,7 +459,10 @@ async function main() {
       name: cfg.name,
       symbol: cfg.symbol,
       baseUri: cfg.baseUri,
-      startDelaySec: cfg.startDelaySec.toString(),
+      openTime: resolvedLaunch.openTime.toString(),
+      openTimeIso: resolvedLaunch.openTimeIso,
+      openTimeSource: cfg.openTimeSource,
+      startDelaySec: cfg.startDelaySec == null ? null : cfg.startDelaySec.toString(),
       k: cfg.k.toString(),
       genesisPrice: cfg.genesisPrice.toString(),
       genesisFloor: cfg.genesisFloor.toString(),
