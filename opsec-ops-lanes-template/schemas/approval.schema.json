@@ -16,6 +16,9 @@
     "bundle_hash": {
       "type": "string"
     },
+    "inputs_sha256": {
+      "type": "string"
+    },
     "approved": {
       "type": "boolean"
     },

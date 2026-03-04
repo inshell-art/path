@@ -15,7 +15,8 @@
       "AUD-004",
       "AUD-006",
       "AUD-007",
-      "AUD-009"
+      "AUD-009",
+      "AUD-011"
     ],
     "mainnet": [
       "AUD-001",
@@ -27,7 +28,27 @@
       "AUD-007",
       "AUD-008",
       "AUD-009",
-      "AUD-010"
+      "AUD-010",
+      "AUD-011"
+    ]
+  },
+  "required_artifacts": {
+    "always": [
+      "audit_plan.json",
+      "audit_evidence_index.json",
+      "audit_verification.json",
+      "audit_report.json",
+      "findings.json"
+    ],
+    "recommended": [
+      "signoff.json"
+    ]
+  },
+  "claims": {
+    "require_tier_labels": true,
+    "allowed_tiers": [
+      "VERIFIED",
+      "INFERRED"
     ]
   },
   "min_coverage_percent": 90,
@@ -36,6 +57,12 @@
     "high": 0,
     "medium": 5,
     "low": 50
+  },
+  "release_gate": {
+    "enabled": true,
+    "fail_on_status": [
+      "fail"
+    ]
   },
   "audit_frequency": "per_release",
   "required_signoff_roles": [

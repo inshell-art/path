@@ -11,7 +11,8 @@ Steps:
 2. `NETWORK=<net> AUDIT_ID=<id> ops/tools/audit_collect.sh`
 3. `NETWORK=<net> AUDIT_ID=<id> ops/tools/audit_verify.sh`
 4. `NETWORK=<net> AUDIT_ID=<id> ops/tools/audit_report.sh`
-5. `NETWORK=<net> AUDIT_ID=<id> AUDIT_APPROVER=<name> ops/tools/audit_signoff.sh`
+5. `make -C ops audit-gate NETWORK=<net> AUDIT_ID=<id>` (release branches/tags)
+6. `NETWORK=<net> AUDIT_ID=<id> AUDIT_APPROVER=<name> ops/tools/audit_signoff.sh` (optional)
 
 Stop conditions:
 - required artifacts missing

@@ -1,6 +1,6 @@
 # Audit Framework
 
-This module adds process-audit capability to the ops-lanes template.
+This module adds first-class, reusable process-audit capability to the ops-lanes template.
 
 Intent:
 - keep lane execution controls deterministic (`bundle -> verify -> approve -> apply -> postconditions`)
@@ -37,12 +37,18 @@ Default location:
 - `audits/<network>/<audit_id>/`
 
 Expected files:
-- `audit_plan.json`
-- `audit_evidence_index.json`
-- `audit_verification.json`
-- `audit_report.json`
-- `findings.json`
-- `signoff.json`
+- required:
+  - `audit_plan.json`
+  - `audit_evidence_index.json`
+  - `audit_verification.json`
+  - `audit_report.json`
+  - `findings.json`
+- optional but recommended:
+  - `signoff.json`
+
+Claims must explicitly distinguish:
+- `VERIFIED` (direct deterministic check evidence)
+- `INFERRED` (reasoned from indirect artifacts)
 
 ## Data Contracts
 Schemas:
@@ -53,6 +59,7 @@ Schemas:
 ## Controls
 Control IDs and intent are defined in:
 - `docs/audit-controls-catalog.md`
+Includes `AUD-011` for inputs-wrapper pinning/enforcement.
 
 ## Policy
 Audit policy template:
@@ -64,8 +71,12 @@ Downstream copy target:
 ## CI Hooks
 Recommended:
 - schedule periodic `audit-all` runs for non-prod branches
-- run pre-release audit gate and fail on policy threshold breach
+- run release-gate audit mode and fail on configured policy statuses
 - upload `audits/<network>/<audit_id>/` as immutable artifact
+
+Reference fixture checks:
+- `examples/scaffold/tests/audit_smoke.sh`
+- `examples/scaffold/tests/audit_negative.sh`
 
 ## Downstream Adoption Sequence
 1. Pull template update.
@@ -76,5 +87,6 @@ Recommended:
 6. Enable release gate for Sepolia/Mainnet branches.
 
 ## Compatibility
-- audit module is opt-in for the first release cycle
+- audit module is included in the template by default
+- downstream adoption can be phased without changing lane pipeline
 - existing lane scripts/flow stay unchanged

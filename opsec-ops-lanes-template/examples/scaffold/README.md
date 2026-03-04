@@ -3,7 +3,7 @@
 Purpose: provide a minimal, safe layout to integrate this template and run **bundle rehearsals** in CI while keeping **apply** on a Signing OS.
 Default rehearsal network is **devnet** (Sepolia remains optional).
 
-This scaffold is not a runnable system. The scripts in `ops/tools/` are stubs that you must replace for your repo.
+This scaffold is a runnable reference baseline. Adapt `ops/tools/` for your repo while keeping the same artifact contracts.
 
 ## Layout
 - `ops/` — policy, runbooks, and tooling wrappers
@@ -25,6 +25,8 @@ This scaffold is not a runnable system. The scripts in `ops/tools/` are stubs th
 - Apply happens only on a Signing OS with keystore mode.
 - After apply, run postconditions to record chain verification.
 - Run periodic `audit-all` to validate process controls over lane artifacts.
+- Use `audit-gate` for release branches/tags.
+- Sepolia/Mainnet deploy lanes require pinned `inputs.json` by default (`required_inputs`, generated via `ops/tools/lock_inputs.sh` and passed as `INPUTS_TEMPLATE`).
 - No LLM calls are allowed at apply time.
 - HOT wallets are not ops-lane signers.
 

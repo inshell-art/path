@@ -5,16 +5,22 @@
   "additionalProperties": false,
   "required": [
     "audit_id",
+    "network",
     "status",
     "coverage",
     "summary",
     "verified_claims",
+    "inferred_claims",
     "limitations",
     "repo_commit",
     "generated_at"
   ],
   "properties": {
     "audit_id": {"type": "string"},
+    "network": {
+      "type": "string",
+      "enum": ["devnet", "sepolia", "mainnet"]
+    },
     "status": {
       "type": "string",
       "enum": ["pass", "pass_with_findings", "fail"]
@@ -41,6 +47,10 @@
       }
     },
     "verified_claims": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "inferred_claims": {
       "type": "array",
       "items": {"type": "string"}
     },

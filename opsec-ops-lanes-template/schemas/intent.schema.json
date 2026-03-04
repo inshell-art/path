@@ -18,6 +18,9 @@
     "lane": {
       "type": "string"
     },
+    "inputs_sha256": {
+      "type": "string"
+    },
     "signer_alias": {
       "type": "string"
     },

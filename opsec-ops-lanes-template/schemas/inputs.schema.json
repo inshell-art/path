@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Lane Inputs Wrapper",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "inputs_version",
+    "network",
+    "lane",
+    "run_id",
+    "kind",
+    "created_at",
+    "params"
+  ],
+  "properties": {
+    "inputs_version": {
+      "const": "1"
+    },
+    "network": {
+      "type": "string"
+    },
+    "lane": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "origin": {
+          "type": "string"
+        },
+        "path_hint": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      }
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

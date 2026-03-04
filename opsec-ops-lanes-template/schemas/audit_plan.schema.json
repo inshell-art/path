@@ -11,7 +11,8 @@
     "run_ids",
     "controls",
     "auditor",
-    "repo_commit"
+    "repo_commit",
+    "generated_at"
   ],
   "properties": {
     "audit_id": {"type": "string"},

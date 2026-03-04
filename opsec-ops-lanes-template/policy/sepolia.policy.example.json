@@ -70,7 +70,12 @@
         "max_fee_per_gas_gwei": "<SET_ME>",
         "max_priority_fee_per_gas_gwei": "<SET_ME>",
         "enforce_eip1559": true
-      }
+      },
+      "required_inputs": [
+        {
+          "kind": "constructor_params"
+        }
+      ]
     },
     "handoff": {
       "writes": true,

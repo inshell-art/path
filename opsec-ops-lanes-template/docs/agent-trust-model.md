@@ -87,6 +87,7 @@ A bundle is consistent when:
 - The verifier recomputes each immutable hash and matches all entries.
 - Recomputed aggregate `bundle_hash` matches the manifest.
 - Cross-file identity matches expected values (`network`, `lane`, `run_id`, `git_commit`).
+- For lanes with `required_inputs`, `inputs.json` exists, passes wrapper coherence, and its hash binds to `intent.json.inputs_sha256`.
 - If `approval.json` exists, it binds to the same `bundle_hash`.
 
 Operationally, this gives tamper evidence and internal consistency.

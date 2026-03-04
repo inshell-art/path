@@ -6,9 +6,13 @@
     "total": 6
   },
   "generated_at": "2026-02-22T00:10:00Z",
+  "inferred_claims": [
+    "AUD-006=fail"
+  ],
   "limitations": [
     "AUD-005 not in scope for this audit plan"
   ],
+  "network": "devnet",
   "repo_commit": "<PINNED_COMMIT>",
   "status": "pass_with_findings",
   "summary": {

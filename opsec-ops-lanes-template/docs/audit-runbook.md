@@ -28,17 +28,25 @@ NETWORK=devnet AUDIT_ID=<audit_id> ops/tools/audit_verify.sh
 NETWORK=devnet AUDIT_ID=<audit_id> ops/tools/audit_report.sh
 ```
 
-5. Signoff
+5. Release gate check (recommended for release branches/tags)
+```bash
+make -C ops audit-gate NETWORK=devnet AUDIT_ID=<audit_id>
+```
+
+6. Signoff (optional but recommended)
 ```bash
 NETWORK=devnet AUDIT_ID=<audit_id> AUDIT_APPROVER=<name> ops/tools/audit_signoff.sh
 ```
 
-## Outputs
+## Outputs (contract)
+Required:
 - `audits/<network>/<audit_id>/audit_plan.json`
 - `audits/<network>/<audit_id>/audit_evidence_index.json`
 - `audits/<network>/<audit_id>/audit_verification.json`
 - `audits/<network>/<audit_id>/audit_report.json`
 - `audits/<network>/<audit_id>/findings.json`
+
+Optional but recommended:
 - `audits/<network>/<audit_id>/signoff.json`
 
 ## Stop Conditions

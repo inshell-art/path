@@ -3,6 +3,14 @@ name: Ops Audit (CI)
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "Run mode"
+        type: choice
+        required: true
+        default: periodic
+        options:
+          - periodic
+          - release_gate
       network:
         description: "Target network"
         type: choice
@@ -22,6 +30,9 @@ on:
         required: false
   schedule:
     - cron: "0 6 * * 1"
+  push:
+    tags:
+      - "v*"
 
 jobs:
   audit:
@@ -34,6 +45,13 @@ jobs:
       - name: Set inputs
         id: params
         run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "mode=release_gate" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${{ inputs.mode }}" ]]; then
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=periodic" >> "$GITHUB_OUTPUT"
+          fi
           if [[ -n "${{ inputs.network }}" ]]; then
             echo "network=${{ inputs.network }}" >> "$GITHUB_OUTPUT"
           else
@@ -66,6 +84,12 @@ jobs:
           NETWORK: ${{ steps.params.outputs.network }}
           AUDIT_ID: ${{ steps.params.outputs.audit_id }}
         run: ./ops/tools/audit_report.sh
+      - name: Gate audit report (release gate)
+        if: ${{ steps.params.outputs.mode == 'release_gate' }}
+        env:
+          NETWORK: ${{ steps.params.outputs.network }}
+          AUDIT_ID: ${{ steps.params.outputs.audit_id }}
+        run: ./ops/tools/audit_gate.sh
       - name: Upload audit artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

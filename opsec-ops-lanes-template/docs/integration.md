@@ -86,8 +86,21 @@ git commit -am "Update ops-template"
 - `ops-template/policy/mainnet.policy.example.json` → `ops/policy/lane.mainnet.json`
 - `ops-template/policy/audit.policy.example.json` → `ops/policy/audit.policy.json`
 
+For Sepolia/Mainnet deploy lanes, wire locked inputs:
+- run `ops/tools/lock_inputs.sh` with `NETWORK`, `LANE`, `RUN_ID`, and `INPUT_FILE=<local_params_json>`
+- optionally set `PARAMS_SCHEMA=<downstream_schema_path>` for stricter validation
+- pass `INPUTS_TEMPLATE=<artifacts/<network>/current/inputs/inputs.<run_id>.json>` to `ops/tools/bundle.sh`
+- keep raw params outside git (or commit only if intentionally public/safe)
+
 2) Define your signer aliases (EOA + Safe addresses) in `artifacts/<net>/current/addresses.json`.
 
 3) Keep runbooks in `ops/runbooks/`, but reference the lane rules in:
 - `ops-template/docs/ops-lanes-agent.md`
 - `ops-template/docs/opsec-ops-lanes-signer-map.md`
+
+4) Wire audit targets in `ops/Makefile`:
+- `audit-plan`, `audit-collect`, `audit-verify`, `audit-report`, `audit-signoff`, `audit-gate`
+
+5) Paste response-contract snippets into downstream root `AGENTS.md`:
+- `ops-template/docs/snippets/root-AGENTS-ops-agent-contract.md`
+- `ops-template/docs/snippets/root-AGENTS-audit-response-contract.md`

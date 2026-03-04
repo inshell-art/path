@@ -97,6 +97,41 @@ plan = {
     "generated_at": time_to
 }
 
+schema_path = root / "schemas/audit_plan.schema.json"
+if schema_path.exists():
+    schema = json.loads(schema_path.read_text())
+else:
+    schema = {
+        "required": [
+            "audit_id",
+            "network",
+            "scope",
+            "time_window",
+            "run_ids",
+            "controls",
+            "auditor",
+            "repo_commit",
+            "generated_at"
+        ],
+        "properties": {
+            "network": {
+                "enum": ["devnet", "sepolia", "mainnet"]
+            }
+        }
+    }
+
+for key in schema.get("required", []):
+    if key not in plan:
+        raise SystemExit(f"audit_plan missing required key: {key}")
+
+network_enum = (
+    schema.get("properties", {})
+    .get("network", {})
+    .get("enum", [])
+)
+if network_enum and plan["network"] not in network_enum:
+    raise SystemExit(f"audit_plan network enum violation: {plan['network']}")
+
 (audit_dir / "audit_plan.json").write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
 print(f"Audit plan written: {audit_dir / 'audit_plan.json'}")
 PY

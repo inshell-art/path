@@ -19,7 +19,8 @@
           "evidence_refs",
           "repro_commands",
           "status",
-          "owner"
+          "owner",
+          "tier"
         ],
         "properties": {
           "id": {"type": "string"},

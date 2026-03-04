@@ -45,13 +45,13 @@ EVM details live in `evm/README.md`.
 
 ## Ops Lanes (Ethereum)
 
-Ops-lanes template is vendored at `opsec-ops-lanes-template/` and downstream instance files live at:
+Ops-lanes template is synced as a git subtree at `opsec-ops-lanes-template/`, and downstream instance files live at:
 
 - `ops/` (policy, tools, runbooks)
 - `artifacts/` (generated evidence)
 - `bundles/` (immutable CI/CD bundles)
 
-Vendored source: `https://github.com/inshell-art/opsec-ops-lanes-template` at commit `e2a67a3`.
+Upstream source: `https://github.com/inshell-art/opsec-ops-lanes-template` at commit `77d3e7f`.
 
 Quick rehearsal (bundle + verify only):
 
