@@ -31,7 +31,6 @@ python3 - <<'PY'
 import hashlib
 import json
 import os
-import re
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -332,66 +331,99 @@ if "AUD-010" in controls:
 
 # AUD-011
 if "AUD-011" in controls:
-    if network not in {"sepolia", "mainnet"}:
-        results.append(make_result("AUD-011", "skip", "INFERRED", "Secret-snippet strictness is enforced for sepolia/mainnet only."))
+    applicable = []
+    fails = []
+    for ctx in run_context:
+        run = ctx.get("run") or {}
+        lane = run.get("lane")
+        run_network = run.get("network")
+        if lane != "deploy" or run_network not in {"sepolia", "mainnet"}:
+            continue
+
+        lane_cfg = ((policy or {}).get("lanes", {}).get(lane, {}))
+        required_checks = lane_cfg.get("required_checks", [])
+        if not isinstance(required_checks, list):
+            required_checks = []
+
+        required_inputs = lane_cfg.get("required_inputs", [])
+        if required_inputs is None:
+            required_inputs = []
+        if not isinstance(required_inputs, list):
+            required_inputs = []
+
+        required_kinds = []
+        for item in required_inputs:
+            if isinstance(item, dict) and isinstance(item.get("kind"), str) and item.get("kind").strip():
+                required_kinds.append(item["kind"].strip())
+
+        if not required_kinds:
+            continue
+
+        if not ctx.get("txs"):
+            # Enforcement at apply cannot be proven without apply evidence.
+            continue
+
+        applicable.append(ctx["run_id"])
+        inputs_path = ctx["bundle_dir"] / "inputs.json"
+        if not inputs_path.exists():
+            fails.append(f"{ctx['run_id']}: missing bundled inputs.json")
+            continue
+
+        inputs_hash = hashlib.sha256(inputs_path.read_bytes()).hexdigest()
+        manifest = ctx.get("manifest") or {}
+        manifest_entries = {
+            i.get("path"): i.get("sha256")
+            for i in (manifest.get("immutable_files") or [])
+            if isinstance(i, dict)
+        }
+        if "inputs.json" not in manifest_entries:
+            fails.append(f"{ctx['run_id']}: inputs.json missing from immutable manifest")
+            continue
+        if manifest_entries.get("inputs.json") != inputs_hash:
+            fails.append(f"{ctx['run_id']}: inputs hash mismatch vs manifest")
+            continue
+
+        intent = ctx.get("intent") or {}
+        if intent.get("inputs_sha256") != inputs_hash:
+            fails.append(f"{ctx['run_id']}: intent inputs_sha256 mismatch")
+            continue
+
+        approval = ctx.get("approval") or {}
+        if approval.get("inputs_sha256") != inputs_hash:
+            fails.append(f"{ctx['run_id']}: approval inputs_sha256 mismatch")
+            continue
+
+        wrapper = None
+        try:
+            wrapper = json.loads(inputs_path.read_text())
+        except Exception:
+            fails.append(f"{ctx['run_id']}: invalid JSON in inputs.json")
+            continue
+
+        kind = str((wrapper or {}).get("kind", ""))
+        if kind not in required_kinds:
+            fails.append(f"{ctx['run_id']}: inputs kind '{kind}' not in required kinds {required_kinds}")
+            continue
+
+        if (wrapper or {}).get("network") != run_network or (wrapper or {}).get("lane") != lane or (wrapper or {}).get("run_id") != ctx["run_id"]:
+            fails.append(f"{ctx['run_id']}: inputs wrapper coherence mismatch (network/lane/run_id)")
+            continue
+
+        txs = ctx.get("txs") or {}
+        if txs.get("inputs_sha256") != inputs_hash:
+            fails.append(f"{ctx['run_id']}: txs.json inputs_sha256 mismatch")
+            continue
+        tx_inputs_file = txs.get("inputs_file", "")
+        if not isinstance(tx_inputs_file, str) or not tx_inputs_file.endswith("/inputs.json"):
+            fails.append(f"{ctx['run_id']}: txs.json inputs_file missing or unexpected")
+            continue
+
+    if not applicable:
+        results.append(make_result("AUD-011", "skip", "INFERRED", "No applied deploy runs requiring pinned inputs in scope."))
+    elif fails:
+        results.append(make_result("AUD-011", "fail", "VERIFIED", "; ".join(fails)))
     else:
-        scan_roots = [
-            root / "README.md",
-            root / "AGENTS.md",
-            root / "ops/runbooks",
-            root / "workbook/ops",
-            root / "docs",
-        ]
-        md_files = []
-        for entry in scan_roots:
-            if not entry.exists():
-                continue
-            if entry.is_file() and entry.suffix == ".md":
-                md_files.append(entry)
-            elif entry.is_dir():
-                md_files.extend(sorted(p for p in entry.rglob("*.md") if p.is_file()))
-
-        patterns = [
-            re.compile(r"export\s+SEPOLIA_PRIVATE_KEY\s*=", re.IGNORECASE),
-            re.compile(r"export\s+MAINNET_PRIVATE_KEY\s*=", re.IGNORECASE),
-            re.compile(r"SEPOLIA_PRIVATE_KEY\s*=\s*[\"']?0x[0-9a-fA-F]{64}", re.IGNORECASE),
-            re.compile(r"MAINNET_PRIVATE_KEY\s*=\s*[\"']?0x[0-9a-fA-F]{64}", re.IGNORECASE),
-            re.compile(r"--private-key(\s|=|$)", re.IGNORECASE),
-        ]
-
-        hits = []
-        for path in md_files:
-            try:
-                lines = path.read_text().splitlines()
-            except Exception:
-                continue
-            for idx, line in enumerate(lines, 1):
-                if any(p.search(line) for p in patterns):
-                    rel = str(path.relative_to(root))
-                    hits.append(f"{rel}:{idx}")
-
-        if hits:
-            details = "Found forbidden raw secret snippets in docs/runbooks."
-            results.append(
-                make_result(
-                    "AUD-011",
-                    "fail",
-                    "VERIFIED",
-                    details,
-                    hits[:20],
-                    [f"NETWORK={network} ops/tools/lint_secret_snippets.sh"]
-                )
-            )
-        else:
-            results.append(
-                make_result(
-                    "AUD-011",
-                    "pass",
-                    "VERIFIED",
-                    "No forbidden raw secret snippets in docs/runbooks for sepolia/mainnet scope.",
-                    repro_commands=[f"NETWORK={network} ops/tools/lint_secret_snippets.sh"]
-                )
-            )
+        results.append(make_result("AUD-011", "pass", "VERIFIED", "Inputs were pinned and enforced at apply."))
 
 verification = {
     "audit_id": plan.get("audit_id"),

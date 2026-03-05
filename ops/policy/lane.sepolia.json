@@ -61,7 +61,12 @@
       "gates": {
         "require_rehearsal_proof": false,
         "rehearsal_proof_network": "devnet"
-      }
+      },
+      "required_inputs": [
+        {
+          "kind": "constructor_params"
+        }
+      ]
     },
     "handoff": {
       "writes": true,
