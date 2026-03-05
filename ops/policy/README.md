@@ -15,4 +15,4 @@ Only set the gate to false if you are consciously overriding the control.
 For EVM lanes, set realistic EIP-1559 bounds in each lane's `fee_policy`.
 Legacy keys (`requires_*_rehearsal_proof`, `gates.require_*_rehearsal_proof`) are deprecated but temporarily supported during migration.
 Audit policy controls coverage thresholds and open-finding gates for periodic/release audits.
-`AUD-011` is scoped to `sepolia` and `mainnet` only (raw secret snippet lint for operator docs/runbooks).
+`AUD-011` verifies pinned constructor inputs were enforced at apply for deployed Sepolia/Mainnet runs.

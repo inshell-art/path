@@ -6,7 +6,7 @@ Expected behavior by script:
 - `bundle.sh` creates `run.json`, `intent.json`, `checks.json`, optional `checks.path.json` (devnet PATH rehearsal), and `bundle_manifest.json`.
 - `verify_bundle.sh` verifies manifest hashes, git commit, and policy compatibility.
 - `approve_bundle.sh` records human approval tied to the bundle hash.
-- `apply_bundle.sh` executes the approved bundle in signing context only (deploy lane runs the configured EVM deploy command).
+- `apply_bundle.sh` executes the approved bundle in signing context only (deploy lane runs the configured EVM deploy command). Sepolia/Mainnet deploy apply expects keystore env inputs (`<NET>_DEPLOY_KEYSTORE_JSON` + password env/file) and refuses pre-set raw `<NET>_PRIVATE_KEY`.
 - `postconditions.sh` records post-apply verification and writes `postconditions.json`.
 - `generate_path_checks.sh` probes PATH readiness (devnet/sepolia/mainnet) and writes `checks.path.json` with `required_checks` and `path_invariants`.
 - `audit_plan.sh` creates `audit_plan.json`.
