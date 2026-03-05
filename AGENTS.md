@@ -51,6 +51,7 @@
 - If any potential secret is detected, stop and remove it; do not “mask” it.
 - Do not print sensitive values in CI logs (avoid `echo $TOKEN`, `printenv`, verbose debug logs with headers/keys).
 - Avoid logging full RPC URLs if they include keys.
+- For Sepolia/Mainnet operator instructions, never provide commands that inject raw private-key values into the shell; require keystore/Ledger-style references instead. Devnet may use local convenience paths.
 - No new third-party telemetry by default (no analytics, session replay, fingerprinting, or new error trackers unless explicitly requested).
 - If error tracking exists, ensure it does not capture wallet addresses, RPC payloads, or user identifiers.
 - Protect deployment and workflow integrity: do not weaken branch protections in docs/instructions; pin GitHub Action versions where possible; prefer least-privilege tokens; avoid long-lived credentials.

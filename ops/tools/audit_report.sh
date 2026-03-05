@@ -62,6 +62,7 @@ severity_by_control = {
     "AUD-008": "high",
     "AUD-009": "medium",
     "AUD-010": "critical",
+    "AUD-011": "high",
 }
 order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 

@@ -70,7 +70,7 @@ else:
 
 controls = [
     "AUD-001", "AUD-002", "AUD-003", "AUD-004", "AUD-005",
-    "AUD-006", "AUD-007", "AUD-008", "AUD-009", "AUD-010"
+    "AUD-006", "AUD-007", "AUD-008", "AUD-009", "AUD-010", "AUD-011"
 ]
 if policy_file and Path(policy_file).exists():
     policy = json.loads(Path(policy_file).read_text())

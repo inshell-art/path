@@ -15,7 +15,8 @@
       "AUD-004",
       "AUD-006",
       "AUD-007",
-      "AUD-009"
+      "AUD-009",
+      "AUD-011"
     ],
     "mainnet": [
       "AUD-001",
@@ -27,7 +28,8 @@
       "AUD-007",
       "AUD-008",
       "AUD-009",
-      "AUD-010"
+      "AUD-010",
+      "AUD-011"
     ]
   },
   "min_coverage_percent": 90,

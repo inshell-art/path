@@ -8,7 +8,7 @@ BUNDLE_PATH ?=
 AUDIT_ID ?=
 AUDIT_PATH ?=
 
-.PHONY: bundle verify approve apply postconditions audit-plan audit-collect audit-verify audit-report audit-signoff audit-all scan-secrets
+.PHONY: bundle verify approve apply postconditions audit-plan audit-collect audit-verify audit-report audit-signoff audit-all scan-secrets lint-secret-snippets
 
 bundle:
 	NETWORK=$(NETWORK) LANE=$(LANE) RUN_ID=$(RUN_ID) $(ROOT)/ops/tools/bundle.sh
@@ -53,3 +53,6 @@ scan-secrets:
 	  echo "gitleaks not found. Install it to run secret scans."; \
 	  exit 2; \
 	fi
+
+lint-secret-snippets:
+	NETWORK=$(NETWORK) $(ROOT)/ops/tools/lint_secret_snippets.sh

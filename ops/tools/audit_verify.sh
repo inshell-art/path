@@ -31,6 +31,7 @@ python3 - <<'PY'
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -328,6 +329,69 @@ if "AUD-010" in controls:
         results.append(make_result("AUD-010", "fail", "VERIFIED", "Suspicious secret-like filenames detected.", suspicious[:10]))
     else:
         results.append(make_result("AUD-010", "pass", "INFERRED", "No suspicious secret-like filenames in indexed artifacts."))
+
+# AUD-011
+if "AUD-011" in controls:
+    if network not in {"sepolia", "mainnet"}:
+        results.append(make_result("AUD-011", "skip", "INFERRED", "Secret-snippet strictness is enforced for sepolia/mainnet only."))
+    else:
+        scan_roots = [
+            root / "README.md",
+            root / "AGENTS.md",
+            root / "ops/runbooks",
+            root / "workbook/ops",
+            root / "docs",
+        ]
+        md_files = []
+        for entry in scan_roots:
+            if not entry.exists():
+                continue
+            if entry.is_file() and entry.suffix == ".md":
+                md_files.append(entry)
+            elif entry.is_dir():
+                md_files.extend(sorted(p for p in entry.rglob("*.md") if p.is_file()))
+
+        patterns = [
+            re.compile(r"export\s+SEPOLIA_PRIVATE_KEY\s*=", re.IGNORECASE),
+            re.compile(r"export\s+MAINNET_PRIVATE_KEY\s*=", re.IGNORECASE),
+            re.compile(r"SEPOLIA_PRIVATE_KEY\s*=\s*[\"']?0x[0-9a-fA-F]{64}", re.IGNORECASE),
+            re.compile(r"MAINNET_PRIVATE_KEY\s*=\s*[\"']?0x[0-9a-fA-F]{64}", re.IGNORECASE),
+            re.compile(r"--private-key(\s|=|$)", re.IGNORECASE),
+        ]
+
+        hits = []
+        for path in md_files:
+            try:
+                lines = path.read_text().splitlines()
+            except Exception:
+                continue
+            for idx, line in enumerate(lines, 1):
+                if any(p.search(line) for p in patterns):
+                    rel = str(path.relative_to(root))
+                    hits.append(f"{rel}:{idx}")
+
+        if hits:
+            details = "Found forbidden raw secret snippets in docs/runbooks."
+            results.append(
+                make_result(
+                    "AUD-011",
+                    "fail",
+                    "VERIFIED",
+                    details,
+                    hits[:20],
+                    [f"NETWORK={network} ops/tools/lint_secret_snippets.sh"]
+                )
+            )
+        else:
+            results.append(
+                make_result(
+                    "AUD-011",
+                    "pass",
+                    "VERIFIED",
+                    "No forbidden raw secret snippets in docs/runbooks for sepolia/mainnet scope.",
+                    repro_commands=[f"NETWORK={network} ops/tools/lint_secret_snippets.sh"]
+                )
+            )
 
 verification = {
     "audit_id": plan.get("audit_id"),

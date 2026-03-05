@@ -5,6 +5,7 @@ Purpose: deploy contracts and capture addresses using the `deploy` lane rules.
 Prereqs:
 - Deploy lane policy is configured for this network.
 - Deployer keystore is available in signing context.
+- For Sepolia/Mainnet, never place raw private-key values in shell commands or runbook snippets.
 - Working tree is committed (no tracked diffs), and `HEAD` will not change between `bundle` and `apply`.
 
 Steps:

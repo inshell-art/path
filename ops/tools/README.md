@@ -14,6 +14,7 @@ Expected behavior by script:
 - `audit_verify.sh` runs control checks and writes `audit_verification.json`.
 - `audit_report.sh` generates `audit_report.json` and `findings.json`.
 - `audit_signoff.sh` writes `signoff.json` linked to the report hash.
+- `lint_secret_snippets.sh` enforces no raw private-key snippets in docs/runbooks for `sepolia`/`mainnet` (devnet skipped).
 
 All write operations must use keystore mode only. Do not use accounts-file signing.
 
