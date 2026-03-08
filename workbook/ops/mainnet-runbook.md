@@ -24,7 +24,12 @@ INPUTS_TEMPLATE=artifacts/mainnet/current/inputs/inputs.$RUN_ID.json NETWORK=mai
 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:verify
 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 REHEARSAL_PROOF_RUN_ID=<proof_run_id> NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:apply
-NETWORK=mainnet RUN_ID=$RUN_ID POSTCONDITIONS_STATUS=pass npm run ops:postconditions
+NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
+```
+
+Manual override (optional):
+```bash
+POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
 ## C) Failure handling

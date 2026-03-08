@@ -22,7 +22,12 @@ INPUTS_TEMPLATE=artifacts/sepolia/current/inputs/inputs.$RUN_ID.json NETWORK=sep
 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:verify
 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:apply
-NETWORK=sepolia RUN_ID=$RUN_ID POSTCONDITIONS_STATUS=pass npm run ops:postconditions
+NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
+```
+
+Manual override (optional):
+```bash
+POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
 ## C) Capture deployment outputs
