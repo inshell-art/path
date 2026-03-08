@@ -343,10 +343,16 @@ async function resolveAuctionOpenTime({ provider, cfg }) {
     );
   }
 
+  const startDelaySec = openTime - latestBlockTimestamp;
+  if (startDelaySec > U64_MAX) {
+    throw new Error(`startDelaySec exceeds uint64 max: ${startDelaySec.toString()}`);
+  }
+
   return {
     openTime,
     openTimeIso: unixSecondsToIso(openTime),
-    latestBlockTimestamp
+    latestBlockTimestamp,
+    startDelaySec
   };
 }
 
@@ -410,7 +416,7 @@ async function main() {
 
   const PulseAuction = await ethers.getContractFactory("PulseAuction", deployer);
   const auction = await PulseAuction.deploy(
-    resolvedLaunch.openTime,
+    resolvedLaunch.startDelaySec,
     cfg.k,
     cfg.genesisPrice,
     cfg.genesisFloor,
@@ -462,7 +468,8 @@ async function main() {
       openTime: resolvedLaunch.openTime.toString(),
       openTimeIso: resolvedLaunch.openTimeIso,
       openTimeSource: cfg.openTimeSource,
-      startDelaySec: cfg.startDelaySec == null ? null : cfg.startDelaySec.toString(),
+      startDelaySec: resolvedLaunch.startDelaySec.toString(),
+      requestedStartDelaySec: cfg.startDelaySec == null ? null : cfg.startDelaySec.toString(),
       k: cfg.k.toString(),
       genesisPrice: cfg.genesisPrice.toString(),
       genesisFloor: cfg.genesisFloor.toString(),

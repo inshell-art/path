@@ -25,32 +25,40 @@ export function priceAt(now, k, anchor, floorPrice) {
   return floorPrice + k / (now - anchor);
 }
 
-export function deriveGenesisState({ t, genesisPrice, genesisFloor, k }) {
+export function deriveInitialState({ openTime, genesisPrice, genesisFloor, k }) {
   return {
-    curveActive: true,
-    epochIndex: 1n,
-    curveStartTime: t,
-    anchorTime: calculateAnchorTime(genesisPrice, genesisFloor, k, t),
+    epochIndex: 0n,
+    curveStartTime: openTime,
+    anchorTime: calculateAnchorTime(genesisPrice, genesisFloor, k, openTime),
     floorPrice: genesisFloor
   };
 }
 
-export function deriveNextState({ now, lastPrice, previousStartTime, k, pts, currentEpochIndex }) {
-  const premium = (now - previousStartTime) * pts;
+export function deriveNextState({
+  now,
+  lastPrice,
+  previousStartTime,
+  k,
+  pts,
+  currentEpochIndex
+}) {
+  const deltaT = now - previousStartTime;
+  const effectiveDeltaT = deltaT === 0n ? 1n : deltaT;
+  const premium = effectiveDeltaT * pts;
   const initialAsk = lastPrice + premium;
+  const nextFloor = lastPrice;
 
   return {
-    curveActive: true,
     epochIndex: currentEpochIndex + 1n,
     curveStartTime: now,
-    anchorTime: calculateAnchorTime(initialAsk, lastPrice, k, now),
-    floorPrice: lastPrice,
+    anchorTime: calculateAnchorTime(initialAsk, nextFloor, k, now),
+    floorPrice: nextFloor,
     premium,
     initialAsk
   };
 }
 
-export function expectedAsk({ now, curveActive, genesisPrice, k, anchorTime, floorPrice }) {
-  if (!curveActive) return genesisPrice;
-  return priceAt(now, k, anchorTime, floorPrice);
+export function expectedAsk({ now, openTime, k, anchorTime, floorPrice }) {
+  const t = now < openTime ? openTime : now;
+  return priceAt(t, k, anchorTime, floorPrice);
 }
