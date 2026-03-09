@@ -64,7 +64,12 @@ if [[ -z "$POLICY_FILE" ]]; then
 fi
 
 if [[ -n "$LOCKED_INPUTS_FILE" ]]; then
-  LOCKED_INPUTS_FILE_ABS=$(cd "$(dirname "$LOCKED_INPUTS_FILE")" && pwd)/$(basename "$LOCKED_INPUTS_FILE")
+  if [[ "$LOCKED_INPUTS_FILE" = /* ]]; then
+    LOCKED_INPUTS_FILE_SRC="$LOCKED_INPUTS_FILE"
+  else
+    LOCKED_INPUTS_FILE_SRC="$ROOT/$LOCKED_INPUTS_FILE"
+  fi
+  LOCKED_INPUTS_FILE_ABS=$(cd "$(dirname "$LOCKED_INPUTS_FILE_SRC")" && pwd)/$(basename "$LOCKED_INPUTS_FILE_SRC")
   if [[ ! -f "$LOCKED_INPUTS_FILE_ABS" ]]; then
     echo "LOCKED_INPUTS_FILE not found: $LOCKED_INPUTS_FILE_ABS" >&2
     exit 2
