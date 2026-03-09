@@ -7,11 +7,33 @@
   - `SEPOLIA_DEPLOY_KEYSTORE_JSON` (path or inline JSON)
   - and one of `SEPOLIA_DEPLOY_KEYSTORE_PASSWORD` or `SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE`
 - `SEPOLIA_PRIVATE_KEY` is not pre-set in shell
+- constructor params file exists at `~/.opsec/path/params.sepolia.deploy.json`
 - `ops/policy/lane.sepolia.json` placeholders resolved (RPC allowlist, signer map, fee policy)
 - tracked git tree clean before bundle/apply
 
 ## B) Execute deploy lane
 ```bash
+mkdir -p ~/.opsec/path
+$EDITOR ~/.opsec/path/params.sepolia.deploy.json
+
+# Example params file:
+# {
+#   "name": "PATH NFT",
+#   "symbol": "PATH",
+#   "baseUri": "",
+#   "startDelaySec": "600",
+#   "k": "600",
+#   "genesisPrice": "1000",
+#   "genesisFloor": "900",
+#   "pts": "1",
+#   "firstPublicId": "1",
+#   "epochBase": "1",
+#   "reservedCap": "3",
+#   "paymentToken": "0x0000000000000000000000000000000000000000",
+#   "treasury": "0xYourTreasuryAddress"
+# }
+chmod 600 ~/.opsec/path/params.sepolia.deploy.json
+
 npm run evm:compile
 npm run evm:test
 
