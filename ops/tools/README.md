@@ -25,3 +25,8 @@ Optional audit tooling (reference implementations):
 - `audit_plan.sh`, `audit_collect.sh`, `audit_verify.sh`, `audit_report.sh`, `audit_signoff.sh`
 
 Review and adapt these scripts before use.
+
+Locked inputs flow:
+- run `lock_inputs.sh` to create the run-scoped locked inputs wrapper
+- pass that file to `bundle.sh` via `LOCKED_INPUTS_FILE`
+- deprecated alias: `INPUTS_TEMPLATE`

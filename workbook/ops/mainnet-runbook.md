@@ -20,7 +20,7 @@ npm run evm:test
 RUN_ID=mainnet-deploy-$(date -u +%Y%m%dT%H%M%SZ)
 PARAMS_FILE=~/.opsec/path/params.mainnet.deploy.json
 NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
-INPUTS_TEMPLATE=artifacts/mainnet/current/inputs/inputs.$RUN_ID.json NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID npm run ops:bundle
+LOCKED_INPUTS_FILE=artifacts/mainnet/current/inputs/inputs.$RUN_ID.json NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID npm run ops:bundle
 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:verify
 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 REHEARSAL_PROOF_RUN_ID=<proof_run_id> NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:apply

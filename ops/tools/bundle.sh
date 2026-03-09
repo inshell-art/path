@@ -5,10 +5,18 @@ NETWORK=${NETWORK:-}
 LANE=${LANE:-}
 RUN_ID=${RUN_ID:-}
 FORCE=${FORCE:-0}
+LOCKED_INPUTS_FILE=${LOCKED_INPUTS_FILE:-}
 INPUTS_TEMPLATE=${INPUTS_TEMPLATE:-}
 
+if [[ -n "$LOCKED_INPUTS_FILE" && -n "$INPUTS_TEMPLATE" && "$LOCKED_INPUTS_FILE" != "$INPUTS_TEMPLATE" ]]; then
+  echo "LOCKED_INPUTS_FILE and deprecated INPUTS_TEMPLATE both set but differ" >&2
+  exit 2
+fi
+
+LOCKED_INPUTS_FILE=${LOCKED_INPUTS_FILE:-$INPUTS_TEMPLATE}
+
 if [[ -z "$NETWORK" || -z "$LANE" || -z "$RUN_ID" ]]; then
-  echo "Usage: NETWORK=<devnet|sepolia|mainnet> LANE=<observe|plan|deploy|handoff|govern|treasury|operate|emergency> RUN_ID=<id> [INPUTS_TEMPLATE=<path>] $0" >&2
+  echo "Usage: NETWORK=<devnet|sepolia|mainnet> LANE=<observe|plan|deploy|handoff|govern|treasury|operate|emergency> RUN_ID=<id> [LOCKED_INPUTS_FILE=<path>] $0" >&2
   exit 2
 fi
 
@@ -55,14 +63,14 @@ if [[ -z "$POLICY_FILE" ]]; then
   exit 2
 fi
 
-if [[ -n "$INPUTS_TEMPLATE" ]]; then
-  INPUTS_TEMPLATE_ABS=$(cd "$(dirname "$INPUTS_TEMPLATE")" && pwd)/$(basename "$INPUTS_TEMPLATE")
-  if [[ ! -f "$INPUTS_TEMPLATE_ABS" ]]; then
-    echo "INPUTS_TEMPLATE not found: $INPUTS_TEMPLATE_ABS" >&2
+if [[ -n "$LOCKED_INPUTS_FILE" ]]; then
+  LOCKED_INPUTS_FILE_ABS=$(cd "$(dirname "$LOCKED_INPUTS_FILE")" && pwd)/$(basename "$LOCKED_INPUTS_FILE")
+  if [[ ! -f "$LOCKED_INPUTS_FILE_ABS" ]]; then
+    echo "LOCKED_INPUTS_FILE not found: $LOCKED_INPUTS_FILE_ABS" >&2
     exit 2
   fi
 else
-  INPUTS_TEMPLATE_ABS=""
+  LOCKED_INPUTS_FILE_ABS=""
 fi
 
 mkdir -p "$BUNDLE_DIR"
@@ -85,7 +93,7 @@ fi
 GIT_COMMIT=$(git rev-parse HEAD)
 CREATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-export ROOT BUNDLE_DIR NETWORK LANE RUN_ID GIT_COMMIT CREATED_AT POLICY_FILE INPUTS_TEMPLATE_ABS
+export ROOT BUNDLE_DIR NETWORK LANE RUN_ID GIT_COMMIT CREATED_AT POLICY_FILE LOCKED_INPUTS_FILE_ABS
 
 python3 - <<'PY'
 import hashlib
@@ -165,7 +173,7 @@ run_id = os.environ["RUN_ID"]
 git_commit = os.environ["GIT_COMMIT"]
 created_at = os.environ["CREATED_AT"]
 policy_file = Path(os.environ["POLICY_FILE"])
-inputs_template = os.environ.get("INPUTS_TEMPLATE_ABS", "")
+locked_inputs_file = os.environ.get("LOCKED_INPUTS_FILE_ABS", "")
 
 policy = json.loads(policy_file.read_text())
 lane_cfg = ((policy.get("lanes") or {}).get(lane) or {})
@@ -182,14 +190,14 @@ for item in required_inputs:
 
 inputs_payload = None
 inputs_sha256 = ""
-if inputs_template:
-    src = Path(inputs_template)
+if locked_inputs_file:
+    src = Path(locked_inputs_file)
     if not src.exists():
-        raise SystemExit(f"INPUTS_TEMPLATE not found: {src}")
+        raise SystemExit(f"LOCKED_INPUTS_FILE not found: {src}")
     try:
         inputs_payload = json.loads(src.read_text())
     except Exception as exc:
-        raise SystemExit(f"Invalid JSON in INPUTS_TEMPLATE: {exc}")
+        raise SystemExit(f"Invalid JSON in LOCKED_INPUTS_FILE: {exc}")
 
     schema_path = root / "schemas/inputs.schema.json"
     if not schema_path.exists():
@@ -217,7 +225,7 @@ if inputs_template:
     inputs_sha256 = hashlib.sha256(canonical_inputs.encode()).hexdigest()
 else:
     if required_kinds:
-        raise SystemExit(f"Missing INPUTS_TEMPLATE for lane requiring inputs kinds: {required_kinds}")
+        raise SystemExit(f"Missing LOCKED_INPUTS_FILE for lane requiring inputs kinds: {required_kinds}")
 
 run = {
     "run_id": run_id,
