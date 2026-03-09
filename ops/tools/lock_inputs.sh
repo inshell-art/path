@@ -99,16 +99,51 @@ def type_ok(value, expected):
     return isinstance(value, py_type) if py_type else True
 
 
-def validate_schema(schema, value, path="$"):
+def resolve_ref(root_schema, ref):
+    if not isinstance(ref, str) or not ref.startswith("#/"):
+        raise ValueError(f"unsupported $ref: {ref}")
+
+    node = root_schema
+    for raw_part in ref[2:].split("/"):
+        part = raw_part.replace("~1", "/").replace("~0", "~")
+        if not isinstance(node, dict) or part not in node:
+            raise ValueError(f"unresolved $ref: {ref}")
+        node = node[part]
+    return node
+
+
+def validate_schema(schema, value, path="$", root_schema=None):
+    if root_schema is None:
+        root_schema = schema
+
+    if "$ref" in schema:
+        target = resolve_ref(root_schema, schema["$ref"])
+        validate_schema(target, value, path, root_schema)
+        return
+
+    if "allOf" in schema:
+        for branch in schema["allOf"]:
+            validate_schema(branch, value, path, root_schema)
+
     if "oneOf" in schema:
+        matches = 0
         errs = []
         for branch in schema["oneOf"]:
             try:
-                validate_schema(branch, value, path)
-                return
+                validate_schema(branch, value, path, root_schema)
+                matches += 1
             except ValueError as exc:
                 errs.append(str(exc))
-        raise ValueError(f"{path}: oneOf validation failed ({'; '.join(errs)})")
+        if matches != 1:
+            raise ValueError(f"{path}: oneOf validation failed ({'; '.join(errs)})")
+
+    if "not" in schema:
+        try:
+            validate_schema(schema["not"], value, path, root_schema)
+        except ValueError:
+            pass
+        else:
+            raise ValueError(f"{path}: not validation failed")
 
     expected_type = schema.get("type")
     if isinstance(expected_type, list):
@@ -125,6 +160,25 @@ def validate_schema(schema, value, path="$"):
     if enum is not None and value not in enum:
         raise ValueError(f"{path}: value not in enum")
 
+    if isinstance(value, str):
+        min_length = schema.get("minLength")
+        if isinstance(min_length, int) and len(value) < min_length:
+            raise ValueError(f"{path}: string shorter than minLength={min_length}")
+
+        pattern = schema.get("pattern")
+        if isinstance(pattern, str):
+            if re.search(pattern, value) is None:
+                raise ValueError(f"{path}: string does not match pattern")
+
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        minimum = schema.get("minimum")
+        if minimum is not None and value < minimum:
+            raise ValueError(f"{path}: number below minimum={minimum}")
+
+        maximum = schema.get("maximum")
+        if maximum is not None and value > maximum:
+            raise ValueError(f"{path}: number above maximum={maximum}")
+
     if isinstance(value, dict):
         for key in schema.get("required", []):
             if key not in value:
@@ -132,7 +186,7 @@ def validate_schema(schema, value, path="$"):
         props = schema.get("properties", {})
         for key, child in props.items():
             if key in value:
-                validate_schema(child, value[key], f"{path}.{key}")
+                validate_schema(child, value[key], f"{path}.{key}", root_schema)
         if schema.get("additionalProperties") is False:
             unknown = set(value.keys()) - set(props.keys())
             if unknown:
@@ -142,7 +196,7 @@ def validate_schema(schema, value, path="$"):
         item_schema = schema.get("items")
         if item_schema:
             for idx, item in enumerate(value):
-                validate_schema(item_schema, item, f"{path}[{idx}]")
+                validate_schema(item_schema, item, f"{path}[{idx}]", root_schema)
 
 
 def normalize(value):
