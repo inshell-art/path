@@ -35,6 +35,26 @@ function normalizeUrl(value) {
   return String(value ?? "").trim().replace(/\/+$/, "").toLowerCase();
 }
 
+function normalizeHost(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "") return "";
+  try {
+    return new URL(raw.includes("://") ? raw : `https://${raw}`).host.toLowerCase();
+  } catch {
+    return raw.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  }
+}
+
+function hostFromUrl(value) {
+  const normalized = normalizeUrl(value);
+  if (normalized === "") return "";
+  try {
+    return new URL(normalized).host.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
 function pickUrl(value) {
   if (!value) return "";
   if (typeof value === "string") return value;
@@ -165,6 +185,7 @@ async function main() {
 
   // Policy-required checks that do not depend on deployed contracts.
   const rpcAllowlist = Array.isArray(policy?.rpc_allowlist) ? policy.rpc_allowlist.map(normalizeUrl) : [];
+  const rpcHostAllowlist = Array.isArray(policy?.rpc_host_allowlist) ? policy.rpc_host_allowlist.map(normalizeHost) : [];
   const defaultRpcFallback = conn.networkName === "localhost" ? "http://127.0.0.1:8545" : "";
   const configuredRpc = normalizeUrl(
     pickUrl(conn.networkConfig)
@@ -172,6 +193,10 @@ async function main() {
       || process.env.RPC_URL
       || defaultRpcFallback
   );
+  const configuredRpcHost = hostFromUrl(configuredRpc);
+  const rpcAllowlistMatches =
+    (configuredRpc !== "" && rpcAllowlist.includes(configuredRpc))
+    || (configuredRpcHost !== "" && rpcHostAllowlist.includes(configuredRpcHost));
   const expectedChainId = deployment?.chainId ?? EXPECTED_CHAIN_IDS[conn.networkName] ?? null;
   const chainIdMatches = expectedChainId !== null && Number(networkInfo.chainId) === Number(expectedChainId);
 
@@ -186,7 +211,7 @@ async function main() {
     : lower(deployerSigner.address) === lower(deployerSigner.address);
   const requiredChecks = {
     chain_id: chainIdMatches,
-    rpc_allowlist: configuredRpc !== "" && rpcAllowlist.includes(configuredRpc),
+    rpc_allowlist: rpcAllowlistMatches,
     signer_allowlist: signerAllowlistMatches,
     bytecode_hash: false,
     proxy_implementation: false
@@ -215,7 +240,9 @@ async function main() {
       observations: {
         requiredChecks: {
           configuredRpc,
+          configuredRpcHost,
           rpcAllowlist,
+          rpcHostAllowlist,
           expectedChainId,
           allowedSignerAliases,
           signerAliasMap,
@@ -503,7 +530,9 @@ async function main() {
     observations: {
       requiredChecks: {
         configuredRpc,
+        configuredRpcHost,
         rpcAllowlist,
+        rpcHostAllowlist,
         allowedSignerAliases,
         signerAliasMap,
         deploymentDeployer: deployment.deployer,
