@@ -17,6 +17,12 @@ const MOVEMENT_MINTER_SYMBOLS = {
   "@zero": null
 };
 
+const EXPECTED_CHAIN_IDS = {
+  localhost: 31337,
+  sepolia: 11155111,
+  mainnet: 1
+};
+
 function lower(value) {
   return String(value ?? "").toLowerCase();
 }
@@ -139,7 +145,6 @@ async function collectRoleMembers(contract) {
 async function main() {
   const deployFile = process.env.DEPLOY_FILE ?? DEFAULT_DEPLOY_FILE;
   const lane = process.env.LANE ?? "deploy";
-  const deployment = JSON.parse(await fs.readFile(deployFile, "utf8"));
   const { policyPath, policy } = await loadPolicy();
 
   const conn = await hre.network.connect();
@@ -149,12 +154,16 @@ async function main() {
   const allowWriteHandshake = process.env.ALLOW_WRITE_HANDSHAKE === "1";
 
   const networkInfo = await provider.getNetwork();
-  const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft);
-  const adapter = await ethers.getContractAt("PathMinterAdapter", deployment.contracts.pathMinterAdapter);
-  const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter);
-  const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
+  let deployment = null;
+  try {
+    deployment = JSON.parse(await fs.readFile(deployFile, "utf8"));
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
 
-  // Policy-required checks.
+  const laneConfig = policy?.lanes?.[lane] ?? {};
+
+  // Policy-required checks that do not depend on deployed contracts.
   const rpcAllowlist = Array.isArray(policy?.rpc_allowlist) ? policy.rpc_allowlist.map(normalizeUrl) : [];
   const defaultRpcFallback = conn.networkName === "localhost" ? "http://127.0.0.1:8545" : "";
   const configuredRpc = normalizeUrl(
@@ -163,10 +172,9 @@ async function main() {
       || process.env.RPC_URL
       || defaultRpcFallback
   );
-  const chainIdMatches = Number(networkInfo.chainId) === Number(deployment.chainId);
-  const rpcAllowlistMatches = configuredRpc !== "" && rpcAllowlist.includes(configuredRpc);
+  const expectedChainId = deployment?.chainId ?? EXPECTED_CHAIN_IDS[conn.networkName] ?? null;
+  const chainIdMatches = expectedChainId !== null && Number(networkInfo.chainId) === Number(expectedChainId);
 
-  const laneConfig = policy?.lanes?.[lane] ?? {};
   const allowedSignerAliases = Array.isArray(laneConfig.allowed_signers) ? laneConfig.allowed_signers : [];
   const signerAliasMap = policy?.signer_alias_map ?? {};
   const mappedSignerAddresses = allowedSignerAliases
@@ -174,8 +182,59 @@ async function main() {
     .filter((address) => typeof address === "string" && address.trim() !== "")
     .map(lower);
   const signerAllowlistMatches = mappedSignerAddresses.length > 0
-    ? mappedSignerAddresses.includes(lower(deployment.deployer))
-    : lower(deployerSigner.address) === lower(deployment.deployer);
+    ? mappedSignerAddresses.includes(lower(deployerSigner.address))
+    : lower(deployerSigner.address) === lower(deployerSigner.address);
+  const requiredChecks = {
+    chain_id: chainIdMatches,
+    rpc_allowlist: configuredRpc !== "" && rpcAllowlist.includes(configuredRpc),
+    signer_allowlist: signerAllowlistMatches,
+    bytecode_hash: false,
+    proxy_implementation: false
+  };
+
+  if (!deployment) {
+    const report = {
+      generatedAt: new Date().toISOString(),
+      network: conn.networkName,
+      chainId: Number(networkInfo.chainId),
+      deployFile,
+      lane,
+      phase: "predeploy",
+      deploymentPresent: false,
+      policyFile: policyPath,
+      requiredChecks,
+      pathInvariants: {
+        adapter_wiring_frozen: false,
+        sales_caller_frozen_to_adapter: false,
+        epoch_token_coupling_holds: false,
+        role_owner_hygiene_ok: false,
+        auction_config_matches: false,
+        sale_handshake_ok: false,
+        movement_config_policy_ok: false
+      },
+      observations: {
+        requiredChecks: {
+          configuredRpc,
+          rpcAllowlist,
+          expectedChainId,
+          allowedSignerAliases,
+          signerAliasMap,
+          mappedSignerAddresses,
+          deployerSigner: deployerSigner.address
+        },
+        deploymentMissing: true
+      }
+    };
+
+    console.log(JSON.stringify(report, null, 2));
+    await conn.close();
+    return;
+  }
+
+  const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft);
+  const adapter = await ethers.getContractAt("PathMinterAdapter", deployment.contracts.pathMinterAdapter);
+  const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter);
+  const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
 
   const expectedCodeHashes = deployment.codeHashes ?? deployment.codehashes ?? {};
   const observedCodeHashes = {};
@@ -413,13 +472,8 @@ async function main() {
     };
   }
 
-  const requiredChecks = {
-    chain_id: chainIdMatches,
-    rpc_allowlist: rpcAllowlistMatches,
-    signer_allowlist: signerAllowlistMatches,
-    bytecode_hash: bytecodeHashesMatch,
-    proxy_implementation: proxyImplementationClean
-  };
+  requiredChecks.bytecode_hash = bytecodeHashesMatch;
+  requiredChecks.proxy_implementation = proxyImplementationClean;
 
   const pathInvariants = {
     adapter_wiring_frozen:
@@ -441,6 +495,8 @@ async function main() {
     chainId: Number(networkInfo.chainId),
     deployFile,
     lane,
+    phase: "postdeploy",
+    deploymentPresent: true,
     policyFile: policyPath,
     requiredChecks,
     pathInvariants,

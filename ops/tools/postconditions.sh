@@ -45,6 +45,10 @@ fi
 VERIFY_OK="true"
 VERIFY_EXIT="0"
 VERIFY_LOG=""
+PATH_POSTCHECK_OK="skip"
+PATH_POSTCHECK_EXIT="0"
+PATH_POSTCHECK_LOG=""
+PATH_POSTCHECK_FILE=""
 
 if [[ "$POSTCONDITIONS_MODE" == "manual" ]]; then
   if [[ "$POSTCONDITIONS_STATUS" != "pending" && "$POSTCONDITIONS_STATUS" != "pass" && "$POSTCONDITIONS_STATUS" != "fail" ]]; then
@@ -65,11 +69,37 @@ else
     VERIFY_OK="false"
     VERIFY_EXIT="$?"
   fi
+
+  RUN_JSON="$BUNDLE_DIR/run.json"
+  RUN_LANE=""
+  if [[ -f "$RUN_JSON" ]]; then
+    RUN_LANE=$(RUN_JSON="$RUN_JSON" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+run = json.loads(Path(os.environ["RUN_JSON"]).read_text())
+print(run.get("lane", ""))
+PY
+)
+  fi
+
+  if [[ "$RUN_LANE" == "deploy" ]]; then
+    PATH_POSTCHECK_FILE="$BUNDLE_DIR/checks.path.post.json"
+    PATH_POSTCHECK_LOG="$BUNDLE_DIR/postconditions.pathcheck.log"
+    if NETWORK="$NETWORK" LANE="$RUN_LANE" OUT_FILE="$PATH_POSTCHECK_FILE" "$ROOT/ops/tools/generate_path_checks.sh" >"$PATH_POSTCHECK_LOG" 2>&1; then
+      PATH_POSTCHECK_OK="true"
+      PATH_POSTCHECK_EXIT="0"
+    else
+      PATH_POSTCHECK_OK="false"
+      PATH_POSTCHECK_EXIT="$?"
+    fi
+  fi
 fi
 
 VERIFIED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-export BUNDLE_DIR NETWORK RUN_ID TXS_PRESENT POSTCONDITIONS_MODE POSTCONDITIONS_STATUS POSTCONDITIONS_NOTE VERIFIED_AT VERIFY_OK VERIFY_EXIT VERIFY_LOG ROOT
+export BUNDLE_DIR NETWORK RUN_ID TXS_PRESENT POSTCONDITIONS_MODE POSTCONDITIONS_STATUS POSTCONDITIONS_NOTE VERIFIED_AT VERIFY_OK VERIFY_EXIT VERIFY_LOG ROOT PATH_POSTCHECK_OK PATH_POSTCHECK_EXIT PATH_POSTCHECK_LOG PATH_POSTCHECK_FILE
 
 python3 - <<'PY'
 import json
@@ -86,6 +116,10 @@ txs_present = os.environ["TXS_PRESENT"] == "true"
 verify_ok = os.environ.get("VERIFY_OK", "true") == "true"
 verify_exit = int(os.environ.get("VERIFY_EXIT", "0"))
 verify_log = os.environ.get("VERIFY_LOG", "")
+path_postcheck_ok = os.environ.get("PATH_POSTCHECK_OK", "skip")
+path_postcheck_exit = int(os.environ.get("PATH_POSTCHECK_EXIT", "0"))
+path_postcheck_log = os.environ.get("PATH_POSTCHECK_LOG", "")
+path_postcheck_file = os.environ.get("PATH_POSTCHECK_FILE", "")
 root = Path(os.environ["ROOT"])
 
 run_payload = {}
@@ -201,16 +235,27 @@ else:
     else:
         push_check("post_state_snapshot", "skip", "lane writes=false", required=False)
 
-    checks_path = bundle_dir / "checks.path.json"
+    checks_path = Path(path_postcheck_file) if path_postcheck_file else (bundle_dir / "checks.path.json")
     if checks_path.exists():
         try:
             checks_path_payload = json.loads(checks_path.read_text())
             path_pass = checks_path_payload.get("pass") is True
+            phase = str(checks_path_payload.get("phase", ""))
+            deployment_present = checks_path_payload.get("deployment_present") is True
+            details = f"{checks_path.name} pass=true"
+            if phase:
+                details += f" ({phase})"
             push_check(
                 "checks_path_pass",
                 "pass" if path_pass else "fail",
-                "checks.path.json pass=true" if path_pass else "checks.path.json pass=false"
+                details if path_pass else f"{checks_path.name} pass=false"
             )
+            if path_postcheck_file:
+                push_check(
+                    "checks_path_postdeploy",
+                    "pass" if (phase == "postdeploy" and deployment_present and path_postcheck_ok == "true") else "fail",
+                    "postdeploy path checks generated" if (phase == "postdeploy" and deployment_present and path_postcheck_ok == "true") else f"postdeploy path checks failed (exit={path_postcheck_exit})"
+                )
         except Exception as exc:
             push_check("checks_path_pass", "fail", f"invalid checks.path.json: {exc}")
     else:

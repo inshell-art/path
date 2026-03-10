@@ -252,6 +252,8 @@ if path_invariants_required:
     path_checks = json.loads(checks_path.read_text())
     required_checks_map = path_checks.get("required_checks", {})
     path_invariants = path_checks.get("path_invariants", {})
+    checks_phase = str(path_checks.get("phase", ""))
+    deployment_present = path_checks.get("deployment_present") is True
 
     required_path_invariants = [
         "adapter_wiring_frozen",
@@ -263,6 +265,22 @@ if path_invariants_required:
         "movement_config_policy_ok",
         "signed_consume_path_ok",
     ]
+
+    if run_lane == "deploy" and not deployment_present and checks_phase == "predeploy":
+        predeploy_required_checks = ["chain_id", "rpc_allowlist", "signer_allowlist"]
+        failed_predeploy_checks = [
+            name for name in predeploy_required_checks if required_checks_map.get(name) is not True
+        ]
+        if failed_predeploy_checks:
+            raise SystemExit(f"required checks failed: {', '.join(sorted(set(failed_predeploy_checks)))}")
+        if path_checks.get("pass") is not True:
+            raise SystemExit("checks.path.json has pass=false")
+        print("Manifest hashes verified")
+        if has_inputs:
+            print("Inputs wrapper verified")
+        print("Required checks verified (predeploy)")
+        print(f"Bundle verified: {bundle_dir}")
+        raise SystemExit(0)
 
     failed_required_checks = []
     for check_name in required_checks:

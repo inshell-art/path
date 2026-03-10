@@ -125,6 +125,8 @@ else:
 
 onchain_required_checks = onchain_report.get("requiredChecks", {})
 onchain_path_invariants = onchain_report.get("pathInvariants", {})
+phase = onchain_report.get("phase", "unknown")
+deployment_present = onchain_report.get("deploymentPresent") is True
 
 invariants = {
     "adapter_wiring_frozen": bool(onchain_ok and onchain_path_invariants.get("adapter_wiring_frozen") is True),
@@ -146,14 +148,25 @@ required_checks = {
 }
 required_checks["path_invariants"] = all(invariants.values())
 
+if phase == "predeploy" and os.environ["LANE"] == "deploy":
+    predeploy_gate = all([
+        required_checks.get("chain_id") is True,
+        required_checks.get("rpc_allowlist") is True,
+        required_checks.get("signer_allowlist") is True,
+    ])
+else:
+    predeploy_gate = all(required_checks.values())
+
 from datetime import datetime, timezone
 
 payload = {
     "checks_version": 2,
     "network": os.environ["NETWORK"],
     "lane": os.environ["LANE"],
+    "phase": phase,
+    "deployment_present": deployment_present,
     "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-    "pass": all(required_checks.values()),
+    "pass": predeploy_gate,
     "required_checks": required_checks,
     "path_invariants": invariants,
     "sources": {
