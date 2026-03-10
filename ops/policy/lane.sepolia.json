@@ -9,7 +9,7 @@
     "ethereum-sepolia-rpc.publicnode.com"
   ],
   "signer_alias_map": {
-    "SEPOLIA_DEPLOY_SW_A": "<SET_SEPOLIA_DEPLOYER_ADDRESS>"
+    "SEPOLIA_DEPLOY_SW_A": "0x95ce72BE4DC51e1f5aA61b59c036BE1BfEB242Ad"
   },
   "path": {
     "movement_config": {
@@ -57,8 +57,8 @@
         "path_invariants"
       ],
       "fee_policy": {
-        "max_fee_per_gas_gwei": "<SET_ME>",
-        "max_priority_fee_per_gas_gwei": "<SET_ME>",
+        "max_fee_per_gas_gwei": "20",
+        "max_priority_fee_per_gas_gwei": "1",
         "enforce_eip1559": true
       },
       "gates": {
