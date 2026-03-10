@@ -1,7 +1,9 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import hre from "hardhat";
+import { Wallet } from "ethers";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DEPLOY_FILE = path.resolve(here, "../deployments/localhost-eth.json");
@@ -77,6 +79,116 @@ function sameAddressSet(actualList, expectedList) {
 
 function roleMembers(roleMap, role) {
   return [...(roleMap.get(lower(role)) ?? new Set())].sort();
+}
+
+function expandUserPath(value) {
+  const raw = String(value ?? "").trim();
+  if (raw === "~") return os.homedir();
+  if (raw.startsWith("~/")) return path.join(os.homedir(), raw.slice(2));
+  return raw;
+}
+
+function trimTrailingNewline(value) {
+  return String(value ?? "").replace(/\r?\n$/, "");
+}
+
+async function resolveConfiguredSigner(networkName) {
+  const upper = String(networkName ?? "").toUpperCase();
+  const privateKeyVar = `${upper}_PRIVATE_KEY`;
+  const keystoreVar = `${upper}_DEPLOY_KEYSTORE_JSON`;
+  const passwordVar = `${upper}_DEPLOY_KEYSTORE_PASSWORD`;
+  const passwordFileVar = `${upper}_DEPLOY_KEYSTORE_PASSWORD_FILE`;
+
+  const rawPrivateKey = String(process.env[privateKeyVar] ?? "").trim();
+  if (rawPrivateKey) {
+    try {
+      const wallet = new Wallet(rawPrivateKey);
+      return {
+        address: wallet.address,
+        source: `env:${privateKeyVar}`
+      };
+    } catch (error) {
+      return {
+        address: null,
+        source: `env:${privateKeyVar}`,
+        error: error?.message ?? String(error)
+      };
+    }
+  }
+
+  const keystoreRef = expandUserPath(process.env[keystoreVar] ?? "");
+  if (!keystoreRef) {
+    return {
+      address: null,
+      source: "none",
+      error: "no signer env configured"
+    };
+  }
+
+  const keystoreCandidates = [keystoreRef];
+  if (keystoreRef.endsWith("/keystore.json")) {
+    keystoreCandidates.push(keystoreRef.replace(/\/keystore\.json$/i, "/keystore"));
+  }
+  let keystorePath = "";
+  for (const candidate of keystoreCandidates) {
+    try {
+      const stat = await fs.stat(candidate);
+      if (stat.isFile()) {
+        keystorePath = candidate;
+        break;
+      }
+    } catch {
+      // Keep scanning.
+    }
+  }
+  if (!keystorePath) {
+    return {
+      address: null,
+      source: `env:${keystoreVar}`,
+      error: `keystore file not found: ${keystoreRef}`
+    };
+  }
+
+  let password = String(process.env[passwordVar] ?? "");
+  if (!password) {
+    const passwordFile = expandUserPath(process.env[passwordFileVar] ?? "");
+    if (passwordFile) {
+      try {
+        password = trimTrailingNewline(await fs.readFile(passwordFile, "utf8"));
+      } catch (error) {
+        return {
+          address: null,
+          source: `env:${keystoreVar}`,
+          path: keystorePath,
+          error: `failed to read password file: ${error?.message ?? String(error)}`
+        };
+      }
+    }
+  }
+  if (!password) {
+    return {
+      address: null,
+      source: `env:${keystoreVar}`,
+      path: keystorePath,
+      error: `missing ${passwordVar} or ${passwordFileVar}`
+    };
+  }
+
+  try {
+    const wallet = await Wallet.fromEncryptedJson(await fs.readFile(keystorePath, "utf8"), password);
+    return {
+      address: wallet.address,
+      source: `keystore:${keystoreVar}`,
+      path: keystorePath
+    };
+  } catch (error) {
+    return {
+      address: null,
+      source: `keystore:${keystoreVar}`,
+      path: keystorePath,
+      error: `failed to decrypt keystore: ${error?.message ?? String(error)}`
+    };
+  }
 }
 
 function contractAddressBySymbol(symbol, deployment, ethers) {
@@ -170,8 +282,11 @@ async function main() {
   const conn = await hre.network.connect();
   const { ethers } = conn;
   const provider = ethers.provider;
-  const [deployerSigner, buyer] = await ethers.getSigners();
+  const signers = await ethers.getSigners();
+  const deployerSigner = signers[0] ?? null;
+  const buyer = signers[1] ?? null;
   const allowWriteHandshake = process.env.ALLOW_WRITE_HANDSHAKE === "1";
+  const configuredSigner = await resolveConfiguredSigner(conn.networkName);
 
   const networkInfo = await provider.getNetwork();
   let deployment = null;
@@ -187,9 +302,12 @@ async function main() {
   const rpcAllowlist = Array.isArray(policy?.rpc_allowlist) ? policy.rpc_allowlist.map(normalizeUrl) : [];
   const rpcHostAllowlist = Array.isArray(policy?.rpc_host_allowlist) ? policy.rpc_host_allowlist.map(normalizeHost) : [];
   const defaultRpcFallback = conn.networkName === "localhost" ? "http://127.0.0.1:8545" : "";
+  const networkRpcEnv = process.env[`${String(conn.networkName ?? "").toUpperCase()}_RPC_URL`] ?? "";
   const configuredRpc = normalizeUrl(
     pickUrl(conn.networkConfig)
+      || pickUrl(hre.config?.networks?.[conn.networkName])
       || pickUrl(hre.config?.networks?.localhost)
+      || pickUrl(networkRpcEnv)
       || process.env.RPC_URL
       || defaultRpcFallback
   );
@@ -206,9 +324,10 @@ async function main() {
     .map((alias) => signerAliasMap[alias])
     .filter((address) => typeof address === "string" && address.trim() !== "")
     .map(lower);
+  const signerAddressForChecks = lower(configuredSigner.address ?? deployerSigner?.address ?? "");
   const signerAllowlistMatches = mappedSignerAddresses.length > 0
-    ? mappedSignerAddresses.includes(lower(deployerSigner.address))
-    : lower(deployerSigner.address) === lower(deployerSigner.address);
+    ? signerAddressForChecks !== "" && mappedSignerAddresses.includes(signerAddressForChecks)
+    : signerAddressForChecks !== "";
   const requiredChecks = {
     chain_id: chainIdMatches,
     rpc_allowlist: rpcAllowlistMatches,
@@ -247,7 +366,8 @@ async function main() {
           allowedSignerAliases,
           signerAliasMap,
           mappedSignerAddresses,
-          deployerSigner: deployerSigner.address
+          deployerSigner: deployerSigner?.address ?? null,
+          configuredSigner
         },
         deploymentMissing: true
       }
@@ -537,6 +657,8 @@ async function main() {
         signerAliasMap,
         deploymentDeployer: deployment.deployer,
         mappedSignerAddresses,
+        signerAddressForChecks,
+        configuredSigner,
         bytecodeChecks,
         proxySlots
       },

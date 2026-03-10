@@ -35,6 +35,20 @@ case "$NETWORK" in
     ;;
 esac
 
+case "$OUT_FILE" in
+  "$ROOT"/bundles/"$NETWORK"/*)
+    BUNDLE_DIR="$(dirname "$OUT_FILE")"
+    case "$NETWORK" in
+      sepolia)
+        DEFAULT_DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
+        ;;
+      mainnet)
+        DEFAULT_DEPLOY_FILE="$BUNDLE_DIR/deployments/mainnet-eth.json"
+        ;;
+    esac
+    ;;
+esac
+
 DEPLOY_FILE="${DEPLOY_FILE:-$DEFAULT_DEPLOY_FILE}"
 
 if [[ -z "${ALLOW_WRITE_HANDSHAKE:-}" ]]; then
