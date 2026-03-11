@@ -23,6 +23,15 @@ fi
 ROOT=$(git rev-parse --show-toplevel)
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+expand_user_path() {
+  local value="${1:-}"
+  if [[ "$value" == "~/"* ]]; then
+    printf '%s\n' "$HOME/${value#~/}"
+  else
+    printf '%s\n' "$value"
+  fi
+}
+
 if [[ -n "$BUNDLE_PATH" ]]; then
   BUNDLE_DIR="$BUNDLE_PATH"
 else
@@ -380,17 +389,24 @@ if [[ "$LANE_FROM_RUN" == "deploy" ]]; then
       exit 2
     fi
 
-    KEYSTORE_SOURCE="${!KEYSTORE_JSON_VAR:-}"
+    KEYSTORE_SOURCE_RAW="${!KEYSTORE_JSON_VAR:-}"
+    KEYSTORE_SOURCE="$(expand_user_path "$KEYSTORE_SOURCE_RAW")"
     if [[ -z "$KEYSTORE_SOURCE" ]]; then
       echo "Missing ${KEYSTORE_JSON_VAR} for ${NETWORK_FROM_RUN} deploy apply." >&2
       exit 2
     fi
 
     KEYSTORE_PASSWORD_VALUE="${!KEYSTORE_PASSWORD_VAR:-}"
-    KEYSTORE_PASSWORD_FILE="${!KEYSTORE_PASSWORD_FILE_VAR:-}"
+    KEYSTORE_PASSWORD_FILE="$(expand_user_path "${!KEYSTORE_PASSWORD_FILE_VAR:-}")"
     if [[ -n "$KEYSTORE_PASSWORD_VALUE" && -n "$KEYSTORE_PASSWORD_FILE" ]]; then
       echo "Set only one of ${KEYSTORE_PASSWORD_VAR} or ${KEYSTORE_PASSWORD_FILE_VAR}." >&2
       exit 2
+    fi
+    if [[ -z "$KEYSTORE_PASSWORD_VALUE" && -z "$KEYSTORE_PASSWORD_FILE" && -f "$KEYSTORE_SOURCE" ]]; then
+      INFERRED_PASSWORD_FILE="$(dirname "$KEYSTORE_SOURCE")/password.txt"
+      if [[ -f "$INFERRED_PASSWORD_FILE" ]]; then
+        KEYSTORE_PASSWORD_FILE="$INFERRED_PASSWORD_FILE"
+      fi
     fi
     if [[ -n "$KEYSTORE_PASSWORD_FILE" ]]; then
       if [[ ! -f "$KEYSTORE_PASSWORD_FILE" ]]; then
