@@ -107,17 +107,19 @@ rows = [
     ("kind", wrapper.get("kind", "<missing>")),
     ("name", pick("name")),
     ("symbol", pick("symbol")),
+    ("baseUri", pick("baseUri")),
     ("paymentToken", pick("paymentToken")),
     ("treasury", pick("treasury")),
     ("openTime", pick("openTime")),
-    ("startDelay", pick("startDelay")),
-    ("tokenPerEpoch", pick("tokenPerEpoch")),
-    ("epochSeconds", pick("epochSeconds")),
+    ("startDelaySec", pick("startDelaySec")),
+    ("k", pick("k")),
+    ("genesisPrice", pick("genesisPrice")),
+    ("genesisFloor", pick("genesisFloor")),
+    ("pts", pick("pts")),
+    ("firstPublicId", pick("firstPublicId")),
+    ("epochBase", pick("epochBase")),
+    ("reservedCap", pick("reservedCap")),
 ]
-pricing = pick("pricing")
-if isinstance(pricing, (dict, list)):
-    pricing = json.dumps(pricing, sort_keys=True)
-rows.append(("pricing", pricing))
 
 for key, value in rows:
     if isinstance(value, (dict, list)):
