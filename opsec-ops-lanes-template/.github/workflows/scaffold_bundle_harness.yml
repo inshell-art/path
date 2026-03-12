@@ -1,0 +1,21 @@
+name: Scaffold Bundle Harness (CI)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "examples/scaffold/**"
+      - "schemas/**"
+      - "policy/**"
+      - ".github/workflows/scaffold_bundle_harness.yml"
+
+jobs:
+  scaffold-bundle-workflow-inputs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Run scaffold locked-input bundle workflow harness
+        run: ./examples/scaffold/tests/bundle_workflow_inputs.sh

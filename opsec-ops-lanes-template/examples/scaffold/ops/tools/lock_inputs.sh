@@ -10,9 +10,11 @@ PARAMS_SCHEMA=${PARAMS_SCHEMA:-}
 ORIGIN=${ORIGIN:-}
 OUT_DIR=${OUT_DIR:-}
 FORCE=${FORCE:-0}
+STRICT_PARAMS_SCHEMA=${STRICT_PARAMS_SCHEMA:-0}
+ALLOW_EXAMPLE_PARAMS_SCHEMA=${ALLOW_EXAMPLE_PARAMS_SCHEMA:-0}
 
 if [[ -z "$NETWORK" || -z "$LANE" || -z "$RUN_ID" || -z "$INPUT_FILE" ]]; then
-  echo "Usage: NETWORK=<devnet|sepolia|mainnet> LANE=<lane> RUN_ID=<id> INPUT_FILE=<path> $0" >&2
+  echo "Usage: NETWORK=<devnet|sepolia|mainnet> LANE=<lane> RUN_ID=<id> INPUT_FILE=<path> [PARAMS_SCHEMA=<path>] [STRICT_PARAMS_SCHEMA=1] [ALLOW_EXAMPLE_PARAMS_SCHEMA=1] $0" >&2
   exit 2
 fi
 
@@ -31,6 +33,16 @@ if [[ ! "$RUN_ID" =~ ^[A-Za-z0-9._:-]+$ ]]; then
   exit 2
 fi
 
+if [[ "$STRICT_PARAMS_SCHEMA" != "0" && "$STRICT_PARAMS_SCHEMA" != "1" ]]; then
+  echo "STRICT_PARAMS_SCHEMA must be 0 or 1" >&2
+  exit 2
+fi
+
+if [[ "$ALLOW_EXAMPLE_PARAMS_SCHEMA" != "0" && "$ALLOW_EXAMPLE_PARAMS_SCHEMA" != "1" ]]; then
+  echo "ALLOW_EXAMPLE_PARAMS_SCHEMA must be 0 or 1" >&2
+  exit 2
+fi
+
 ROOT=$(git rev-parse --show-toplevel)
 if [[ -z "$OUT_DIR" ]]; then
   OUT_DIR="$ROOT/artifacts/$NETWORK/current/inputs"
@@ -39,6 +51,11 @@ fi
 INPUT_PATH=$(cd "$(dirname "$INPUT_FILE")" && pwd)/$(basename "$INPUT_FILE")
 if [[ ! -f "$INPUT_PATH" ]]; then
   echo "INPUT_FILE not found: $INPUT_PATH" >&2
+  exit 2
+fi
+
+if [[ "$STRICT_PARAMS_SCHEMA" == "1" && -z "$PARAMS_SCHEMA" ]]; then
+  echo "STRICT_PARAMS_SCHEMA=1 requires PARAMS_SCHEMA to be set" >&2
   exit 2
 fi
 
@@ -54,6 +71,17 @@ if [[ -n "$PARAMS_SCHEMA" ]]; then
   fi
 else
   PARAMS_SCHEMA_PATH=""
+fi
+
+if [[ -n "$PARAMS_SCHEMA_PATH" ]]; then
+  IS_EXAMPLE_SCHEMA="0"
+  if [[ "$PARAMS_SCHEMA_PATH" == *"/examples/inputs/"* || "$PARAMS_SCHEMA_PATH" == *.example.json ]]; then
+    IS_EXAMPLE_SCHEMA="1"
+  fi
+  if [[ "$IS_EXAMPLE_SCHEMA" == "1" && ( "$NETWORK" == "sepolia" || "$NETWORK" == "mainnet" ) && "$ALLOW_EXAMPLE_PARAMS_SCHEMA" != "1" ]]; then
+    echo "Refusing example/minimal PARAMS_SCHEMA on $NETWORK. Provide a downstream strict schema or set ALLOW_EXAMPLE_PARAMS_SCHEMA=1." >&2
+    exit 2
+  fi
 fi
 
 if [[ -z "$ORIGIN" ]]; then
@@ -158,7 +186,7 @@ def normalize(value):
 
 
 def ensure_invariants(params):
-    bad_tokens = ["0xYour", "<TODO>", "REPLACE_ME"]
+    bad_tokens = ["0xYour", "REPLACE_ME", "<SET_", "<TODO>", "TODO"]
 
     def walk(value, path="$"):
         if isinstance(value, dict):
@@ -210,11 +238,25 @@ except ValueError as exc:
     raise SystemExit(f"Invalid params invariants: {exc}")
 
 if params_schema_path:
-    schema = json.loads(Path(params_schema_path).read_text())
+    schema_path = Path(params_schema_path)
+    schema = json.loads(schema_path.read_text())
     try:
         validate_schema(schema, params, "$params")
     except ValueError as exc:
         raise SystemExit(f"PARAMS_SCHEMA validation failed: {exc}")
+    params_schema_sha256 = hashlib.sha256(schema_path.read_bytes()).hexdigest()
+else:
+    schema_path = None
+    params_schema_sha256 = ""
+
+source = {
+    "origin": origin,
+    "path_hint": str(input_path),
+    "sha256": source_sha256,
+}
+if schema_path is not None:
+    source["params_schema_path_hint"] = str(schema_path)
+    source["params_schema_sha256"] = params_schema_sha256
 
 wrapper = {
     "inputs_version": "1",
@@ -223,11 +265,7 @@ wrapper = {
     "run_id": run_id,
     "kind": input_kind,
     "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-    "source": {
-        "origin": origin,
-        "path_hint": str(input_path),
-        "sha256": source_sha256,
-    },
+    "source": source,
     "params": params,
 }
 
@@ -239,4 +277,6 @@ locked_sha256 = hashlib.sha256(canonical.encode()).hexdigest()
 print(f"locked_inputs_path={output_path}")
 print(f"inputs_sha256={locked_sha256}")
 print(f"inputs_hash_suffix={locked_sha256[-8:]}")
+if params_schema_sha256:
+    print(f"params_schema_sha256={params_schema_sha256}")
 PY

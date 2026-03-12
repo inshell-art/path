@@ -1,5 +1,86 @@
 # Changelog
 
+## 2026-03-12
+
+### fix: align scaffold CI bundle workflow with locked-input deploy lanes
+
+- Updated `examples/scaffold/.github/workflows/ops_bundle.yml`:
+  - keeps `workflow_dispatch` and read-only permissions
+  - accepts `network`, `lane`, optional `run_id`, and optional `inputs_json`
+  - resolves `required_inputs` from lane policy instead of hardcoding lane/network rules
+  - when `inputs_json` is supplied, writes it to `artifacts/<network>/current/inputs/inputs.<run_id>.json`
+  - passes `INPUTS_TEMPLATE` to `ops/tools/bundle.sh`
+  - fails clearly when lane policy requires inputs and `inputs_json` is missing
+  - keeps raw params and signer secrets out of CI
+- Updated docs to clarify the split:
+  - remote CI builds/uploads bundles only
+  - local Signing OS runs `verify`, `approve`, `apply`, and `postconditions`
+  - `inputs_json` is the locked wrapper output of `ops/tools/lock_inputs.sh`, produced outside CI
+- Added scaffold regression coverage:
+  - `examples/scaffold/tests/bundle_workflow_inputs.sh`
+  - `examples/scaffold/.github/workflows/ops_tests.yml` now runs the workflow-equivalent locked-input test
+- Added a repo-root GitHub Actions harness so the template repo can execute the scaffold regression remotely:
+  - `.github/workflows/scaffold_bundle_harness.yml`
+
+## 2026-03-08
+
+### feat: auto postconditions mode with deterministic status
+
+- Updated `examples/scaffold/ops/tools/postconditions.sh`:
+  - new `POSTCONDITIONS_MODE` with default `auto` (`manual` compatibility retained)
+  - auto mode deterministically evaluates required predicates:
+    - `txs.json` present
+    - `verify_bundle.sh` passes for the same bundle
+    - if `checks.path.json` exists, it must have `pass: true`
+    - deploy lane requires `snapshots/post_state.json`
+  - optional receipt check (`receipts_success`) when tx hashes exist and `RECEIPT_RPC_URL`/`ETH_RPC_URL`/`RPC_URL` is provided
+  - output now includes `mode`, deterministic check entries, and `failure_reasons`
+  - manual mode keeps `POSTCONDITIONS_STATUS=pending|pass|fail` with explicit-status requirement
+- Updated scaffold docs/examples:
+  - `examples/scaffold/ops/tools/README.md`
+  - `examples/scaffold/ops/runbooks/deploy.md`
+  - `examples/scaffold/ops/runbooks/handoff.md`
+  - `examples/scaffold/ops/runbooks/govern.md`
+  - `examples/scaffold/README.md`
+- Added test coverage:
+  - `examples/scaffold/tests/postconditions_mode.sh`
+  - `examples/scaffold/tests/README.md`
+  - `examples/scaffold/.github/workflows/ops_tests.yml` runs postconditions-mode tests
+- Tightened `AUD-006` in scaffold audit verifier:
+  - deploy-lane applied runs now require `postconditions.status == pass`
+
+## 2026-03-05
+
+### hardening: inputs schema discipline + keystore-first guidance
+
+- Hardened `examples/scaffold/ops/tools/lock_inputs.sh`:
+  - added `STRICT_PARAMS_SCHEMA` and `ALLOW_EXAMPLE_PARAMS_SCHEMA` guardrails
+  - refuses template example schemas on `sepolia`/`mainnet` by default
+  - records `source.params_schema_path_hint` and `source.params_schema_sha256` when schema validation is used
+  - updated placeholder-token invariants to reject obvious placeholders (`0xYour`, `REPLACE_ME`, `<SET_`, `<TODO>`, `TODO`)
+- Added schema examples/templates:
+  - `examples/inputs/params.constructor_params.minimal.schema.example.json`
+  - `examples/inputs/params.constructor_params.strict.schema.template.json`
+- Kept backward-compatible schema alias:
+  - `examples/inputs/params.constructor_params.schema.example.json` now marked as deprecated compat alias
+- Added scaffold regression coverage:
+  - `examples/scaffold/ops/tests/test_lock_inputs.sh`
+  - `examples/scaffold/.github/workflows/ops_tests.yml`
+- Updated docs and contracts for keystore-first + schema-discipline requirements:
+  - `docs/integration.md`
+  - `docs/pipeline-reference.md`
+  - `codex/BUSINESS_REPO_ADOPTION.md`
+  - `docs/snippets/root-AGENTS-ops-agent-contract.md`
+  - `AGENTS.md`
+
+### migration notes (downstream repos)
+
+- For Sepolia/Mainnet deploy-lane input locking, set:
+  - `STRICT_PARAMS_SCHEMA=1`
+  - `PARAMS_SCHEMA=schemas/params/<kind>.<contract>.<lane>.schema.json`
+- Do not use template `examples/inputs/*.example.json` schemas as production strict validation.
+- Do not use `*_PRIVATE_KEY` export flows; keep keystore-first env patterns (`*_DEPLOY_KEYSTORE_JSON` + `*_DEPLOY_ADDRESS`).
+
 ## 2026-03-04
 
 ### breaking: replace deploy-params gate with first-class `inputs.json`

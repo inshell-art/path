@@ -25,7 +25,14 @@ For Sepolia/Mainnet deploy lanes:
 - keep `required_inputs: [{\"kind\":\"constructor_params\"}]` in lane policy
 - run `ops/tools/lock_inputs.sh` before bundle generation
 - pass `INPUTS_TEMPLATE=<locked_inputs_path>` to `ops/tools/bundle.sh`
-- use `PARAMS_SCHEMA` in `lock_inputs.sh` for downstream-specific strict validation
+- set `STRICT_PARAMS_SCHEMA=1` and provide `PARAMS_SCHEMA` (downstream strict schema)
+- do not use template `*.example.json` schemas for production lanes unless intentionally overriding with `ALLOW_EXAMPLE_PARAMS_SCHEMA=1`
+- recommended downstream schema naming: `schemas/params/<kind>.<contract>.<lane>.schema.json`
+
+Keystore-first operator contract:
+- never export raw private keys (for example `*_PRIVATE_KEY`)
+- use `*_DEPLOY_KEYSTORE_JSON` + `*_DEPLOY_ADDRESS` env vars per policy
+- derive address from keystore metadata (`.address`), not from private-key derivation
 
 ## Add audit module scripts
 Use scaffold scripts as a baseline:

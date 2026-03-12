@@ -65,6 +65,13 @@ Example (operator machine):
 
 Only reference these via local env vars or local config files that are gitignored.
 
+## Keystore-first operator contract
+
+- Never export raw private keys (for example `SEPOLIA_PRIVATE_KEY`).
+- Use keystore env vars (for example `SEPOLIA_DEPLOY_KEYSTORE_JSON`) plus address env vars (for example `SEPOLIA_DEPLOY_ADDRESS`) as policy expects.
+- Derive `*_DEPLOY_ADDRESS` from keystore metadata (`.address`) rather than private-key math.
+- Keep keystore files and password handling outside git.
+
 ## Submodule commands (example)
 
 ```bash
@@ -88,9 +95,20 @@ git commit -am "Update ops-template"
 
 For Sepolia/Mainnet deploy lanes, wire locked inputs:
 - run `ops/tools/lock_inputs.sh` with `NETWORK`, `LANE`, `RUN_ID`, and `INPUT_FILE=<local_params_json>`
-- optionally set `PARAMS_SCHEMA=<downstream_schema_path>` for stricter validation
+- set `PARAMS_SCHEMA=<downstream_schema_path>` (strict project-specific schema)
 - pass `INPUTS_TEMPLATE=<artifacts/<network>/current/inputs/inputs.<run_id>.json>` to `ops/tools/bundle.sh`
 - keep raw params outside git (or commit only if intentionally public/safe)
+
+For the scaffold CI bundle workflow:
+- local operator flow produces the locked wrapper outside CI via `ops/tools/lock_inputs.sh`
+- GitHub Actions receives that wrapper as the `inputs_json` workflow input
+- the workflow writes it to `artifacts/<network>/current/inputs/inputs.<run_id>.json` and runs `ops/tools/bundle.sh`
+- do not pass raw constructor params, keystores, passwords, or signer secrets into CI
+
+Schema discipline for required inputs:
+- Sepolia/Mainnet deploy lanes with `required_inputs` should use `STRICT_PARAMS_SCHEMA=1` in `lock_inputs.sh`.
+- Template example schemas under `examples/inputs/*.example.json` are minimal and are not production-safe validation.
+- Recommended downstream naming: `schemas/params/<kind>.<contract>.<lane>.schema.json`.
 
 2) Define your signer aliases (EOA + Safe addresses) in `artifacts/<net>/current/addresses.json`.
 
@@ -104,3 +122,7 @@ For Sepolia/Mainnet deploy lanes, wire locked inputs:
 5) Paste response-contract snippets into downstream root `AGENTS.md`:
 - `ops-template/docs/snippets/root-AGENTS-ops-agent-contract.md`
 - `ops-template/docs/snippets/root-AGENTS-audit-response-contract.md`
+
+Operational split:
+- remote CI builds and uploads bundles only
+- local Signing OS runs `verify`, `approve`, `apply`, and `postconditions`

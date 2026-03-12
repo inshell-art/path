@@ -28,7 +28,10 @@ bundles/
   - `run.json`
   - `intent.json` (EVM call or Safe transaction payload)
   - `checks.json` (must include policy-required identity checks for write lanes)
-  - for lanes with `required_inputs`, run `ops/tools/lock_inputs.sh` first and pass `INPUTS_TEMPLATE=<locked_wrapper_path>`
+  - for lanes with `required_inputs`, accept only a locked wrapper JSON input produced outside CI by `ops/tools/lock_inputs.sh`
+  - in the scaffold workflow example, write that wrapper to `artifacts/<network>/current/inputs/inputs.<run_id>.json`
+  - pass `INPUTS_TEMPLATE=<locked_wrapper_path>` to `ops/tools/bundle.sh`
+  - do not accept raw constructor params or signer secrets in CI
   - `inputs.json` for lanes that declare `required_inputs` (Sepolia/Mainnet deploy default)
   - `bundle_manifest.json`
 - Upload bundle as CI artifact
@@ -40,6 +43,7 @@ bundles/
 - Human approval recorded **before apply**
 - Apply with keystore + Ledger only (Safe signers for govern/treasury lanes)
 - Produce post-apply evidence (`txs.json`, `snapshots/*`), then run postconditions to generate `postconditions.json`
+- The scaffold default is `POSTCONDITIONS_MODE=auto`; manual mode remains available for compatibility
 
 ### Audit lane-process assurance (periodic or release-gated)
 - Build an audit plan (`audit_plan.json`) over selected run ids
