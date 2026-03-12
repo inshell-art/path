@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { FIRST_PUBLIC_ID, GENESIS_PRICE, K, PTS } from "./helpers/constants.js";
 import { deployPathPulseErc20Env, deployPathPulseEthEnv, getSaleEventFromReceipt } from "./helpers/fixtures.js";
-import { deriveGenesisState, deriveNextState, expectedAsk, priceAt } from "./helpers/pulseModel.js";
+import { deriveNextState, expectedAsk } from "./helpers/pulseModel.js";
 import { mine, setNextBlockTimestamp } from "./helpers/time.js";
 
 describe("Path + Pulse ETH Integration (Solidity)", function () {
@@ -60,7 +60,13 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
   it("genesis bid mints PATH token and activates curve", async function () {
     const { auction, nft, alice, treasury } = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
 
-    const ask = await auction.getCurrentPrice();
+    const openTime = await auction.openTime();
+    const latestBlock = await ethers.provider.getBlock("latest");
+    const saleTime = openTime > BigInt(latestBlock.timestamp) + 1n
+      ? openTime
+      : BigInt(latestBlock.timestamp) + 1n;
+    await setNextBlockTimestamp(provider, saleTime);
+    const ask = await quoteAskAt(auction, saleTime);
     const treasuryBefore = await ethers.provider.getBalance(treasury.address);
 
     const receipt = await (await auction.connect(alice).bid(ask, { value: ask })).wait();
@@ -79,7 +85,13 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
     const { auction, alice, treasury } = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
     const auctionAddr = await auction.getAddress();
 
-    const ask = await auction.getCurrentPrice();
+    const openTime = await auction.openTime();
+    const latestBlock = await ethers.provider.getBlock("latest");
+    const saleTime = openTime > BigInt(latestBlock.timestamp) + 1n
+      ? openTime
+      : BigInt(latestBlock.timestamp) + 1n;
+    await setNextBlockTimestamp(provider, saleTime);
+    const ask = await quoteAskAt(auction, saleTime);
     const overpay = ask + 123n;
     const treasuryBefore = await ethers.provider.getBalance(treasury.address);
 
@@ -94,7 +106,13 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
 
   it("settles ERC20 payment path and rejects accidental ETH", async function () {
     const { auction, paymentToken, alice, treasury, nft } = await deployPathPulseErc20Env(ethers, { startDelaySec: 0n });
-    const ask = await auction.getCurrentPrice();
+    const openTime = await auction.openTime();
+    const latestBlock = await ethers.provider.getBlock("latest");
+    const saleTime = openTime > BigInt(latestBlock.timestamp) + 1n
+      ? openTime
+      : BigInt(latestBlock.timestamp) + 1n;
+    await setNextBlockTimestamp(provider, saleTime);
+    const ask = await quoteAskAt(auction, saleTime);
     const mintAmount = ask * 2n;
 
     await (await paymentToken.mint(alice.address, mintAmount)).wait();
@@ -104,11 +122,12 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
 
     const treasuryBefore = await paymentToken.balanceOf(treasury.address);
 
-    await (await auction.connect(alice).bid(ask)).wait();
+    const receipt = await (await auction.connect(alice).bid(ask)).wait();
+    const sale = await getSaleEventFromReceipt(auction, receipt);
 
     const treasuryAfter = await paymentToken.balanceOf(treasury.address);
-    expect(treasuryAfter - treasuryBefore).to.equal(ask);
-    expect(await paymentToken.balanceOf(alice.address)).to.equal(mintAmount - ask);
+    expect(treasuryAfter - treasuryBefore).to.equal(sale.price);
+    expect(await paymentToken.balanceOf(alice.address)).to.equal(mintAmount - sale.price);
     expect(await nft.ownerOf(FIRST_PUBLIC_ID)).to.equal(alice.address);
   });
 
@@ -166,38 +185,31 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
     const t3 = t2 + 10n;
 
     await setNextBlockTimestamp(provider, t1);
-    await (await auction.connect(alice).bid(GENESIS_PRICE, { value: GENESIS_PRICE })).wait();
-
-    const anchor1 = deriveGenesisState({
-      t: t1,
-      genesisPrice: GENESIS_PRICE,
-      genesisFloor: 900n,
-      k: K
-    }).anchorTime;
-
-    const lastPriceAtT2 = priceAt(t2, K, anchor1, 900n);
+    const ask1 = await quoteAskAt(auction, t1);
+    await (await auction.connect(alice).bid(ask1, { value: ask1 })).wait();
 
     await setNextBlockTimestamp(provider, t2);
     const ask2 = await quoteAskAt(auction, t2);
+    const stateBeforeSecondSale = await auction.getState();
     await (await auction.connect(alice).bid(ask2, { value: ask2 })).wait();
 
     const model = deriveNextState({
       now: t2,
-      lastPrice: lastPriceAtT2,
-      previousStartTime: t1,
+      lastPrice: ask2,
+      previousStartTime: stateBeforeSecondSale[1],
       k: K,
       pts: PTS,
-      currentEpochIndex: 1n
+      currentEpochIndex: stateBeforeSecondSale[0]
     });
 
     await setNextBlockTimestamp(provider, t3);
     await mine(provider);
 
     const onchain = await auction.getCurrentPrice();
+    const openTime = await auction.openTime();
     const expected = expectedAsk({
       now: t3,
-      curveActive: true,
-      genesisPrice: GENESIS_PRICE,
+      openTime,
       k: K,
       anchorTime: model.anchorTime,
       floorPrice: model.floorPrice
@@ -269,11 +281,12 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
 
     const [, shortStart, shortAnchor, shortFloor] = await shortEnv.auction.getState();
     const [, longStart, longAnchor, longFloor] = await longEnv.auction.getState();
+    const shortOpenTime = await shortEnv.auction.openTime();
+    const longOpenTime = await longEnv.auction.openTime();
 
     const shortImmediateAsk = expectedAsk({
       now: shortStart,
-      curveActive: true,
-      genesisPrice: GENESIS_PRICE,
+      openTime: shortOpenTime,
       k: K,
       anchorTime: shortAnchor,
       floorPrice: shortFloor
@@ -281,8 +294,7 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
 
     const longImmediateAsk = expectedAsk({
       now: longStart,
-      curveActive: true,
-      genesisPrice: GENESIS_PRICE,
+      openTime: longOpenTime,
       k: K,
       anchorTime: longAnchor,
       floorPrice: longFloor

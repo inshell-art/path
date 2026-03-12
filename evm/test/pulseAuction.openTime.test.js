@@ -15,14 +15,13 @@ describe("PulseAuction openTime constructor", function () {
     await conn.close();
   });
 
-  it("stores explicit openTime value", async function () {
+  it("stores openTime as deployment timestamp plus startDelaySec", async function () {
     const [deployer] = await ethers.getSigners();
-    const latestBlock = await ethers.provider.getBlock("latest");
-    const openTime = BigInt(latestBlock.timestamp) + 300n;
+    const startDelaySec = 300n;
 
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
     const auction = await Auction.deploy(
-      openTime,
+      startDelaySec,
       K,
       GENESIS_PRICE,
       GENESIS_FLOOR,
@@ -33,24 +32,31 @@ describe("PulseAuction openTime constructor", function () {
     );
     await auction.waitForDeployment();
 
-    expect(await auction.openTime()).to.equal(openTime);
+    const deploymentTx = auction.deploymentTransaction();
+    const deploymentReceipt = await deploymentTx.wait();
+    const deploymentBlock = await ethers.provider.getBlock(deploymentReceipt.blockNumber);
+    expect(await auction.openTime()).to.equal(BigInt(deploymentBlock.timestamp) + startDelaySec);
   });
 
-  it("reverts when openTime is in the past", async function () {
+  it("supports zero start delay", async function () {
     const [deployer] = await ethers.getSigners();
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
 
-    await expect(
-      Auction.deploy(
-        0n,
-        K,
-        GENESIS_PRICE,
-        GENESIS_FLOOR,
-        PTS,
-        ethers.ZeroAddress,
-        deployer.address,
-        deployer.address
-      )
-    ).to.be.revertedWith("OPEN_TIME_IN_PAST");
+    const auction = await Auction.deploy(
+      0n,
+      K,
+      GENESIS_PRICE,
+      GENESIS_FLOOR,
+      PTS,
+      ethers.ZeroAddress,
+      deployer.address,
+      deployer.address
+    );
+    await auction.waitForDeployment();
+
+    const deploymentTx = auction.deploymentTransaction();
+    const deploymentReceipt = await deploymentTx.wait();
+    const deploymentBlock = await ethers.provider.getBlock(deploymentReceipt.blockNumber);
+    expect(await auction.openTime()).to.equal(BigInt(deploymentBlock.timestamp));
   });
 });

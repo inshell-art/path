@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PATH Constructor Params",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "symbol",
+    "baseUri",
+    "k",
+    "genesisPrice",
+    "genesisFloor",
+    "pts",
+    "firstPublicId",
+    "epochBase",
+    "reservedCap",
+    "paymentToken",
+    "treasury"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "symbol": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseUri": {
+      "type": "string"
+    },
+    "openTime": {
+      "$ref": "#/$defs/nonNegativeUint"
+    },
+    "startDelaySec": {
+      "$ref": "#/$defs/nonNegativeUint"
+    },
+    "k": {
+      "$ref": "#/$defs/positiveUint"
+    },
+    "genesisPrice": {
+      "$ref": "#/$defs/positiveUint"
+    },
+    "genesisFloor": {
+      "$ref": "#/$defs/nonNegativeUint"
+    },
+    "pts": {
+      "$ref": "#/$defs/positiveUint"
+    },
+    "firstPublicId": {
+      "$ref": "#/$defs/positiveUint"
+    },
+    "epochBase": {
+      "$ref": "#/$defs/nonNegativeUint"
+    },
+    "reservedCap": {
+      "$ref": "#/$defs/nonNegativeUint"
+    },
+    "paymentToken": {
+      "$ref": "#/$defs/address"
+    },
+    "treasury": {
+      "$ref": "#/$defs/nonZeroAddress"
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "openTime"
+      ],
+      "not": {
+        "required": [
+          "startDelaySec"
+        ]
+      }
+    },
+    {
+      "required": [
+        "startDelaySec"
+      ],
+      "not": {
+        "required": [
+          "openTime"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "nonNegativeUint": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        {
+          "type": "integer",
+          "minimum": 0
+        }
+      ]
+    },
+    "positiveUint": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        {
+          "type": "integer",
+          "minimum": 1
+        }
+      ]
+    },
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "nonZeroAddress": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/address"
+        },
+        {
+          "not": {
+            "const": "0x0000000000000000000000000000000000000000"
+          }
+        }
+      ]
+    }
+  }
+}

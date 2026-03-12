@@ -31,6 +31,9 @@ After the Minimal Evidence Pack, provide the normal concise answer.
 Rules:
 - Never present `PROPOSED` as `VERIFIED`.
 - If you did not run a command, say so and provide expected output (do not claim observed output).
+- Never instruct exporting raw private keys (for example `*_PRIVATE_KEY`) or pasting secrets into shell/chat.
+- Always propose keystore + address env vars first (for example `*_DEPLOY_KEYSTORE_JSON` + `*_DEPLOY_ADDRESS`).
+- If a requested flow would require private-key export, keep the claim `PROPOSED` and present the keystore-first alternative first.
 
 ### Short example (required order)
 `Minimal Evidence Pack`

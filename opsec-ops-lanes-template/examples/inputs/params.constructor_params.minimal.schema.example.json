@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "DEPRECATED Compat Alias: Minimal Constructor Params Example",
-  "description": "Deprecated filename kept for migration compatibility. Use params.constructor_params.minimal.schema.example.json (or preferably a downstream strict schema) for new setups.",
+  "title": "MINIMAL Example Constructor Params (Not Production-Strict)",
+  "description": "Template minimal example only. Downstream repos must provide a strict project-specific schema for Sepolia/Mainnet write lanes.",
   "type": "object",
   "additionalProperties": true,
   "required": [

@@ -6,7 +6,7 @@ This file tracks how `PulseAuction` is sourced from upstream in this repo.
 
 - Upstream repo: `git@github.com:inshell-art/pulse.git`
 - Vendored reference path: `vendors/pulse/evm/src/PulseAuction.sol`
-- Vendored commit pin: `8a3086433405f44e9230562e89c36758001f06b8`
+- Vendored commit pin: `4db8d237006a485e33720038514c5dc88c923e3b` (`v0.4.0-rc.1`)
 
 ## Policy
 

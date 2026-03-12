@@ -3,6 +3,11 @@
 ## A) Preflight checklist
 - correct network selected (`mainnet`)
 - mainnet policy file configured and reviewed
+- `MAINNET_RPC_URL` loaded from local env (not committed)
+- deploy signer keystore env is present:
+  - `MAINNET_DEPLOY_KEYSTORE_JSON` (path or inline JSON)
+  - and one of `MAINNET_DEPLOY_KEYSTORE_PASSWORD` or `MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE`
+- `MAINNET_PRIVATE_KEY` is not pre-set in shell
 - rehearsal proof available when policy requires it
 - tracked git tree clean before bundle/apply
 - signing context isolated (`SIGNING_OS=1`)
@@ -13,11 +18,18 @@ npm run evm:compile
 npm run evm:test
 
 RUN_ID=mainnet-deploy-$(date -u +%Y%m%dT%H%M%SZ)
-NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID npm run ops:bundle
+PARAMS_FILE=~/.opsec/path/params.mainnet.deploy.json
+NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
+LOCKED_INPUTS_FILE=artifacts/mainnet/current/inputs/inputs.$RUN_ID.json NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID npm run ops:bundle
 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:verify
 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 REHEARSAL_PROOF_RUN_ID=<proof_run_id> NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:apply
-NETWORK=mainnet RUN_ID=$RUN_ID POSTCONDITIONS_STATUS=pass npm run ops:postconditions
+NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
+```
+
+Manual override (optional):
+```bash
+POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
 ## C) Failure handling

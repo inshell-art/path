@@ -16,7 +16,10 @@ For EVM lanes, set realistic EIP-1559 bounds in each lane's `fee_policy`.
 Sepolia/Mainnet deploy lanes default to include:
 - `required_inputs: [{\"kind\": \"constructor_params\"}]`
 Use `ops/tools/lock_inputs.sh` to create run-scoped locked wrappers and pass them to bundle via `INPUTS_TEMPLATE`.
-Downstreams can define tighter business schemas via `PARAMS_SCHEMA` in `lock_inputs.sh`.
+For Sepolia/Mainnet deploy lanes, use downstream strict schemas:
+- set `STRICT_PARAMS_SCHEMA=1`
+- provide `PARAMS_SCHEMA=schemas/params/<kind>.<contract>.<lane>.schema.json`
+Template `examples/inputs/*.example.json` schemas are minimal references and should not be used as production strict validation.
 Legacy keys (`requires_*_rehearsal_proof`, `gates.require_*_rehearsal_proof`) are deprecated but temporarily supported during migration.
 Audit policy controls coverage thresholds and open-finding gates for periodic/release audits.
 Audit contract requires:

@@ -7,11 +7,19 @@ RUN_ID ?=
 BUNDLE_PATH ?=
 AUDIT_ID ?=
 AUDIT_PATH ?=
+INPUT_FILE ?=
+INPUT_KIND ?=
+PARAMS_SCHEMA ?=
+LOCKED_INPUTS_FILE ?=
+INPUTS_TEMPLATE ?=
 
-.PHONY: bundle verify approve apply postconditions audit-plan audit-collect audit-verify audit-report audit-signoff audit-all scan-secrets lint-secret-snippets
+.PHONY: lock-inputs bundle verify approve apply postconditions audit-plan audit-collect audit-verify audit-report audit-signoff audit-all scan-secrets lint-secret-snippets
+
+lock-inputs:
+	NETWORK=$(NETWORK) LANE=$(LANE) RUN_ID=$(RUN_ID) INPUT_FILE=$(INPUT_FILE) INPUT_KIND=$(INPUT_KIND) PARAMS_SCHEMA=$(PARAMS_SCHEMA) $(ROOT)/ops/tools/lock_inputs.sh
 
 bundle:
-	NETWORK=$(NETWORK) LANE=$(LANE) RUN_ID=$(RUN_ID) $(ROOT)/ops/tools/bundle.sh
+	NETWORK=$(NETWORK) LANE=$(LANE) RUN_ID=$(RUN_ID) LOCKED_INPUTS_FILE=$(or $(LOCKED_INPUTS_FILE),$(INPUTS_TEMPLATE)) INPUTS_TEMPLATE=$(INPUTS_TEMPLATE) $(ROOT)/ops/tools/bundle.sh
 
 verify:
 	NETWORK=$(NETWORK) RUN_ID=$(RUN_ID) BUNDLE_PATH=$(BUNDLE_PATH) $(ROOT)/ops/tools/verify_bundle.sh

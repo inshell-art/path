@@ -22,7 +22,12 @@ NETWORK=devnet LANE=deploy RUN_ID=$RUN_ID npm run ops:bundle
 NETWORK=devnet RUN_ID=$RUN_ID npm run ops:verify
 NETWORK=devnet RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 NETWORK=devnet RUN_ID=$RUN_ID npm run ops:apply
-NETWORK=devnet RUN_ID=$RUN_ID POSTCONDITIONS_STATUS=pass npm run ops:postconditions
+NETWORK=devnet RUN_ID=$RUN_ID npm run ops:postconditions
+```
+
+Manual override (optional):
+```bash
+POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=devnet RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
 ## C) Verification

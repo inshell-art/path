@@ -22,8 +22,11 @@ This repo contains:
 - `schemas/bundle_manifest.schema.json` — schema for bundle manifests (AIRLOCK integrity).
 - `schemas/audit_*.schema.json` — audit plan/report/findings schema set.
 - `schemas/inputs.schema.json` — schema for first-class high-entropy inputs wrapper.
+- `examples/inputs/params.constructor_params.minimal.schema.example.json` — minimal schema example (not production strict).
+- `examples/inputs/params.constructor_params.strict.schema.template.json` — copy/edit template for downstream strict schemas.
 - `policy/audit.policy.example.json` — audit policy template (coverage and finding thresholds).
 - `examples/scaffold/.github/workflows/ops_audit.yml` — scheduled audit + release-gate CI example.
+- `examples/scaffold/.github/workflows/ops_tests.yml` — scaffold regression tests for ops helper scripts.
 
 ## What this template is (and is not)
 
@@ -51,6 +54,8 @@ This repo **must stay public-safe**:
   - Default example policy is Devnet-first.
   - Canonical proof env var is `REHEARSAL_PROOF_RUN_ID` (legacy proof env vars remain temporarily supported).
 - Sepolia/Mainnet deploy lanes require pinned `inputs.json` by default (`required_inputs` policy).
+- Sepolia/Mainnet deploy lanes should use `STRICT_PARAMS_SCHEMA=1` with downstream `PARAMS_SCHEMA` in `lock_inputs.sh`.
+- Do not use raw `*_PRIVATE_KEY` export flows; use keystore + address env vars.
 
 See `docs/downstream-ops-contract.md`.
 For agent claim verification discipline, see `docs/agent-trust-model.md`.

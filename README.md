@@ -51,7 +51,7 @@ Ops-lanes template is synced as a git subtree at `opsec-ops-lanes-template/`, an
 - `artifacts/` (generated evidence)
 - `bundles/` (immutable CI/CD bundles)
 
-Upstream source: `https://github.com/inshell-art/opsec-ops-lanes-template` at commit `77d3e7f`.
+Upstream source: `https://github.com/inshell-art/opsec-ops-lanes-template` at commit `791d55f`.
 
 Quick rehearsal (bundle + verify only):
 

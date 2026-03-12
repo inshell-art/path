@@ -1,9 +1,12 @@
 {
   "network": "mainnet",
   "rpc_allowlist": [
-    "https://eth-mainnet.g.alchemy.com/v2/<API_KEY>",
-    "https://mainnet.infura.io/v3/<API_KEY>",
     "https://ethereum-rpc.publicnode.com"
+  ],
+  "rpc_host_allowlist": [
+    "eth-mainnet.g.alchemy.com",
+    "mainnet.infura.io",
+    "ethereum-rpc.publicnode.com"
   ],
   "lanes": {
     "observe": {
@@ -48,7 +51,12 @@
       "gates": {
         "require_rehearsal_proof": true,
         "rehearsal_proof_network": "devnet"
-      }
+      },
+      "required_inputs": [
+        {
+          "kind": "constructor_params"
+        }
+      ]
     },
     "handoff": {
       "writes": true,

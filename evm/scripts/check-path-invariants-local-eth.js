@@ -1,7 +1,9 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import hre from "hardhat";
+import { Wallet } from "ethers";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DEPLOY_FILE = path.resolve(here, "../deployments/localhost-eth.json");
@@ -17,6 +19,12 @@ const MOVEMENT_MINTER_SYMBOLS = {
   "@zero": null
 };
 
+const EXPECTED_CHAIN_IDS = {
+  localhost: 31337,
+  sepolia: 11155111,
+  mainnet: 1
+};
+
 function lower(value) {
   return String(value ?? "").toLowerCase();
 }
@@ -27,6 +35,26 @@ function toBigInt(value) {
 
 function normalizeUrl(value) {
   return String(value ?? "").trim().replace(/\/+$/, "").toLowerCase();
+}
+
+function normalizeHost(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "") return "";
+  try {
+    return new URL(raw.includes("://") ? raw : `https://${raw}`).host.toLowerCase();
+  } catch {
+    return raw.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  }
+}
+
+function hostFromUrl(value) {
+  const normalized = normalizeUrl(value);
+  if (normalized === "") return "";
+  try {
+    return new URL(normalized).host.toLowerCase();
+  } catch {
+    return "";
+  }
 }
 
 function pickUrl(value) {
@@ -51,6 +79,116 @@ function sameAddressSet(actualList, expectedList) {
 
 function roleMembers(roleMap, role) {
   return [...(roleMap.get(lower(role)) ?? new Set())].sort();
+}
+
+function expandUserPath(value) {
+  const raw = String(value ?? "").trim();
+  if (raw === "~") return os.homedir();
+  if (raw.startsWith("~/")) return path.join(os.homedir(), raw.slice(2));
+  return raw;
+}
+
+function trimTrailingNewline(value) {
+  return String(value ?? "").replace(/\r?\n$/, "");
+}
+
+async function resolveConfiguredSigner(networkName) {
+  const upper = String(networkName ?? "").toUpperCase();
+  const privateKeyVar = `${upper}_PRIVATE_KEY`;
+  const keystoreVar = `${upper}_DEPLOY_KEYSTORE_JSON`;
+  const passwordVar = `${upper}_DEPLOY_KEYSTORE_PASSWORD`;
+  const passwordFileVar = `${upper}_DEPLOY_KEYSTORE_PASSWORD_FILE`;
+
+  const rawPrivateKey = String(process.env[privateKeyVar] ?? "").trim();
+  if (rawPrivateKey) {
+    try {
+      const wallet = new Wallet(rawPrivateKey);
+      return {
+        address: wallet.address,
+        source: `env:${privateKeyVar}`
+      };
+    } catch (error) {
+      return {
+        address: null,
+        source: `env:${privateKeyVar}`,
+        error: error?.message ?? String(error)
+      };
+    }
+  }
+
+  const keystoreRef = expandUserPath(process.env[keystoreVar] ?? "");
+  if (!keystoreRef) {
+    return {
+      address: null,
+      source: "none",
+      error: "no signer env configured"
+    };
+  }
+
+  const keystoreCandidates = [keystoreRef];
+  if (keystoreRef.endsWith("/keystore.json")) {
+    keystoreCandidates.push(keystoreRef.replace(/\/keystore\.json$/i, "/keystore"));
+  }
+  let keystorePath = "";
+  for (const candidate of keystoreCandidates) {
+    try {
+      const stat = await fs.stat(candidate);
+      if (stat.isFile()) {
+        keystorePath = candidate;
+        break;
+      }
+    } catch {
+      // Keep scanning.
+    }
+  }
+  if (!keystorePath) {
+    return {
+      address: null,
+      source: `env:${keystoreVar}`,
+      error: `keystore file not found: ${keystoreRef}`
+    };
+  }
+
+  let password = String(process.env[passwordVar] ?? "");
+  if (!password) {
+    const passwordFile = expandUserPath(process.env[passwordFileVar] ?? "");
+    if (passwordFile) {
+      try {
+        password = trimTrailingNewline(await fs.readFile(passwordFile, "utf8"));
+      } catch (error) {
+        return {
+          address: null,
+          source: `env:${keystoreVar}`,
+          path: keystorePath,
+          error: `failed to read password file: ${error?.message ?? String(error)}`
+        };
+      }
+    }
+  }
+  if (!password) {
+    return {
+      address: null,
+      source: `env:${keystoreVar}`,
+      path: keystorePath,
+      error: `missing ${passwordVar} or ${passwordFileVar}`
+    };
+  }
+
+  try {
+    const wallet = await Wallet.fromEncryptedJson(await fs.readFile(keystorePath, "utf8"), password);
+    return {
+      address: wallet.address,
+      source: `keystore:${keystoreVar}`,
+      path: keystorePath
+    };
+  } catch (error) {
+    return {
+      address: null,
+      source: `keystore:${keystoreVar}`,
+      path: keystorePath,
+      error: `failed to decrypt keystore: ${error?.message ?? String(error)}`
+    };
+  }
 }
 
 function contractAddressBySymbol(symbol, deployment, ethers) {
@@ -139,43 +277,111 @@ async function collectRoleMembers(contract) {
 async function main() {
   const deployFile = process.env.DEPLOY_FILE ?? DEFAULT_DEPLOY_FILE;
   const lane = process.env.LANE ?? "deploy";
-  const deployment = JSON.parse(await fs.readFile(deployFile, "utf8"));
   const { policyPath, policy } = await loadPolicy();
 
   const conn = await hre.network.connect();
   const { ethers } = conn;
   const provider = ethers.provider;
-  const [deployerSigner, buyer] = await ethers.getSigners();
+  const signers = await ethers.getSigners();
+  const deployerSigner = signers[0] ?? null;
+  const buyer = signers[1] ?? null;
   const allowWriteHandshake = process.env.ALLOW_WRITE_HANDSHAKE === "1";
+  const configuredSigner = await resolveConfiguredSigner(conn.networkName);
 
   const networkInfo = await provider.getNetwork();
-  const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft);
-  const adapter = await ethers.getContractAt("PathMinterAdapter", deployment.contracts.pathMinterAdapter);
-  const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter);
-  const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
+  let deployment = null;
+  try {
+    deployment = JSON.parse(await fs.readFile(deployFile, "utf8"));
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
 
-  // Policy-required checks.
+  const laneConfig = policy?.lanes?.[lane] ?? {};
+
+  // Policy-required checks that do not depend on deployed contracts.
   const rpcAllowlist = Array.isArray(policy?.rpc_allowlist) ? policy.rpc_allowlist.map(normalizeUrl) : [];
+  const rpcHostAllowlist = Array.isArray(policy?.rpc_host_allowlist) ? policy.rpc_host_allowlist.map(normalizeHost) : [];
   const defaultRpcFallback = conn.networkName === "localhost" ? "http://127.0.0.1:8545" : "";
+  const networkRpcEnv = process.env[`${String(conn.networkName ?? "").toUpperCase()}_RPC_URL`] ?? "";
   const configuredRpc = normalizeUrl(
     pickUrl(conn.networkConfig)
+      || pickUrl(hre.config?.networks?.[conn.networkName])
       || pickUrl(hre.config?.networks?.localhost)
+      || pickUrl(networkRpcEnv)
       || process.env.RPC_URL
       || defaultRpcFallback
   );
-  const chainIdMatches = Number(networkInfo.chainId) === Number(deployment.chainId);
-  const rpcAllowlistMatches = configuredRpc !== "" && rpcAllowlist.includes(configuredRpc);
+  const configuredRpcHost = hostFromUrl(configuredRpc);
+  const rpcAllowlistMatches =
+    (configuredRpc !== "" && rpcAllowlist.includes(configuredRpc))
+    || (configuredRpcHost !== "" && rpcHostAllowlist.includes(configuredRpcHost));
+  const expectedChainId = deployment?.chainId ?? EXPECTED_CHAIN_IDS[conn.networkName] ?? null;
+  const chainIdMatches = expectedChainId !== null && Number(networkInfo.chainId) === Number(expectedChainId);
 
-  const laneConfig = policy?.lanes?.[lane] ?? {};
   const allowedSignerAliases = Array.isArray(laneConfig.allowed_signers) ? laneConfig.allowed_signers : [];
   const signerAliasMap = policy?.signer_alias_map ?? {};
   const mappedSignerAddresses = allowedSignerAliases
     .map((alias) => signerAliasMap[alias])
     .filter((address) => typeof address === "string" && address.trim() !== "")
     .map(lower);
+  const signerAddressForChecks = lower(configuredSigner.address ?? deployerSigner?.address ?? "");
   const signerAllowlistMatches = mappedSignerAddresses.length > 0
-    ? mappedSignerAddresses.includes(lower(deployment.deployer))
-    : lower(deployerSigner.address) === lower(deployment.deployer);
+    ? signerAddressForChecks !== "" && mappedSignerAddresses.includes(signerAddressForChecks)
+    : signerAddressForChecks !== "";
+  const requiredChecks = {
+    chain_id: chainIdMatches,
+    rpc_allowlist: rpcAllowlistMatches,
+    signer_allowlist: signerAllowlistMatches,
+    bytecode_hash: false,
+    proxy_implementation: false
+  };
+
+  if (!deployment) {
+    const report = {
+      generatedAt: new Date().toISOString(),
+      network: conn.networkName,
+      chainId: Number(networkInfo.chainId),
+      deployFile,
+      lane,
+      phase: "predeploy",
+      deploymentPresent: false,
+      policyFile: policyPath,
+      requiredChecks,
+      pathInvariants: {
+        adapter_wiring_frozen: false,
+        sales_caller_frozen_to_adapter: false,
+        epoch_token_coupling_holds: false,
+        role_owner_hygiene_ok: false,
+        auction_config_matches: false,
+        sale_handshake_ok: false,
+        movement_config_policy_ok: false
+      },
+      observations: {
+        requiredChecks: {
+          configuredRpc,
+          configuredRpcHost,
+          rpcAllowlist,
+          rpcHostAllowlist,
+          expectedChainId,
+          allowedSignerAliases,
+          signerAliasMap,
+          mappedSignerAddresses,
+          deployerSigner: deployerSigner?.address ?? null,
+          configuredSigner
+        },
+        deploymentMissing: true
+      }
+    };
+
+    console.log(JSON.stringify(report, null, 2));
+    await conn.close();
+    return;
+  }
+
+  const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft);
+  const adapter = await ethers.getContractAt("PathMinterAdapter", deployment.contracts.pathMinterAdapter);
+  const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter);
+  const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
 
   const expectedCodeHashes = deployment.codeHashes ?? deployment.codehashes ?? {};
   const observedCodeHashes = {};
@@ -413,13 +619,8 @@ async function main() {
     };
   }
 
-  const requiredChecks = {
-    chain_id: chainIdMatches,
-    rpc_allowlist: rpcAllowlistMatches,
-    signer_allowlist: signerAllowlistMatches,
-    bytecode_hash: bytecodeHashesMatch,
-    proxy_implementation: proxyImplementationClean
-  };
+  requiredChecks.bytecode_hash = bytecodeHashesMatch;
+  requiredChecks.proxy_implementation = proxyImplementationClean;
 
   const pathInvariants = {
     adapter_wiring_frozen:
@@ -441,17 +642,23 @@ async function main() {
     chainId: Number(networkInfo.chainId),
     deployFile,
     lane,
+    phase: "postdeploy",
+    deploymentPresent: true,
     policyFile: policyPath,
     requiredChecks,
     pathInvariants,
     observations: {
       requiredChecks: {
         configuredRpc,
+        configuredRpcHost,
         rpcAllowlist,
+        rpcHostAllowlist,
         allowedSignerAliases,
         signerAliasMap,
         deploymentDeployer: deployment.deployer,
         mappedSignerAddresses,
+        signerAddressForChecks,
+        configuredSigner,
         bytecodeChecks,
         proxySlots
       },

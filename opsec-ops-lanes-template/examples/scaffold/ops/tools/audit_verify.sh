@@ -215,6 +215,11 @@ if "AUD-006" in controls:
         post = ctx.get("postconditions")
         if not post or not post.get("status"):
             fails.append(f"{ctx['run_id']}: missing postconditions status")
+            continue
+        lane = str((ctx.get("run") or {}).get("lane", ""))
+        status = str(post.get("status", ""))
+        if lane == "deploy" and status != "pass":
+            fails.append(f"{ctx['run_id']}: deploy lane requires postconditions status=pass (got {status})")
     if not applicable:
         results.append(make_result("AUD-006", "skip", "INFERRED", "No applied runs in scope."))
     elif fails:

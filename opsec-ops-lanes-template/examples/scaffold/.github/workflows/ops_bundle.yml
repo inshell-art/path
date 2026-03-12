@@ -31,7 +31,7 @@ on:
         type: string
         required: false
       inputs_json:
-        description: "Optional locked inputs wrapper JSON (required when lane policy requires inputs)"
+        description: "Optional locked inputs wrapper JSON produced outside CI by ops/tools/lock_inputs.sh (required when lane policy requires inputs)"
         type: string
         required: false
 
@@ -51,23 +51,74 @@ jobs:
           else
             echo "run_id=$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           fi
-      - name: Build bundle
+      - name: Prepare locked inputs wrapper
+        id: lockedinputs
         env:
           NETWORK: ${{ inputs.network }}
           LANE: ${{ inputs.lane }}
           RUN_ID: ${{ steps.runid.outputs.run_id }}
           INPUTS_JSON: ${{ inputs.inputs_json }}
         run: |
-          if [[ "$LANE" == "deploy" && ( "$NETWORK" == "sepolia" || "$NETWORK" == "mainnet" ) ]]; then
-            if [[ -z "$INPUTS_JSON" ]]; then
-              echo "inputs_json input is required for sepolia/mainnet deploy lane." >&2
-              exit 2
+          POLICY_FILE=""
+          for candidate in \
+            "./ops/policy/lane.${NETWORK}.json" \
+            "./ops/policy/${NETWORK}.policy.json" \
+            "./ops/policy/lane.${NETWORK}.example.json" \
+            "./ops/policy/${NETWORK}.policy.example.json" \
+            "./policy/${NETWORK}.policy.example.json"
+          do
+            if [[ -f "$candidate" ]]; then
+              POLICY_FILE="$candidate"
+              break
             fi
-            INPUTS_TEMPLATE_PATH="${RUNNER_TEMP}/inputs.json"
-            printf '%s\n' "$INPUTS_JSON" > "$INPUTS_TEMPLATE_PATH"
-            export INPUTS_TEMPLATE="$INPUTS_TEMPLATE_PATH"
+          done
+
+          if [[ -z "$POLICY_FILE" ]]; then
+            echo "Missing policy file for network: $NETWORK" >&2
+            exit 2
           fi
-          ./ops/tools/bundle.sh
+
+          REQUIRES_INPUTS=$(POLICY_FILE="$POLICY_FILE" RUN_LANE="$LANE" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          policy = json.loads(Path(os.environ["POLICY_FILE"]).read_text())
+          lane_cfg = ((policy.get("lanes") or {}).get(os.environ["RUN_LANE"]) or {})
+          required_inputs = lane_cfg.get("required_inputs", [])
+          if required_inputs is None:
+              required_inputs = []
+          if not isinstance(required_inputs, list):
+              raise SystemExit("policy lanes.<lane>.required_inputs must be a list when set")
+
+          has_required = False
+          for item in required_inputs:
+              if isinstance(item, dict) and isinstance(item.get("kind"), str) and item.get("kind").strip():
+                  has_required = True
+                  break
+
+          print("true" if has_required else "false")
+          PY
+          )
+
+          if [[ "$REQUIRES_INPUTS" == "true" && -z "$INPUTS_JSON" ]]; then
+            echo "inputs_json is required because lane policy declares required_inputs for $NETWORK/$LANE. Provide the locked wrapper JSON output from ops/tools/lock_inputs.sh." >&2
+            exit 2
+          fi
+
+          if [[ -n "$INPUTS_JSON" ]]; then
+            INPUTS_TEMPLATE_PATH="artifacts/${NETWORK}/current/inputs/inputs.${RUN_ID}.json"
+            mkdir -p "$(dirname "$INPUTS_TEMPLATE_PATH")"
+            printf '%s' "$INPUTS_JSON" > "$INPUTS_TEMPLATE_PATH"
+            echo "inputs_template=$INPUTS_TEMPLATE_PATH" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build bundle
+        env:
+          NETWORK: ${{ inputs.network }}
+          LANE: ${{ inputs.lane }}
+          RUN_ID: ${{ steps.runid.outputs.run_id }}
+          INPUTS_TEMPLATE: ${{ steps.lockedinputs.outputs.inputs_template }}
+        run: ./ops/tools/bundle.sh
       - name: Upload bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

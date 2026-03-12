@@ -2,12 +2,14 @@ import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-et
 
 const networks = {
   localhost: {
+    type: "http",
     url: "http://127.0.0.1:8545"
   }
 };
 
 if (process.env.SEPOLIA_RPC_URL) {
   networks.sepolia = {
+    type: "http",
     url: process.env.SEPOLIA_RPC_URL,
     accounts: process.env.SEPOLIA_PRIVATE_KEY ? [process.env.SEPOLIA_PRIVATE_KEY] : []
   };
@@ -15,6 +17,7 @@ if (process.env.SEPOLIA_RPC_URL) {
 
 if (process.env.MAINNET_RPC_URL) {
   networks.mainnet = {
+    type: "http",
     url: process.env.MAINNET_RPC_URL,
     accounts: process.env.MAINNET_PRIVATE_KEY ? [process.env.MAINNET_PRIVATE_KEY] : []
   };

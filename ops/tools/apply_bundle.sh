@@ -23,6 +23,15 @@ fi
 ROOT=$(git rev-parse --show-toplevel)
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+expand_user_path() {
+  local value="${1:-}"
+  if [[ "$value" == "~/"* ]]; then
+    printf '%s\n' "$HOME/${value#~/}"
+  else
+    printf '%s\n' "$value"
+  fi
+}
+
 if [[ -n "$BUNDLE_PATH" ]]; then
   BUNDLE_DIR="$BUNDLE_PATH"
 else
@@ -53,19 +62,40 @@ if [[ ! -f "$BUNDLE_DIR/approval.json" ]]; then
   exit 2
 fi
 
-read -r BUNDLE_HASH APPROVAL_HASH NETWORK_FROM_RUN LANE_FROM_RUN <<EOF_HASH
+IFS=$'\t' read -r BUNDLE_HASH APPROVAL_HASH NETWORK_FROM_RUN LANE_FROM_RUN INTENT_INPUTS_HASH APPROVAL_INPUTS_HASH RUN_ID_FROM_RUN <<EOF_META
 $(python3 - <<'PY'
 import json
 import os
 from pathlib import Path
+
 bundle_dir = Path(os.environ["BUNDLE_DIR"])
 manifest = json.loads((bundle_dir / "bundle_manifest.json").read_text())
 approval = json.loads((bundle_dir / "approval.json").read_text())
 run = json.loads((bundle_dir / "run.json").read_text())
-print(manifest.get("bundle_hash", ""), approval.get("bundle_hash", ""), run.get("network", ""), run.get("lane", ""))
+intent = json.loads((bundle_dir / "intent.json").read_text())
+
+
+def emit(value):
+    return value if value else "__EMPTY__"
+
+print("\t".join([
+    emit(manifest.get("bundle_hash", "")),
+    emit(approval.get("bundle_hash", "")),
+    emit(run.get("network", "")),
+    emit(run.get("lane", "")),
+    emit(intent.get("inputs_sha256", "")),
+    emit(approval.get("inputs_sha256", "")),
+    emit(run.get("run_id", "")),
+]))
 PY
 )
-EOF_HASH
+EOF_META
+
+for field in BUNDLE_HASH APPROVAL_HASH NETWORK_FROM_RUN LANE_FROM_RUN INTENT_INPUTS_HASH APPROVAL_INPUTS_HASH RUN_ID_FROM_RUN; do
+  if [[ "${!field}" == "__EMPTY__" ]]; then
+    printf -v "$field" '%s' ""
+  fi
+done
 
 if [[ -z "$BUNDLE_HASH" || -z "$APPROVAL_HASH" ]]; then
   echo "Invalid manifest or approval" >&2
@@ -87,7 +117,8 @@ for candidate in \
   "$ROOT/ops/policy/lane.${NETWORK_FROM_RUN}.json" \
   "$ROOT/ops/policy/${NETWORK_FROM_RUN}.policy.json" \
   "$ROOT/ops/policy/lane.${NETWORK_FROM_RUN}.example.json" \
-  "$ROOT/ops/policy/${NETWORK_FROM_RUN}.policy.example.json"
+  "$ROOT/ops/policy/${NETWORK_FROM_RUN}.policy.example.json" \
+  "$ROOT/policy/${NETWORK_FROM_RUN}.policy.example.json"
 do
   if [[ -f "$candidate" ]]; then
     POLICY_FILE="$candidate"
@@ -97,27 +128,27 @@ done
 
 if [[ -z "$POLICY_FILE" ]]; then
   echo "Missing policy file for network: $NETWORK_FROM_RUN" >&2
-  echo "Expected one of: lane.${NETWORK_FROM_RUN}.json, ${NETWORK_FROM_RUN}.policy.json, lane.${NETWORK_FROM_RUN}.example.json, ${NETWORK_FROM_RUN}.policy.example.json" >&2
+  echo "Expected one of: lane.${NETWORK_FROM_RUN}.json, ${NETWORK_FROM_RUN}.policy.json, lane.${NETWORK_FROM_RUN}.example.json, ${NETWORK_FROM_RUN}.policy.example.json, policy/${NETWORK_FROM_RUN}.policy.example.json" >&2
   exit 2
 fi
 
-read -r REQUIRES_REHEARSAL REHEARSAL_NETWORK <<EOF_REHEARSAL
+IFS=$'\t' read -r REQUIRES_REHEARSAL REHEARSAL_NETWORK REQUIRED_INPUT_KINDS EXPECTED_DEPLOYER_ADDRESS <<EOF_POLICY
 $(POLICY_FILE="$POLICY_FILE" RUN_LANE="$LANE_FROM_RUN" python3 - <<'PY'
 import json
 import os
+import re
 from pathlib import Path
-policy_path = Path(os.environ["POLICY_FILE"])
-run_lane = os.environ["RUN_LANE"]
-policy = json.loads(policy_path.read_text())
-lanes = policy.get("lanes", {})
-lane = lanes.get(run_lane, {})
-gates = lane.get("gates", {})
 
+policy = json.loads(Path(os.environ["POLICY_FILE"]).read_text())
+run_lane = os.environ["RUN_LANE"]
+lane = ((policy.get("lanes") or {}).get(run_lane) or {})
+
+# Rehearsal gate (canonical + backward-compat)
+gates = lane.get("gates", {})
 if not isinstance(gates, dict):
     gates = {}
 
 new_keys_present = "require_rehearsal_proof" in gates or "rehearsal_proof_network" in gates
-
 if new_keys_present:
     require_flag = bool(gates.get("require_rehearsal_proof", False))
     proof_network = str(gates.get("rehearsal_proof_network", "devnet")).strip().lower()
@@ -136,10 +167,49 @@ else:
     else:
         proof_network = ""
 
-print("true" if require_flag else "false", proof_network)
+required_inputs = lane.get("required_inputs", [])
+if required_inputs is None:
+    required_inputs = []
+if not isinstance(required_inputs, list):
+    raise SystemExit("policy lanes.<lane>.required_inputs must be a list when set")
+
+kinds = []
+for item in required_inputs:
+    if isinstance(item, dict) and isinstance(item.get("kind"), str) and item.get("kind").strip():
+        kinds.append(item["kind"].strip())
+
+expected_deployer = ""
+if run_lane == "deploy":
+    allowed_signers = lane.get("allowed_signers", [])
+    if isinstance(allowed_signers, list) and allowed_signers:
+        signer_alias = allowed_signers[0]
+        signer_map = policy.get("signer_alias_map", {})
+        if isinstance(signer_alias, str) and isinstance(signer_map, dict):
+            value = signer_map.get(signer_alias, "")
+            if isinstance(value, str):
+                candidate = value.strip()
+                if re.fullmatch(r"0x[0-9a-fA-F]{40}", candidate):
+                    expected_deployer = candidate
+
+print("\t".join([
+    "true" if require_flag else "false",
+    proof_network if proof_network else "__EMPTY__",
+    ",".join(kinds) if kinds else "__EMPTY__",
+    expected_deployer if expected_deployer else "__EMPTY__",
+]))
 PY
 )
-EOF_REHEARSAL
+EOF_POLICY
+
+if [[ "$REHEARSAL_NETWORK" == "__EMPTY__" ]]; then
+  REHEARSAL_NETWORK=""
+fi
+if [[ "$REQUIRED_INPUT_KINDS" == "__EMPTY__" ]]; then
+  REQUIRED_INPUT_KINDS=""
+fi
+if [[ "$EXPECTED_DEPLOYER_ADDRESS" == "__EMPTY__" ]]; then
+  EXPECTED_DEPLOYER_ADDRESS=""
+fi
 
 if [[ "$NETWORK_FROM_RUN" == "mainnet" && "$REQUIRES_REHEARSAL" == "true" ]]; then
   PROOF_RUN_ID="${REHEARSAL_PROOF_RUN_ID:-${DEVNET_PROOF_RUN_ID:-${SEPOLIA_PROOF_RUN_ID:-}}}"
@@ -158,15 +228,128 @@ if [[ "$NETWORK_FROM_RUN" == "mainnet" && "$REQUIRES_REHEARSAL" == "true" ]]; th
   fi
 fi
 
+INPUTS_FILE_USED=""
+INPUTS_SHA256_USED=""
+if [[ -n "$REQUIRED_INPUT_KINDS" ]]; then
+  EXPECTED_INPUTS_PATH="$BUNDLE_DIR/inputs.json"
+  if [[ ! -f "$EXPECTED_INPUTS_PATH" ]]; then
+    echo "inputs.json required by policy but missing: $EXPECTED_INPUTS_PATH" >&2
+    exit 2
+  fi
+
+  EXTERNAL_INPUTS_FILE="${INPUTS_FILE:-}"
+  if [[ -n "$EXTERNAL_INPUTS_FILE" && "$EXTERNAL_INPUTS_FILE" != "$EXPECTED_INPUTS_PATH" ]]; then
+    echo "External INPUTS_FILE override is not allowed. Expected INPUTS_FILE=$EXPECTED_INPUTS_PATH" >&2
+    exit 2
+  fi
+
+  export INPUTS_FILE="$EXPECTED_INPUTS_PATH"
+
+  IFS=$'\t' read -r ACTUAL_INPUTS_HASH WRAPPER_KIND WRAPPER_NETWORK WRAPPER_LANE WRAPPER_RUN_ID <<EOF_INPUTS
+$(INPUTS_PATH="$EXPECTED_INPUTS_PATH" python3 - <<'PY'
+import hashlib
+import json
+import os
+from pathlib import Path
+
+inputs_path = Path(os.environ["INPUTS_PATH"])
+wrapper = json.loads(inputs_path.read_text())
+actual = hashlib.sha256(inputs_path.read_bytes()).hexdigest()
+
+def emit(v):
+    return v if v else "__EMPTY__"
+
+print("\t".join([
+    emit(actual),
+    emit(wrapper.get("kind", "")),
+    emit(wrapper.get("network", "")),
+    emit(wrapper.get("lane", "")),
+    emit(wrapper.get("run_id", "")),
+]))
+PY
+)
+EOF_INPUTS
+
+  for field in ACTUAL_INPUTS_HASH WRAPPER_KIND WRAPPER_NETWORK WRAPPER_LANE WRAPPER_RUN_ID; do
+    if [[ "${!field}" == "__EMPTY__" ]]; then
+      printf -v "$field" '%s' ""
+    fi
+  done
+
+  if [[ -z "$INTENT_INPUTS_HASH" ]]; then
+    echo "inputs required but intent.json.inputs_sha256 is missing" >&2
+    exit 2
+  fi
+  if [[ "$ACTUAL_INPUTS_HASH" != "$INTENT_INPUTS_HASH" ]]; then
+    echo "inputs hash mismatch: inputs.json vs intent.json" >&2
+    exit 2
+  fi
+  if [[ -z "$APPROVAL_INPUTS_HASH" ]]; then
+    echo "inputs required but approval.json.inputs_sha256 is missing" >&2
+    exit 2
+  fi
+  if [[ "$ACTUAL_INPUTS_HASH" != "$APPROVAL_INPUTS_HASH" ]]; then
+    echo "inputs hash mismatch: inputs.json vs approval.json" >&2
+    exit 2
+  fi
+
+  IFS=',' read -r -a REQUIRED_KINDS_ARRAY <<< "$REQUIRED_INPUT_KINDS"
+  KIND_MATCH=0
+  for k in "${REQUIRED_KINDS_ARRAY[@]}"; do
+    if [[ "$WRAPPER_KIND" == "$k" ]]; then
+      KIND_MATCH=1
+      break
+    fi
+  done
+  if [[ "$KIND_MATCH" != "1" ]]; then
+    echo "inputs kind '$WRAPPER_KIND' not allowed; expected one of: $REQUIRED_INPUT_KINDS" >&2
+    exit 2
+  fi
+
+  if [[ "$WRAPPER_NETWORK" != "$NETWORK_FROM_RUN" || "$WRAPPER_LANE" != "$LANE_FROM_RUN" || "$WRAPPER_RUN_ID" != "$RUN_ID_FROM_RUN" ]]; then
+    echo "inputs wrapper coherence mismatch with run.json (network/lane/run_id)" >&2
+    exit 2
+  fi
+
+  INPUTS_FILE_USED="$EXPECTED_INPUTS_PATH"
+  INPUTS_SHA256_USED="$ACTUAL_INPUTS_HASH"
+else
+  if [[ -n "$INTENT_INPUTS_HASH" || -n "$APPROVAL_INPUTS_HASH" ]]; then
+    echo "inputs hash present in artifacts but policy does not declare required_inputs for this lane" >&2
+    exit 2
+  fi
+fi
+
 TXS_PATH="$BUNDLE_DIR/txs.json"
 SNAP_DIR="$BUNDLE_DIR/snapshots"
 mkdir -p "$SNAP_DIR"
 
 APPLIED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+DEPLOY_PARAMS_FILE_USED=""
+if [[ -n "$INPUTS_FILE_USED" ]]; then
+  DEPLOY_PARAMS_FILE_USED="$BUNDLE_DIR/inputs.params.json"
+  INPUTS_PATH="$INPUTS_FILE_USED" PARAMS_PATH="$DEPLOY_PARAMS_FILE_USED" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+wrapper = json.loads(Path(os.environ["INPUTS_PATH"]).read_text())
+params = wrapper.get("params", {})
+if not isinstance(params, dict):
+    raise SystemExit("inputs wrapper params must be a JSON object")
+
+canonical = json.dumps(params, indent=2, sort_keys=True) + "\n"
+Path(os.environ["PARAMS_PATH"]).write_text(canonical)
+PY
+fi
+
 APPLY_EXECUTION_MODE="stub"
 DEPLOY_FILE=""
 DEPLOY_LOG=""
 DEPLOY_COMMAND=""
+SIGNER_INPUT_SOURCE=""
+SIGNER_ADDRESS_USED=""
+RESOLVED_DEPLOY_PRIVATE_KEY=""
 
 if [[ "$LANE_FROM_RUN" == "deploy" ]]; then
   mkdir -p "$BUNDLE_DIR/deployments"
@@ -181,24 +364,104 @@ if [[ "$LANE_FROM_RUN" == "deploy" ]]; then
     sepolia)
       DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
       DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
-      DEPLOY_CMD=(npm --prefix evm exec -- hardhat run scripts/deploy-local-eth.js --network sepolia)
+      DEPLOY_CMD=(npm --prefix evm exec -- hardhat --config evm/hardhat.config.js run evm/scripts/deploy-local-eth.js --network sepolia)
       ;;
     mainnet)
       DEPLOY_FILE="$BUNDLE_DIR/deployments/mainnet-eth.json"
       DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
-      DEPLOY_CMD=(npm --prefix evm exec -- hardhat run scripts/deploy-local-eth.js --network mainnet)
+      DEPLOY_CMD=(npm --prefix evm exec -- hardhat --config evm/hardhat.config.js run evm/scripts/deploy-local-eth.js --network mainnet)
+      ;;
+    *)
+      echo "Unsupported network for deploy lane: $NETWORK_FROM_RUN" >&2
+      exit 2
       ;;
   esac
+
+  if [[ "$NETWORK_FROM_RUN" == "sepolia" || "$NETWORK_FROM_RUN" == "mainnet" ]]; then
+    NETWORK_UPPER=$(echo "$NETWORK_FROM_RUN" | tr '[:lower:]' '[:upper:]')
+    RAW_KEY_VAR="${NETWORK_UPPER}_PRIVATE_KEY"
+    KEYSTORE_JSON_VAR="${NETWORK_UPPER}_DEPLOY_KEYSTORE_JSON"
+    KEYSTORE_PASSWORD_VAR="${NETWORK_UPPER}_DEPLOY_KEYSTORE_PASSWORD"
+    KEYSTORE_PASSWORD_FILE_VAR="${NETWORK_UPPER}_DEPLOY_KEYSTORE_PASSWORD_FILE"
+
+    if [[ -n "${!RAW_KEY_VAR:-}" ]]; then
+      echo "Refusing raw key env ${RAW_KEY_VAR} for ${NETWORK_FROM_RUN} apply; use ${KEYSTORE_JSON_VAR} (+ password env/file)." >&2
+      exit 2
+    fi
+
+    KEYSTORE_SOURCE_RAW="${!KEYSTORE_JSON_VAR:-}"
+    KEYSTORE_SOURCE="$(expand_user_path "$KEYSTORE_SOURCE_RAW")"
+    if [[ -z "$KEYSTORE_SOURCE" ]]; then
+      echo "Missing ${KEYSTORE_JSON_VAR} for ${NETWORK_FROM_RUN} deploy apply." >&2
+      exit 2
+    fi
+
+    KEYSTORE_PASSWORD_VALUE="${!KEYSTORE_PASSWORD_VAR:-}"
+    KEYSTORE_PASSWORD_FILE="$(expand_user_path "${!KEYSTORE_PASSWORD_FILE_VAR:-}")"
+    if [[ -n "$KEYSTORE_PASSWORD_VALUE" && -n "$KEYSTORE_PASSWORD_FILE" ]]; then
+      echo "Set only one of ${KEYSTORE_PASSWORD_VAR} or ${KEYSTORE_PASSWORD_FILE_VAR}." >&2
+      exit 2
+    fi
+    if [[ -z "$KEYSTORE_PASSWORD_VALUE" && -z "$KEYSTORE_PASSWORD_FILE" && -f "$KEYSTORE_SOURCE" ]]; then
+      INFERRED_PASSWORD_FILE="$(dirname "$KEYSTORE_SOURCE")/password.txt"
+      if [[ -f "$INFERRED_PASSWORD_FILE" ]]; then
+        KEYSTORE_PASSWORD_FILE="$INFERRED_PASSWORD_FILE"
+      fi
+    fi
+    if [[ -n "$KEYSTORE_PASSWORD_FILE" ]]; then
+      if [[ ! -f "$KEYSTORE_PASSWORD_FILE" ]]; then
+        echo "${KEYSTORE_PASSWORD_FILE_VAR} file not found: $KEYSTORE_PASSWORD_FILE" >&2
+        exit 2
+      fi
+      KEYSTORE_PASSWORD_VALUE=$(<"$KEYSTORE_PASSWORD_FILE")
+      KEYSTORE_PASSWORD_VALUE="${KEYSTORE_PASSWORD_VALUE%$'\n'}"
+    fi
+    if [[ -z "$KEYSTORE_PASSWORD_VALUE" ]]; then
+      if [[ -t 0 ]]; then
+        read -r -s -p "Enter keystore password for ${KEYSTORE_JSON_VAR}: " KEYSTORE_PASSWORD_VALUE
+        echo
+      else
+        echo "Missing keystore password. Set ${KEYSTORE_PASSWORD_VAR} or ${KEYSTORE_PASSWORD_FILE_VAR}." >&2
+        exit 2
+      fi
+    fi
+
+    IFS=$'\t' read -r RESOLVED_DEPLOY_PRIVATE_KEY SIGNER_ADDRESS_USED KEYSTORE_SOURCE_KIND <<EOF_KEY
+$(KEYSTORE_SOURCE="$KEYSTORE_SOURCE" KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD_VALUE" EXPECTED_ADDRESS="$EXPECTED_DEPLOYER_ADDRESS" npm --prefix "$ROOT/evm" exec -- node "$ROOT/evm/scripts/decrypt-keystore-private-key.js")
+EOF_KEY
+    if [[ -z "$RESOLVED_DEPLOY_PRIVATE_KEY" || -z "$SIGNER_ADDRESS_USED" ]]; then
+      echo "Failed to resolve deploy signer from keystore input ${KEYSTORE_JSON_VAR}." >&2
+      exit 2
+    fi
+    SIGNER_INPUT_SOURCE="keystore:${KEYSTORE_JSON_VAR}:${KEYSTORE_SOURCE_KIND}"
+  fi
 
   if [[ "${#DEPLOY_CMD[@]}" -gt 0 ]]; then
     DEPLOY_COMMAND="${DEPLOY_CMD[*]}"
     echo "Executing deploy lane command: ${DEPLOY_COMMAND}"
-    DEPLOY_OUT_FILE="$DEPLOY_FILE" "${DEPLOY_CMD[@]}" | tee "$DEPLOY_LOG"
+    DEPLOY_ENV=(DEPLOY_OUT_FILE="$DEPLOY_FILE")
+    if [[ -n "$DEPLOY_PARAMS_FILE_USED" ]]; then
+      DEPLOY_ENV+=(DEPLOY_PARAMS_FILE="$DEPLOY_PARAMS_FILE_USED")
+    fi
+    case "$NETWORK_FROM_RUN" in
+      sepolia)
+        if [[ -n "$RESOLVED_DEPLOY_PRIVATE_KEY" ]]; then
+          DEPLOY_ENV+=(SEPOLIA_PRIVATE_KEY="$RESOLVED_DEPLOY_PRIVATE_KEY")
+        fi
+        ;;
+      mainnet)
+        if [[ -n "$RESOLVED_DEPLOY_PRIVATE_KEY" ]]; then
+          DEPLOY_ENV+=(MAINNET_PRIVATE_KEY="$RESOLVED_DEPLOY_PRIVATE_KEY")
+        fi
+        ;;
+    esac
+    env "${DEPLOY_ENV[@]}" "${DEPLOY_CMD[@]}" | tee "$DEPLOY_LOG"
+    RESOLVED_DEPLOY_PRIVATE_KEY=""
     APPLY_EXECUTION_MODE="deployed"
   fi
 fi
 
-export APPLIED_AT TXS_PATH SNAP_DIR APPLY_EXECUTION_MODE DEPLOY_FILE DEPLOY_LOG DEPLOY_COMMAND NETWORK_FROM_RUN LANE_FROM_RUN
+export APPLIED_AT TXS_PATH SNAP_DIR INPUTS_FILE_USED INPUTS_SHA256_USED APPLY_EXECUTION_MODE DEPLOY_FILE DEPLOY_LOG DEPLOY_COMMAND NETWORK_FROM_RUN LANE_FROM_RUN DEPLOY_PARAMS_FILE_USED SIGNER_INPUT_SOURCE SIGNER_ADDRESS_USED EXPECTED_DEPLOYER_ADDRESS
 python3 - <<'PY'
 import json
 import os
@@ -211,6 +474,13 @@ deploy_log = os.environ.get("DEPLOY_LOG", "")
 deploy_command = os.environ.get("DEPLOY_COMMAND", "")
 network = os.environ.get("NETWORK_FROM_RUN", "")
 lane = os.environ.get("LANE_FROM_RUN", "")
+deploy_params_file = os.environ.get("DEPLOY_PARAMS_FILE_USED", "").strip()
+signer_input_source = os.environ.get("SIGNER_INPUT_SOURCE", "").strip()
+signer_address_used = os.environ.get("SIGNER_ADDRESS_USED", "").strip()
+expected_deployer_address = os.environ.get("EXPECTED_DEPLOYER_ADDRESS", "").strip()
+
+inputs_file = os.environ.get("INPUTS_FILE_USED", "").strip()
+inputs_hash = os.environ.get("INPUTS_SHA256_USED", "").strip()
 
 (Path(os.environ["TXS_PATH"]).parent).mkdir(parents=True, exist_ok=True)
 (Path(os.environ["SNAP_DIR"])).mkdir(parents=True, exist_ok=True)
@@ -245,8 +515,20 @@ if deploy_log:
     txs_payload["deploy_log"] = deploy_log
 if deploy_command:
     txs_payload["deploy_command"] = deploy_command
+if inputs_file:
+    txs_payload["inputs_file"] = inputs_file
+if inputs_hash:
+    txs_payload["inputs_sha256"] = inputs_hash
+if deploy_params_file:
+    txs_payload["deploy_params_file"] = deploy_params_file
+if signer_input_source:
+    txs_payload["signer_input_source"] = signer_input_source
+if signer_address_used:
+    txs_payload["signer_address_used"] = signer_address_used
+if expected_deployer_address:
+    txs_payload["expected_deployer_address"] = expected_deployer_address
 
-(Path(os.environ["TXS_PATH"])).write_text(json.dumps(txs_payload, indent=2, sort_keys=True) + "\n")
+Path(os.environ["TXS_PATH"]).write_text(json.dumps(txs_payload, indent=2, sort_keys=True) + "\n")
 
 snapshot_payload = {
     "applied_at": applied_at,
@@ -255,6 +537,18 @@ snapshot_payload = {
     "execution_mode": execution_mode,
     "notes": "Contains post-apply deployment snapshot."
 }
+if inputs_file:
+    snapshot_payload["inputs_file"] = inputs_file
+if inputs_hash:
+    snapshot_payload["inputs_sha256"] = inputs_hash
+if deploy_params_file:
+    snapshot_payload["deploy_params_file"] = deploy_params_file
+if signer_input_source:
+    snapshot_payload["signer_input_source"] = signer_input_source
+if signer_address_used:
+    snapshot_payload["signer_address_used"] = signer_address_used
+if expected_deployer_address:
+    snapshot_payload["expected_deployer_address"] = expected_deployer_address
 if deployment:
     snapshot_payload["deployment"] = {
         "network": deployment.get("network"),
