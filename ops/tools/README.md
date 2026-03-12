@@ -9,6 +9,7 @@ Expected behavior by script:
 - `apply_bundle.sh` executes the approved bundle in signing context only (deploy lane runs the configured EVM deploy command). Sepolia/Mainnet deploy apply expects keystore env inputs (`<NET>_DEPLOY_KEYSTORE_JSON` + password env/file) and refuses pre-set raw `<NET>_PRIVATE_KEY`.
 - `postconditions.sh` records post-apply verification and writes `postconditions.json` (default `POSTCONDITIONS_MODE=auto`; optional `POSTCONDITIONS_MODE=manual` with explicit `POSTCONDITIONS_STATUS`).
 - `generate_path_checks.sh` probes PATH readiness (devnet/sepolia/mainnet) and writes `checks.path.json` with `required_checks` and `path_invariants`.
+- `fetch_ci_bundle.sh` downloads a remote CI bundle artifact by GitHub run id, places it under `bundles/<network>/<run_id>/`, and sanity-checks the downloaded `run.json`.
 - `audit_plan.sh` creates `audit_plan.json`.
 - `audit_collect.sh` indexes evidence files and writes `audit_evidence_index.json`.
 - `audit_verify.sh` runs control checks and writes `audit_verification.json`.

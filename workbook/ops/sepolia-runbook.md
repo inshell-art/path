@@ -41,7 +41,12 @@ npm run evm:test
 RUN_ID=sepolia-deploy-$(date -u +%Y%m%dT%H%M%SZ)
 PARAMS_FILE=~/.opsec/path/params.sepolia.deploy.json
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
-LOCKED_INPUTS_FILE=artifacts/sepolia/current/inputs/inputs.$RUN_ID.json NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID npm run ops:bundle
+gh workflow run "Ops Bundle (CI)" --ref main -f network=sepolia -f lane=deploy -f run_id="$RUN_ID" -F inputs_json=@artifacts/sepolia/current/inputs/inputs.$RUN_ID.json
+
+# After the workflow succeeds, fetch the bundle artifact locally.
+RUN_DB_ID=<github-actions-run-id>
+NETWORK=sepolia RUN_ID=$RUN_ID RUN_DB_ID=$RUN_DB_ID GH_REPO=inshell-art/path ./ops/tools/fetch_ci_bundle.sh
+
 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:verify
 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:apply
