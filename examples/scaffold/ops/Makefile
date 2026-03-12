@@ -11,11 +11,19 @@ INPUT_FILE ?=
 INPUT_KIND ?=
 PARAMS_SCHEMA ?=
 INPUTS_TEMPLATE ?=
+STRICT_PARAMS_SCHEMA ?= 0
+ALLOW_EXAMPLE_PARAMS_SCHEMA ?= 0
 
-.PHONY: lock-inputs bundle verify approve apply postconditions audit-plan audit-collect audit-verify audit-report audit-signoff audit-gate audit-all scan-secrets
+.PHONY: lock-inputs test-lock-inputs test-postconditions bundle verify approve apply postconditions audit-plan audit-collect audit-verify audit-report audit-signoff audit-gate audit-all scan-secrets
 
 lock-inputs:
-	NETWORK=$(NETWORK) LANE=$(LANE) RUN_ID=$(RUN_ID) INPUT_FILE=$(INPUT_FILE) INPUT_KIND=$(INPUT_KIND) PARAMS_SCHEMA=$(PARAMS_SCHEMA) $(ROOT)/ops/tools/lock_inputs.sh
+	NETWORK=$(NETWORK) LANE=$(LANE) RUN_ID=$(RUN_ID) INPUT_FILE=$(INPUT_FILE) INPUT_KIND=$(INPUT_KIND) PARAMS_SCHEMA=$(PARAMS_SCHEMA) STRICT_PARAMS_SCHEMA=$(STRICT_PARAMS_SCHEMA) ALLOW_EXAMPLE_PARAMS_SCHEMA=$(ALLOW_EXAMPLE_PARAMS_SCHEMA) $(ROOT)/ops/tools/lock_inputs.sh
+
+test-lock-inputs:
+	$(ROOT)/ops/tests/test_lock_inputs.sh
+
+test-postconditions:
+	$(ROOT)/tests/postconditions_mode.sh
 
 bundle:
 	NETWORK=$(NETWORK) LANE=$(LANE) RUN_ID=$(RUN_ID) INPUTS_TEMPLATE=$(INPUTS_TEMPLATE) $(ROOT)/ops/tools/bundle.sh

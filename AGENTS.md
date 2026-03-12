@@ -40,6 +40,9 @@ After the Minimal Evidence Pack, provide the normal concise answer.
 
 Rule: never present `PROPOSED` as `VERIFIED`.
 Rule: if a command was not run, say it was not run and keep the claim non-`VERIFIED`.
+Rule: never instruct exporting raw private keys (for example `*_PRIVATE_KEY`) or pasting secrets into shell/chat.
+Rule: always propose keystore + address env vars first (for example `*_DEPLOY_KEYSTORE_JSON` + `*_DEPLOY_ADDRESS`).
+Rule: if a user flow appears to require private-key export, keep it `PROPOSED` and provide the keystore-first alternative first.
 
 ### Short example (required order)
 `Minimal Evidence Pack`
@@ -87,6 +90,7 @@ then the response MUST use:
 ## What agents must not do in downstream repos
 - Do not edit files inside the subtree path (`opsec-ops-lanes-template/`) directly.
 - Do not commit secrets, keystores, seed phrases, or RPC credentials.
+- Do not instruct `export *_PRIVATE_KEY=...` flows.
 - Do not introduce accounts‑file signing mode. Keystore mode only.
 - Do not use LLMs during apply. Only pinned scripts may execute operations.
 

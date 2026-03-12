@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "STRICT TEMPLATE Constructor Params (Copy And Edit Downstream)",
+  "description": "Template for downstream strict schemas. Replace placeholder keys and constraints before use.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "symbol",
+    "paymentToken",
+    "treasury",
+    "<REPLACE_REQUIRED_FIELD_1>"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "symbol": {
+      "type": "string",
+      "minLength": 1
+    },
+    "paymentToken": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "treasury": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "<REPLACE_REQUIRED_FIELD_1>": {
+      "type": "string",
+      "description": "Replace this placeholder field with downstream contract-specific constraints."
+    },
+    "<OPTIONAL_FIELD_EXAMPLE>": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

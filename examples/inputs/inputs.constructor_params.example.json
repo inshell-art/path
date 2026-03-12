@@ -7,7 +7,7 @@
   "created_at": "2026-03-04T00:00:00Z",
   "source": {
     "origin": "repo_file",
-    "path_hint": "examples/inputs/params.constructor_params.example.json",
+    "path_hint": "examples/inputs/params.constructor_params.minimal.schema.example.json",
     "sha256": "<SOURCE_SHA256>"
   },
   "params": {
