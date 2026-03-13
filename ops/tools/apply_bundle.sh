@@ -364,12 +364,12 @@ if [[ "$LANE_FROM_RUN" == "deploy" ]]; then
     sepolia)
       DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
       DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
-      DEPLOY_CMD=(npm --prefix evm exec -- hardhat --config evm/hardhat.config.js run evm/scripts/deploy-local-eth.js --network sepolia)
+      DEPLOY_CMD=(npm --prefix "$ROOT/evm" exec -- hardhat --config "$ROOT/evm/hardhat.config.js" run "$ROOT/evm/scripts/deploy-local-eth.js" --network sepolia)
       ;;
     mainnet)
       DEPLOY_FILE="$BUNDLE_DIR/deployments/mainnet-eth.json"
       DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
-      DEPLOY_CMD=(npm --prefix evm exec -- hardhat --config evm/hardhat.config.js run evm/scripts/deploy-local-eth.js --network mainnet)
+      DEPLOY_CMD=(npm --prefix "$ROOT/evm" exec -- hardhat --config "$ROOT/evm/hardhat.config.js" run "$ROOT/evm/scripts/deploy-local-eth.js" --network mainnet)
       ;;
     *)
       echo "Unsupported network for deploy lane: $NETWORK_FROM_RUN" >&2
