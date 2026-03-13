@@ -42,7 +42,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Set run id
         id: runid
         run: |
@@ -120,7 +120,7 @@ jobs:
           LOCKED_INPUTS_FILE: ${{ steps.lockedinputs.outputs.locked_inputs_file }}
         run: ./ops/tools/bundle.sh
       - name: Upload bundle
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ops-bundle-${{ inputs.network }}-${{ steps.runid.outputs.run_id }}
           path: bundles/${{ inputs.network }}/${{ steps.runid.outputs.run_id }}

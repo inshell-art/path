@@ -41,11 +41,11 @@ npm run evm:test
 RUN_ID=sepolia-deploy-$(date -u +%Y%m%dT%H%M%SZ)
 PARAMS_FILE=~/.opsec/path/params.sepolia.deploy.json
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
-gh workflow run "Ops Bundle (CI)" --ref main -f network=sepolia -f lane=deploy -f run_id="$RUN_ID" -F inputs_json=@artifacts/sepolia/current/inputs/inputs.$RUN_ID.json
+NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
 
 # After the workflow succeeds, fetch the bundle artifact locally.
 RUN_DB_ID=<github-actions-run-id>
-NETWORK=sepolia RUN_ID=$RUN_ID RUN_DB_ID=$RUN_DB_ID GH_REPO=inshell-art/path ./ops/tools/fetch_ci_bundle.sh
+NETWORK=sepolia RUN_DB_ID=$RUN_DB_ID npm run ops:fetch-bundle
 
 # verify runs the Sepolia deploy prechecks locally on the signing machine
 # (the remote CI bundle intentionally omits immutable checks.path.json for deploy lanes).
