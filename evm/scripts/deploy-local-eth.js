@@ -376,7 +376,7 @@ async function main() {
     envConfig,
     fileConfig,
     ethers,
-    fallbackTreasury: defaultTreasurySigner.address,
+    fallbackTreasury: defaultTreasurySigner?.address ?? deployer.address,
     networkName: conn.networkName,
     chainId: networkInfo.chainId
   });
