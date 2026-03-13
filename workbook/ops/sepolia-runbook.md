@@ -47,6 +47,8 @@ gh workflow run "Ops Bundle (CI)" --ref main -f network=sepolia -f lane=deploy -
 RUN_DB_ID=<github-actions-run-id>
 NETWORK=sepolia RUN_ID=$RUN_ID RUN_DB_ID=$RUN_DB_ID GH_REPO=inshell-art/path ./ops/tools/fetch_ci_bundle.sh
 
+# verify runs the Sepolia deploy prechecks locally on the signing machine
+# (the remote CI bundle intentionally omits immutable checks.path.json for deploy lanes).
 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:verify
 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:apply

@@ -91,7 +91,14 @@ print("1" if "path_invariants" in required else "0")
 PY
 )
 
-if [[ "$PATH_INVARIANTS_REQUIRED" == "1" ]]; then
+# Sepolia/Mainnet deploy prechecks depend on local signer/RPC context and should
+# be evaluated on the signing machine during verify, not frozen into the CI bundle.
+DEFER_PATH_INVARIANTS_TO_VERIFY=0
+if [[ "$LANE" == "deploy" && ( "$NETWORK" == "sepolia" || "$NETWORK" == "mainnet" ) ]]; then
+  DEFER_PATH_INVARIANTS_TO_VERIFY=1
+fi
+
+if [[ "$PATH_INVARIANTS_REQUIRED" == "1" && "$DEFER_PATH_INVARIANTS_TO_VERIFY" != "1" ]]; then
   NETWORK="$NETWORK" LANE="$LANE" OUT_FILE="$BUNDLE_DIR/checks.path.json" POLICY_FILE="$POLICY_FILE" "$ROOT/ops/tools/generate_path_checks.sh"
 fi
 

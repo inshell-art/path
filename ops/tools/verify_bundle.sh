@@ -35,6 +35,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 
 
 def type_ok(value, expected):
@@ -244,10 +245,36 @@ if not isinstance(required_checks, list):
 path_invariants_required = "path_invariants" in required_checks
 if path_invariants_required:
     checks_path = bundle_dir / "checks.path.json"
-    if not checks_path.exists():
+    checks_generated_locally = False
+    if checks_path.exists():
+        if "checks.path.json" not in paths:
+            raise SystemExit("bundle_manifest.json is missing checks.path.json in immutable_files")
+    elif run_lane == "deploy":
+        checks_path = bundle_dir / "checks.path.verify.json"
+        env = os.environ.copy()
+        env.update({
+            "NETWORK": run_network,
+            "LANE": run_lane,
+            "OUT_FILE": str(checks_path),
+            "POLICY_FILE": str(policy_path),
+        })
+        result = subprocess.run(
+            [str(root / "ops/tools/generate_path_checks.sh")],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            onchain_log = checks_path.with_suffix(".onchain.log")
+            signed_log = checks_path.with_suffix(".signed-consume.log")
+            details = result.stderr.strip() or result.stdout.strip() or f"exit={result.returncode}"
+            raise SystemExit(
+                f"local predeploy path checks failed: {details} "
+                f"(logs: {onchain_log}, {signed_log})"
+            )
+        checks_generated_locally = True
+    else:
         raise SystemExit(f"Lane '{run_lane}' requires path_invariants but checks.path.json is missing")
-    if "checks.path.json" not in paths:
-        raise SystemExit("bundle_manifest.json is missing checks.path.json in immutable_files")
 
     path_checks = json.loads(checks_path.read_text())
     required_checks_map = path_checks.get("required_checks", {})
@@ -278,7 +305,10 @@ if path_invariants_required:
         print("Manifest hashes verified")
         if has_inputs:
             print("Inputs wrapper verified")
-        print("Required checks verified (predeploy)")
+        if checks_generated_locally:
+            print("Required checks verified (predeploy/local)")
+        else:
+            print("Required checks verified (predeploy)")
         print(f"Bundle verified: {bundle_dir}")
         raise SystemExit(0)
 
