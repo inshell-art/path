@@ -1,5 +1,8 @@
 # Sepolia runbook
 
+See also:
+- [Signing OS runbook](signing-os-runbook.md) for the serious split between Dev OS, CI, and Signing OS.
+
 ## A) Preflight checklist
 - correct network selected (`sepolia`)
 - `SEPOLIA_RPC_URL` loaded from local env (not committed)
@@ -43,11 +46,16 @@ PARAMS_FILE=~/.opsec/path/params.sepolia.deploy.json
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
 
-# After the workflow succeeds, fetch the bundle artifact locally.
+# After the workflow succeeds, fetch the bundle artifact on the Signing OS.
 RUN_DB_ID=<github-actions-run-id>
 NETWORK=sepolia RUN_DB_ID=$RUN_DB_ID npm run ops:fetch-bundle
 
-# verify runs the Sepolia deploy prechecks locally on the signing machine
+# On the Signing OS, switch to the exact pinned commit before local CD.
+BUNDLE_SHA=$(jq -r .git_commit bundles/sepolia/$RUN_ID/run.json)
+git fetch origin
+git checkout "$BUNDLE_SHA"
+
+# verify runs the Sepolia deploy prechecks locally on the Signing OS
 # (the remote CI bundle intentionally omits immutable checks.path.json for deploy lanes).
 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:verify
 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:approve

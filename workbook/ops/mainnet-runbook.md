@@ -1,5 +1,8 @@
 # Mainnet runbook
 
+See also:
+- [Signing OS runbook](signing-os-runbook.md) for the serious split between Dev OS, CI, and Signing OS.
+
 ## A) Preflight checklist
 - correct network selected (`mainnet`)
 - mainnet policy file configured and reviewed
@@ -20,7 +23,17 @@ npm run evm:test
 RUN_ID=mainnet-deploy-$(date -u +%Y%m%dT%H%M%SZ)
 PARAMS_FILE=~/.opsec/path/params.mainnet.deploy.json
 NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
-LOCKED_INPUTS_FILE=artifacts/mainnet/current/inputs/inputs.$RUN_ID.json NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID npm run ops:bundle
+NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
+
+# After the workflow succeeds, fetch the bundle artifact on the Signing OS.
+RUN_DB_ID=<github-actions-run-id>
+NETWORK=mainnet RUN_DB_ID=$RUN_DB_ID npm run ops:fetch-bundle
+
+# On the Signing OS, switch to the exact pinned commit before local CD.
+BUNDLE_SHA=$(jq -r .git_commit bundles/mainnet/$RUN_ID/run.json)
+git fetch origin
+git checkout "$BUNDLE_SHA"
+
 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:verify
 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 REHEARSAL_PROOF_RUN_ID=<proof_run_id> NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:apply
