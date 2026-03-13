@@ -66,8 +66,9 @@ else
     VERIFY_OK="true"
     VERIFY_EXIT="0"
   else
+    verify_rc=$?
     VERIFY_OK="false"
-    VERIFY_EXIT="$?"
+    VERIFY_EXIT="$verify_rc"
   fi
 
   RUN_JSON="$BUNDLE_DIR/run.json"
@@ -91,8 +92,9 @@ PY
       PATH_POSTCHECK_OK="true"
       PATH_POSTCHECK_EXIT="0"
     else
+      path_postcheck_rc=$?
       PATH_POSTCHECK_OK="false"
-      PATH_POSTCHECK_EXIT="$?"
+      PATH_POSTCHECK_EXIT="$path_postcheck_rc"
     fi
   fi
 fi

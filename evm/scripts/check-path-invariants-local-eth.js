@@ -219,7 +219,10 @@ async function loadPolicy() {
     };
   }
 
+  const networkHint = String(process.env.NETWORK || "devnet").trim() || "devnet";
   const candidates = [
+    path.resolve(REPO_ROOT, `ops/policy/lane.${networkHint}.json`),
+    path.resolve(REPO_ROOT, `ops/policy/lane.${networkHint}.example.json`),
     path.resolve(REPO_ROOT, "ops/policy/lane.devnet.json"),
     path.resolve(REPO_ROOT, "ops/policy/lane.devnet.example.json")
   ];
@@ -234,9 +237,46 @@ async function loadPolicy() {
   return { policyPath: null, policy: {} };
 }
 
+async function queryFilterPaginated(contract, filter, fromBlock, toBlock, maxBlockRange) {
+  if (!Number.isFinite(maxBlockRange) || maxBlockRange <= 0) {
+    return contract.queryFilter(filter, fromBlock, toBlock);
+  }
+
+  const logs = [];
+  let start = fromBlock;
+  while (start <= toBlock) {
+    const end = Math.min(toBlock, start + maxBlockRange - 1);
+    const chunk = await contract.queryFilter(filter, start, end);
+    logs.push(...chunk);
+    start = end + 1;
+  }
+  return logs;
+}
+
 async function collectRoleMembers(contract) {
-  const grants = await contract.queryFilter(contract.filters.RoleGranted(), 0, "latest");
-  const revokes = await contract.queryFilter(contract.filters.RoleRevoked(), 0, "latest");
+  let fromBlock = 0;
+  if (arguments.length > 1 && Number.isFinite(arguments[1])) {
+    fromBlock = Math.max(0, Number(arguments[1]));
+  }
+  const latestBlock = await contract.runner.provider.getBlockNumber();
+  let maxBlockRange = 0;
+  if (arguments.length > 2 && Number.isFinite(arguments[2])) {
+    maxBlockRange = Math.max(0, Number(arguments[2]));
+  }
+  const grants = await queryFilterPaginated(
+    contract,
+    contract.filters.RoleGranted(),
+    fromBlock,
+    latestBlock,
+    maxBlockRange
+  );
+  const revokes = await queryFilterPaginated(
+    contract,
+    contract.filters.RoleRevoked(),
+    fromBlock,
+    latestBlock,
+    maxBlockRange
+  );
   const events = [];
 
   for (const log of grants) {
@@ -272,6 +312,17 @@ async function collectRoleMembers(contract) {
     if (event.kind === "revoke") members.delete(event.account);
   }
   return roleMap;
+}
+
+async function resolveDeploymentBlock(provider, txHash) {
+  if (!txHash) return null;
+  try {
+    const receipt = await provider.getTransactionReceipt(txHash);
+    if (!receipt || receipt.blockNumber == null) return null;
+    return Number(receipt.blockNumber);
+  } catch {
+    return null;
+  }
 }
 
 async function main() {
@@ -312,6 +363,8 @@ async function main() {
       || defaultRpcFallback
   );
   const configuredRpcHost = hostFromUrl(configuredRpc);
+  const logQueryMaxBlockRange =
+    configuredRpcHost.includes("alchemy.com") ? 10 : 0;
   const rpcAllowlistMatches =
     (configuredRpc !== "" && rpcAllowlist.includes(configuredRpc))
     || (configuredRpcHost !== "" && rpcHostAllowlist.includes(configuredRpcHost));
@@ -383,6 +436,10 @@ async function main() {
   const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter);
   const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
 
+  const deployTxs = deployment.deployTxs ?? {};
+  const nftDeployBlock = await resolveDeploymentBlock(provider, deployTxs.pathNft);
+  const minterDeployBlock = await resolveDeploymentBlock(provider, deployTxs.pathMinter);
+
   const expectedCodeHashes = deployment.codeHashes ?? deployment.codehashes ?? {};
   const observedCodeHashes = {};
   const bytecodeChecks = {};
@@ -431,8 +488,8 @@ async function main() {
   const couplingMatchesBeforeSale = couplingDefined && expectedNextId === nextIdBefore;
 
   // Role / owner hygiene.
-  const nftRoleMembers = await collectRoleMembers(nft);
-  const minterRoleMembers = await collectRoleMembers(minter);
+  const nftRoleMembers = await collectRoleMembers(nft, nftDeployBlock ?? 0, logQueryMaxBlockRange);
+  const minterRoleMembers = await collectRoleMembers(minter, minterDeployBlock ?? 0, logQueryMaxBlockRange);
   const adapterOwner = await adapter.owner();
   const nftDefaultAdminRole = await nft.DEFAULT_ADMIN_ROLE();
   const nftMinterRole = await nft.MINTER_ROLE();
@@ -651,6 +708,7 @@ async function main() {
       requiredChecks: {
         configuredRpc,
         configuredRpcHost,
+        logQueryMaxBlockRange,
         rpcAllowlist,
         rpcHostAllowlist,
         allowedSignerAliases,
