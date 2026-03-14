@@ -49,8 +49,8 @@ It is an internal pre-audit artifact, not a third-party audit.
 
 ### F-01: Adapter wiring remains owner-updatable
 **Evidence**
-- `setAuction`: [PathMinterAdapter.sol](/Users/bigu/Projects/path/evm/src/PathMinterAdapter.sol:35)  
-- `setMinter`: [PathMinterAdapter.sol](/Users/bigu/Projects/path/evm/src/PathMinterAdapter.sol:42)
+- `setAuction`: [PathMinterAdapter.sol](~/Projects/path/evm/src/PathMinterAdapter.sol:35)  
+- `setMinter`: [PathMinterAdapter.sol](~/Projects/path/evm/src/PathMinterAdapter.sol:42)
 
 **Impact**
 - Adapter owner can redirect settlement source/target if key governance is weak.
@@ -60,7 +60,7 @@ It is an internal pre-audit artifact, not a third-party audit.
 
 ### F-02: Sales caller freeze is still first-success-wins
 **Evidence**
-- Freeze logic in [PathMinter.sol](/Users/bigu/Projects/path/evm/src/PathMinter.sol:48)
+- Freeze logic in [PathMinter.sol](~/Projects/path/evm/src/PathMinter.sol:48)
 
 **Impact**
 - Wrong first successful caller can permanently lock the sales route.
@@ -71,8 +71,8 @@ It is an internal pre-audit artifact, not a third-party audit.
 
 ### F-03: Movement config freeze still irreversible at first consume
 **Evidence**
-- movement frozen in [PathNFT.sol](/Users/bigu/Projects/path/evm/src/PathNFT.sol:120)
-- config rejects frozen movement in [PathNFT.sol](/Users/bigu/Projects/path/evm/src/PathNFT.sol:71)
+- movement frozen in [PathNFT.sol](~/Projects/path/evm/src/PathNFT.sol:120)
+- config rejects frozen movement in [PathNFT.sol](~/Projects/path/evm/src/PathNFT.sol:71)
 
 **Impact**
 - Misconfigured movement minter/quota becomes permanent after first consume.
@@ -82,7 +82,7 @@ It is an internal pre-audit artifact, not a third-party audit.
 
 ### F-04: `tx.origin` restriction remains intentional but limiting
 **Evidence**
-- `claimer == tx.origin` in [PathNFT.sol](/Users/bigu/Projects/path/evm/src/PathNFT.sol:102)
+- `claimer == tx.origin` in [PathNFT.sol](~/Projects/path/evm/src/PathNFT.sol:102)
 
 **Impact**
 - Blocks relayer and many smart-wallet/AA patterns unless workflows are adapted.
@@ -92,8 +92,8 @@ It is an internal pre-audit artifact, not a third-party audit.
 
 ### F-07: Pulse interface drift risk remains
 **Evidence**
-- Local adapter interface lacks `target()`: [IPulseAdapter.sol](/Users/bigu/Projects/path/evm/src/interfaces/IPulseAdapter.sol:4)
-- Upstream vendor interface includes `target()`: [vendors pulse IPulseAdapter](/Users/bigu/Projects/path/vendors/pulse/evm/src/interfaces/IPulseAdapter.sol:17)
+- Local adapter interface lacks `target()`: [IPulseAdapter.sol](~/Projects/path/evm/src/interfaces/IPulseAdapter.sol:4)
+- Upstream vendor interface includes `target()`: [vendors pulse IPulseAdapter](~/Projects/path/vendors/pulse/evm/src/interfaces/IPulseAdapter.sol:17)
 
 **Impact**
 - Future submodule updates can break integration or force emergency adapter/interface changes.
@@ -107,12 +107,12 @@ It is an internal pre-audit artifact, not a third-party audit.
 
 ### F-05 resolved: metadata and refresh signals
 **Now present**
-- base64 JSON tokenURI: [PathNFT.sol](/Users/bigu/Projects/path/evm/src/PathNFT.sol:165)
-- `description` and `attributes`: [PathNFT.sol](/Users/bigu/Projects/path/evm/src/PathNFT.sol:182)
-- ERC-4906 support and event emit: [PathNFT.sol](/Users/bigu/Projects/path/evm/src/PathNFT.sol:252), [PathNFT.sol](/Users/bigu/Projects/path/evm/src/PathNFT.sol:132)
+- base64 JSON tokenURI: [PathNFT.sol](~/Projects/path/evm/src/PathNFT.sol:165)
+- `description` and `attributes`: [PathNFT.sol](~/Projects/path/evm/src/PathNFT.sol:182)
+- ERC-4906 support and event emit: [PathNFT.sol](~/Projects/path/evm/src/PathNFT.sol:252), [PathNFT.sol](~/Projects/path/evm/src/PathNFT.sol:132)
 
 ### F-06 resolved: README matches tokenURI model
-- README note reflects base64 metadata: [evm README](/Users/bigu/Projects/path/evm/README.md:68)
+- README note reflects base64 metadata: [evm README](~/Projects/path/evm/README.md:68)
 
 ---
 

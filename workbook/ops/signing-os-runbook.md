@@ -11,8 +11,8 @@ Use it when:
 - the Signing OS starts as a cold machine with no repo context loaded
 
 For a same-machine stage-1 rehearsal:
-- use a second checkout, for example `/Users/bigu/Projects/SIGNING_OS/path`
-- use a separate secrets root, for example `/Users/bigu/Projects/SIGNING_OS/.opsec`
+- use a second checkout, for example `~/Projects/SIGNING_OS/path`
+- use a separate secrets root, for example `~/Projects/SIGNING_OS/.opsec`
 - replace `~/.opsec/...` below with that alternate root
 
 ## A) Rehearsal ladder
@@ -20,8 +20,8 @@ For a same-machine stage-1 rehearsal:
 Use this order and do not skip ahead:
 
 1. Stage 1: dedicated signer workspace on the same macOS account
-- repo example: `/Users/bigu/Projects/SIGNING_OS/path`
-- secrets example: `/Users/bigu/Projects/SIGNING_OS/.opsec`
+- repo example: `~/Projects/SIGNING_OS/path`
+- secrets example: `~/Projects/SIGNING_OS/.opsec`
 - goal: prove the process split with a separate checkout and separate secrets root
 
 2. Stage 2: separate local macOS account on the same machine
