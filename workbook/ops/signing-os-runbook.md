@@ -6,6 +6,12 @@ Use it when:
 - the bundle is built remotely in CI
 - signing happens on a separate machine
 - you want Sepolia rehearsal to mirror mainnet shape as closely as possible
+- the Signing OS starts as a cold machine with no repo context loaded
+
+For a same-machine level-2 rehearsal:
+- use a second checkout, for example `/Users/bigu/Projects/SIGNING_OS/path`
+- use a separate secrets root, for example `/Users/bigu/Projects/SIGNING_OS/.opsec`
+- replace `~/.opsec/...` below with that alternate root
 
 ## A) Trust boundary
 
@@ -24,6 +30,8 @@ Remote CI does:
 - no password material
 
 Signing OS does:
+- clone/update the repo locally
+- keep keystore/password material local-only
 - fetch bundle artifact
 - checkout the exact commit pinned in `run.json`
 - `ops:verify`
@@ -33,42 +41,170 @@ Signing OS does:
 
 Never do serious Sepolia/Mainnet `apply` from the Dev OS.
 
-## B) Signing OS prerequisites
+## B) Cold-start bootstrap on Signing OS
 
-Install and local setup:
-- repo clone exists locally
-- `node`, `npm`, `git`, `gh` available
-- `gh auth status` succeeds for the repo
-- `npm --prefix evm ci` has been run at least once on the machine
+Install required tools using the machine's package manager:
+- `node`
+- `npm`
+- `git`
+- `gh`
 
-Local-only operator materials:
-- network env file outside repo:
-  - `~/.opsec/path/sepolia.env`
-  - `~/.opsec/path/mainnet.env`
-- keystore path is local-only
-- password file or password env is local-only
-- no raw `*_PRIVATE_KEY` export for Sepolia/Mainnet
+Verify they are present:
 
-Required local env shape:
-- Sepolia:
-  - `SEPOLIA_RPC_URL`
-  - `SEPOLIA_DEPLOY_KEYSTORE_JSON`
-  - one of:
-    - `SEPOLIA_DEPLOY_KEYSTORE_PASSWORD`
-    - `SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE`
-- Mainnet:
-  - `MAINNET_RPC_URL`
-  - `MAINNET_DEPLOY_KEYSTORE_JSON`
-  - one of:
-    - `MAINNET_DEPLOY_KEYSTORE_PASSWORD`
-    - `MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE`
+```bash
+node --version
+npm --version
+git --version
+gh --version
+```
 
-## C) What you carry from Dev OS to Signing OS
+Clone the repo:
+
+```bash
+mkdir -p ~/Projects
+cd ~/Projects
+git clone git@github.com:inshell-art/path.git
+cd path
+git checkout main
+git pull origin main
+```
+
+Authenticate GitHub CLI for bundle download:
+
+```bash
+gh auth status || gh auth login
+```
+
+Install repo dependencies:
+
+```bash
+npm --prefix evm ci
+```
+
+## C) Create local-only Signing OS storage
+
+Create local-only operator directories:
+
+```bash
+install -d -m 700 ~/.opsec/path
+install -d -m 700 ~/.opsec/sepolia/deploy_sw_a
+install -d -m 700 ~/.opsec/mainnet/deploy_sw_a
+```
+
+These paths are outside the repo and must never be committed.
+
+## D) Provision keystore and password with opsec discipline
+
+Preferred rule:
+- transfer or generate only encrypted keystore JSON on the Signing OS
+- never paste a raw private key into the shell
+- never put a raw private key in repo files, env files, shell history, or chat
+
+Acceptable ways to get the keystore onto the Signing OS:
+- transfer an encrypted keystore file from a trusted wallet/tool
+- generate/import the wallet using a local wallet UI/tool that writes encrypted keystore locally
+
+Do not use this runbook to move raw private keys around.
+
+Place the encrypted keystore under the local-only directory, for example:
+
+```bash
+~/.opsec/sepolia/deploy_sw_a/keystore.json
+~/.opsec/mainnet/deploy_sw_a/keystore.json
+```
+
+Lock permissions:
+
+```bash
+chmod 600 ~/.opsec/sepolia/deploy_sw_a/keystore.json
+chmod 600 ~/.opsec/mainnet/deploy_sw_a/keystore.json
+```
+
+Create the password file locally on the Signing OS using an editor, not a shell literal:
+
+```bash
+$EDITOR ~/.opsec/sepolia/deploy_sw_a/password.txt
+$EDITOR ~/.opsec/mainnet/deploy_sw_a/password.txt
+chmod 600 ~/.opsec/sepolia/deploy_sw_a/password.txt
+chmod 600 ~/.opsec/mainnet/deploy_sw_a/password.txt
+```
+
+Why:
+- avoids storing secrets in shell history
+- avoids echoing secrets in terminal logs
+- matches `apply_bundle.sh` keystore mode
+
+## E) Create Signing OS env files
+
+Create local-only network env files:
+
+```bash
+$EDITOR ~/.opsec/path/sepolia.env
+$EDITOR ~/.opsec/path/mainnet.env
+chmod 600 ~/.opsec/path/sepolia.env
+chmod 600 ~/.opsec/path/mainnet.env
+```
+
+Sepolia env shape:
+
+```bash
+SEPOLIA_RPC_URL=https://<your-sepolia-rpc>
+SEPOLIA_DEPLOY_KEYSTORE_JSON=~/.opsec/sepolia/deploy_sw_a/keystore.json
+SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/sepolia/deploy_sw_a/password.txt
+```
+
+Mainnet env shape:
+
+```bash
+MAINNET_RPC_URL=https://<your-mainnet-rpc>
+MAINNET_DEPLOY_KEYSTORE_JSON=~/.opsec/mainnet/deploy_sw_a/keystore.json
+MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/mainnet/deploy_sw_a/password.txt
+```
+
+Rules:
+- no raw `SEPOLIA_PRIVATE_KEY`
+- no raw `MAINNET_PRIVATE_KEY`
+- password file is preferred over password env for a serious operator machine
+
+Optional local sanity checks:
+
+```bash
+[[ -f "${HOME}/.opsec/sepolia/deploy_sw_a/keystore.json" ]] && echo "sepolia keystore ok"
+[[ -f "${HOME}/.opsec/sepolia/deploy_sw_a/password.txt" ]] && echo "sepolia password file ok"
+[[ -f "${HOME}/.opsec/mainnet/deploy_sw_a/keystore.json" ]] && echo "mainnet keystore ok"
+[[ -f "${HOME}/.opsec/mainnet/deploy_sw_a/password.txt" ]] && echo "mainnet password file ok"
+```
+
+## F) Start Codex on the Signing OS
+
+Starting Codex on the Signing OS is acceptable if:
+- it operates in the local repo checkout only
+- keystore/password stay local to the machine
+- you do not paste secrets into chat
+- you do not ask it to print secret values
+
+Good first prompt on the Signing OS:
+
+```text
+Read workbook/ops/signing-os-runbook.md and guide me through the Signing OS half for NETWORK=sepolia and RUN_DB_ID=<github-actions-run-id>. Do not print secrets.
+```
+
+Good prompts later:
+- `fetch the bundle for run id X and verify it`
+- `show me the pinned commit in run.json and switch to it`
+- `run ops:verify and summarize the failing check`
+- `run ops:apply and summarize the deployment output`
+
+Bad prompts:
+- anything asking to print private keys
+- anything asking to rewrite env files with secret literals in the repo
+
+## G) What you carry from Dev OS to Signing OS
 
 Carry only these identifiers:
 - `NETWORK`
-- `RUN_ID`
-- GitHub workflow run id (`RUN_DB_ID`)
+- `RUN_DB_ID`
+- optionally `RUN_ID`
 - for mainnet only, rehearsal proof run id if required:
   - `REHEARSAL_PROOF_RUN_ID`
 
@@ -78,32 +214,19 @@ Do not carry:
 - CI secrets
 - ad hoc calldata or handwritten addresses
 
-## D) Signing OS bootstrap
+## H) Fetch bundle on Signing OS
 
-Run from repo root:
+From the Signing OS repo root:
 
 ```bash
-cd /Users/bigu/Projects/path
+cd ~/Projects/path
 git fetch origin
 git checkout main
 git pull origin main
-```
-
-Install deps if the machine is fresh:
-
-```bash
-npm --prefix evm ci
-```
-
-Check tracked tree cleanliness before local CD:
-
-```bash
 git diff --quiet && git diff --cached --quiet || { echo "tracked tree is dirty"; exit 1; }
 ```
 
-## E) Fetch bundle on Signing OS
-
-Use the CI run id from the Dev OS / GitHub Actions page:
+Fetch the CI bundle:
 
 ```bash
 NETWORK=<sepolia|mainnet>
@@ -131,22 +254,16 @@ If you want an explicit cross-check:
 find "bundles/$NETWORK" -maxdepth 2 -name run.json | sort
 ```
 
-## F) Checkout the exact pinned commit
+## I) Checkout the exact pinned commit
 
 Do not assume latest `main` is correct.
 
 Read the bundle-pinned commit and switch to it:
 
 ```bash
-RUN_ID=<run-id-from-run.json-or-dev-os>
 BUNDLE_SHA=$(jq -r .git_commit "bundles/$NETWORK/$RUN_ID/run.json")
 git fetch origin
 git checkout "$BUNDLE_SHA"
-```
-
-Then recheck tracked cleanliness:
-
-```bash
 git diff --quiet && git diff --cached --quiet || { echo "tracked tree is dirty"; exit 1; }
 ```
 
@@ -154,7 +271,7 @@ Why:
 - `ops:verify` requires `run.json.git_commit == HEAD`
 - `ops:apply` refuses dirty tracked state
 
-## G) Load operator env on Signing OS
+## J) Load local Signing OS env
 
 Sepolia:
 
@@ -187,7 +304,7 @@ gh auth status
 
 Adapt variable names for mainnet as needed.
 
-## H) Local CD on Signing OS
+## K) Local CD on Signing OS
 
 Sepolia:
 
@@ -214,7 +331,7 @@ Expected final shape:
   - `"mode": "auto"`
   - `"status": "pass"`
 
-## I) Mainnet-specific gate
+## L) Mainnet-specific gate
 
 Current mainnet deploy policy requires rehearsal proof.
 
@@ -224,25 +341,7 @@ Operational meaning:
   - local keystore on Signing OS
   - `REHEARSAL_PROOF_RUN_ID` set to an accepted rehearsal bundle id
 
-## J) Agent usage on Signing OS
-
-Using the agent on the Signing OS is acceptable if:
-- the agent works in the local repo checkout only
-- keystore/password stay local to the machine
-- you do not paste secrets into chat
-- you do not ask it to expose secret values
-
-Good prompts on Signing OS:
-- "fetch the bundle for run id X and verify it"
-- "show me the pinned commit in run.json and switch to it"
-- "run ops:verify and summarize the failing check"
-- "run ops:apply and summarize the deployment output"
-
-Bad prompts:
-- anything asking to print private keys
-- anything asking to rewrite env files with secret literals in the repo
-
-## K) Failure rules
+## M) Failure rules
 
 If `ops:verify` says commit mismatch:
 - fetch latest refs
@@ -263,31 +362,25 @@ If `ops:apply` fails on-chain but code did not change:
 If `ops:postconditions` fails because of probe logic:
 - fix the probe logic
 - commit the fix
-- future runs must use a fresh `RUN_ID`
-- do not claim the old bundle matches the new commit
+- start a fresh bundle flow if commit pin changes
 
-## L) Minimal serious sequence
+## N) Minimal serious sequence
 
-Dev OS:
+This is the shortest serious operator flow:
 
-```bash
-NETWORK=<net> LANE=deploy RUN_ID=$RUN_ID \
-INPUT_FILE=~/.opsec/path/params.<net>.deploy.json \
-INPUT_KIND=constructor_params \
-PARAMS_SCHEMA=schemas/path.constructor_params.schema.json \
-npm run ops:lock-inputs
+1. Dev OS:
+- compile/test
+- lock inputs
+- dispatch CI bundle
 
-NETWORK=<net> LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
-```
-
-Signing OS:
-
-```bash
-NETWORK=<net> RUN_DB_ID=<gh-run-id> npm run ops:fetch-bundle
-BUNDLE_SHA=$(jq -r .git_commit "bundles/$NETWORK/$RUN_ID/run.json")
-git checkout "$BUNDLE_SHA"
-NETWORK=<net> RUN_ID=$RUN_ID npm run ops:verify
-NETWORK=<net> RUN_ID=$RUN_ID npm run ops:approve
-SIGNING_OS=1 NETWORK=<net> RUN_ID=$RUN_ID npm run ops:apply
-NETWORK=<net> RUN_ID=$RUN_ID npm run ops:postconditions
-```
+2. Signing OS:
+- clone repo
+- create local-only `.opsec`
+- place encrypted keystore and local password file
+- create network env file
+- fetch CI bundle
+- checkout `run.json.git_commit`
+- verify
+- approve
+- apply
+- postconditions
