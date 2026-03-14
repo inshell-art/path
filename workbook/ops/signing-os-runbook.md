@@ -38,7 +38,42 @@ Use this order and do not skip ahead:
 Progression rule:
 - do not move to the next stage until the previous stage completes a full Sepolia deploy run with the current runbook and no ad hoc fixes during execution
 
-## B) Trust boundary
+## B) Stage 2: separate local macOS account
+
+This stage proves the process split with a separate home directory and separate shell history on the same machine.
+
+Recommended account model:
+- create a dedicated local macOS user for Signing OS work
+- prefer a Standard account for routine use
+- use an administrator account only to install tools or change machine settings
+
+Create the account from macOS Settings:
+1. open `System Settings -> Users & Groups`
+2. add a new local user
+3. choose a distinct account name for Signing OS work
+4. do not reuse the normal development account
+
+After creating it:
+1. log out of the development account
+2. log into the new Signing OS account
+3. open a fresh Terminal session
+4. treat that account's home directory as the only valid Signing OS home
+
+Stage-2 filesystem expectations:
+- repo checkout: `~/Projects/path`
+- local secrets root: `~/.opsec`
+- no references back to the development account home directory
+
+Stage-2 first-login checklist:
+- `pwd` starts under the new account home
+- `echo $HOME` is the new account home
+- `ls ~/Projects` does not rely on the old account's checkout
+- `ls ~/.opsec` does not rely on the old account's secrets
+
+Once those checks hold, use the rest of this runbook exactly as written.
+Do not special-case stage 2 after account creation.
+
+## C) Trust boundary
 
 Dev OS does:
 - code and policy edits
@@ -66,7 +101,7 @@ Signing OS does:
 
 Never do serious Sepolia/Mainnet `apply` from the Dev OS.
 
-## C) Cold-start bootstrap on Signing OS
+## D) Cold-start bootstrap on Signing OS
 
 Install required tools using the machine's package manager:
 - `node`
@@ -106,7 +141,7 @@ Install repo dependencies:
 npm --prefix evm ci
 ```
 
-## D) Create local-only Signing OS storage
+## E) Create local-only Signing OS storage
 
 Create local-only operator directories:
 
@@ -121,7 +156,7 @@ chmod 600 ~/.opsec/path/signing_os.marker
 These paths are outside the repo and must never be committed.
 The marker file is the local machine-role gate for Sepolia/Mainnet deploy-side ops.
 
-## E) Provision keystore and password with opsec discipline
+## F) Provision keystore and password with opsec discipline
 
 Preferred rule:
 - transfer or generate only encrypted keystore JSON on the Signing OS
@@ -162,7 +197,7 @@ Why:
 - avoids echoing secrets in terminal logs
 - matches `apply_bundle.sh` keystore mode
 
-## F) Create Signing OS env files
+## G) Create Signing OS env files
 
 Create local-only network env files:
 
@@ -206,7 +241,7 @@ Optional local sanity checks:
 [[ -f "${HOME}/.opsec/path/signing_os.marker" ]] && echo "signing os marker ok"
 ```
 
-## G) What you carry from Dev OS to Signing OS
+## H) What you carry from Dev OS to Signing OS
 
 Carry only these identifiers:
 - `NETWORK`
@@ -221,7 +256,7 @@ Do not carry:
 - CI secrets
 - ad hoc calldata or handwritten addresses
 
-## H) Fetch bundle on Signing OS
+## I) Fetch bundle on Signing OS
 
 From the Signing OS repo root:
 
@@ -271,7 +306,7 @@ If you want an explicit cross-check:
 find "bundles/$NETWORK" -maxdepth 2 -name run.json | sort
 ```
 
-## I) Checkout the exact pinned commit
+## J) Checkout the exact pinned commit
 
 Do not assume latest `main` is correct.
 
@@ -288,7 +323,7 @@ Why:
 - `ops:verify` requires `run.json.git_commit == HEAD`
 - `ops:apply` refuses dirty tracked state
 
-## J) Load local Signing OS env
+## K) Load local Signing OS env
 
 Sepolia:
 
@@ -321,7 +356,7 @@ gh auth status
 
 Adapt variable names for mainnet as needed.
 
-## K) Local CD on Signing OS
+## L) Local CD on Signing OS
 
 Before `ops:verify`, check:
 - `RUN_ID` matches the intended CI bundle
@@ -373,7 +408,7 @@ Expected final shape:
   - `"mode": "auto"`
   - `"status": "pass"`
 
-## L) Mainnet-specific gate
+## M) Mainnet-specific gate
 
 Current mainnet deploy policy requires rehearsal proof.
 
@@ -383,7 +418,7 @@ Operational meaning:
   - local keystore on Signing OS
   - `REHEARSAL_PROOF_RUN_ID` set to an accepted rehearsal bundle id
 
-## M) Failure rules
+## N) Failure rules
 
 If `ops:verify` says commit mismatch:
 - fetch latest refs
@@ -406,7 +441,7 @@ If `ops:postconditions` fails because of probe logic:
 - commit the fix
 - start a fresh bundle flow if commit pin changes
 
-## N) Minimal serious sequence
+## O) Minimal serious sequence
 
 This is the shortest serious operator flow:
 
@@ -427,7 +462,7 @@ This is the shortest serious operator flow:
 - apply
 - postconditions
 
-## O) Optional Codex assistance
+## P) Optional Codex assistance
 
 This runbook does not require Codex.
 
