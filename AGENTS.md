@@ -52,6 +52,7 @@
 - Do not print sensitive values in CI logs (avoid `echo $TOKEN`, `printenv`, verbose debug logs with headers/keys).
 - Avoid logging full RPC URLs if they include keys.
 - For Sepolia/Mainnet operator instructions, never provide commands that inject raw private-key values into the shell; require keystore/Ledger-style references instead. Devnet may use local convenience paths.
+- For Sepolia/Mainnet deployment guidance, default to the repo's ops-lane runbooks and `npm run ops:*` flow. Do not suggest a direct ad hoc Hardhat deploy path unless the user explicitly asks to bypass the repo-managed process.
 - No new third-party telemetry by default (no analytics, session replay, fingerprinting, or new error trackers unless explicitly requested).
 - If error tracking exists, ensure it does not capture wallet addresses, RPC payloads, or user identifiers.
 - Protect deployment and workflow integrity: do not weaken branch protections in docs/instructions; pin GitHub Action versions where possible; prefer least-privilege tokens; avoid long-lived credentials.

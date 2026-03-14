@@ -3,6 +3,9 @@
 See also:
 - [Signing OS runbook](signing-os-runbook.md) for the serious split between Dev OS, CI, and Signing OS.
 
+Use this runbook as the default meaning of "deploy on Mainnet" for this repo.
+Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionally bypassing the repo-managed ops lane.
+
 ## A) Preflight checklist
 - correct network selected (`mainnet`)
 - mainnet policy file configured and reviewed
