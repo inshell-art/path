@@ -89,9 +89,12 @@ Create local-only operator directories:
 install -d -m 700 ~/.opsec/path
 install -d -m 700 ~/.opsec/sepolia/deploy_sw_a
 install -d -m 700 ~/.opsec/mainnet/deploy_sw_a
+touch ~/.opsec/path/signing_os.marker
+chmod 600 ~/.opsec/path/signing_os.marker
 ```
 
 These paths are outside the repo and must never be committed.
+The marker file is the local machine-role gate for Sepolia/Mainnet deploy-side ops.
 
 ## D) Provision keystore and password with opsec discipline
 
@@ -151,6 +154,7 @@ Sepolia env shape:
 SEPOLIA_RPC_URL=https://<your-sepolia-rpc>
 SEPOLIA_DEPLOY_KEYSTORE_JSON=~/.opsec/sepolia/deploy_sw_a/keystore.json
 SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/sepolia/deploy_sw_a/password.txt
+SIGNING_OS_MARKER_FILE=~/.opsec/path/signing_os.marker
 ```
 
 Mainnet env shape:
@@ -159,6 +163,7 @@ Mainnet env shape:
 MAINNET_RPC_URL=https://<your-mainnet-rpc>
 MAINNET_DEPLOY_KEYSTORE_JSON=~/.opsec/mainnet/deploy_sw_a/keystore.json
 MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/mainnet/deploy_sw_a/password.txt
+SIGNING_OS_MARKER_FILE=~/.opsec/path/signing_os.marker
 ```
 
 Rules:
@@ -173,6 +178,7 @@ Optional local sanity checks:
 [[ -f "${HOME}/.opsec/sepolia/deploy_sw_a/password.txt" ]] && echo "sepolia password file ok"
 [[ -f "${HOME}/.opsec/mainnet/deploy_sw_a/keystore.json" ]] && echo "mainnet keystore ok"
 [[ -f "${HOME}/.opsec/mainnet/deploy_sw_a/password.txt" ]] && echo "mainnet password file ok"
+[[ -f "${HOME}/.opsec/path/signing_os.marker" ]] && echo "signing os marker ok"
 ```
 
 ## F) Start Codex on the Signing OS
@@ -214,6 +220,7 @@ Sensitive steps that deserve explicit operator review:
 - creating or editing local env files
 - placing keystore/password files
 - sourcing the network env file
+- setting `SIGNING_OS=1`
 - running `ops:approve`
 - running `ops:apply`
 - accepting final `postconditions` as sufficient evidence
@@ -353,6 +360,7 @@ Before `ops:verify`, check:
 - `git rev-parse HEAD` matches `run.json.git_commit` after checkout
 - tracked tree is clean
 - the loaded env file is the Signing OS env file, not the Dev OS env file
+- `SIGNING_OS_MARKER_FILE` points to the local marker file
 
 Before `ops:approve`, check:
 - bundle path is the intended one
@@ -375,20 +383,20 @@ Before accepting `postconditions`, check:
 Sepolia:
 
 ```bash
-NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:verify
-NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:approve
+SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:verify
+SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:apply
-NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
+SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
 jq '{mode,status,checks}' "bundles/sepolia/$RUN_ID/postconditions.json"
 ```
 
 Mainnet:
 
 ```bash
-NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:verify
-NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:approve
+SIGNING_OS=1 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:verify
+SIGNING_OS=1 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 REHEARSAL_PROOF_RUN_ID=<proof_run_id> NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:apply
-NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
+SIGNING_OS=1 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
 jq '{mode,status,checks}' "bundles/mainnet/$RUN_ID/postconditions.json"
 ```
 

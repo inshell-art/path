@@ -5,14 +5,14 @@ See also:
 
 ## A) Preflight checklist
 - correct network selected (`sepolia`)
-- `SEPOLIA_RPC_URL` loaded from local env (not committed)
-- deploy signer keystore env is present:
-  - `SEPOLIA_DEPLOY_KEYSTORE_JSON` (path or inline JSON)
-  - and one of `SEPOLIA_DEPLOY_KEYSTORE_PASSWORD` or `SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE`
-- `SEPOLIA_PRIVATE_KEY` is not pre-set in shell
 - constructor params file exists at `~/.opsec/path/params.sepolia.deploy.json`
 - `ops/policy/lane.sepolia.json` placeholders resolved (RPC allowlist, signer map, fee policy)
-- tracked git tree clean before bundle/apply
+- tracked git tree clean before bundle
+- Signing OS is prepared separately with:
+  - its own `SEPOLIA_RPC_URL`
+  - its own keystore/password refs
+  - its own `SIGNING_OS_MARKER_FILE`
+- Dev OS does not need Sepolia signing env for `lock-inputs` or `dispatch-bundle`
 
 ## B) Execute deploy lane
 ```bash
@@ -57,15 +57,15 @@ git checkout "$BUNDLE_SHA"
 
 # verify runs the Sepolia deploy prechecks locally on the Signing OS
 # (the remote CI bundle intentionally omits immutable checks.path.json for deploy lanes).
-NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:verify
-NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:approve
+SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:verify
+SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:apply
-NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
+SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
 Manual override (optional):
 ```bash
-POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
+SIGNING_OS=1 POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
 ## C) Capture deployment outputs

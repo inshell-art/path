@@ -6,14 +6,13 @@ See also:
 ## A) Preflight checklist
 - correct network selected (`mainnet`)
 - mainnet policy file configured and reviewed
-- `MAINNET_RPC_URL` loaded from local env (not committed)
-- deploy signer keystore env is present:
-  - `MAINNET_DEPLOY_KEYSTORE_JSON` (path or inline JSON)
-  - and one of `MAINNET_DEPLOY_KEYSTORE_PASSWORD` or `MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE`
-- `MAINNET_PRIVATE_KEY` is not pre-set in shell
 - rehearsal proof available when policy requires it
-- tracked git tree clean before bundle/apply
-- signing context isolated (`SIGNING_OS=1`)
+- tracked git tree clean before bundle
+- Signing OS is prepared separately with:
+  - its own `MAINNET_RPC_URL`
+  - its own keystore/password refs
+  - its own `SIGNING_OS_MARKER_FILE`
+- Dev OS does not need Mainnet signing env for `lock-inputs` or `dispatch-bundle`
 
 ## B) Execute deploy lane
 ```bash
@@ -34,15 +33,15 @@ BUNDLE_SHA=$(jq -r .git_commit bundles/mainnet/$RUN_ID/run.json)
 git fetch origin
 git checkout "$BUNDLE_SHA"
 
-NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:verify
-NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:approve
+SIGNING_OS=1 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:verify
+SIGNING_OS=1 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 REHEARSAL_PROOF_RUN_ID=<proof_run_id> NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:apply
-NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
+SIGNING_OS=1 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
 Manual override (optional):
 ```bash
-POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
+SIGNING_OS=1 POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
 ## C) Failure handling

@@ -53,6 +53,8 @@ if [[ ! -f "$BUNDLE_DIR/bundle_manifest.json" ]]; then
   exit 2
 fi
 
+SCRIPT_NAME=$(basename "$0") BUNDLE_DIR="$BUNDLE_DIR" "$SCRIPT_DIR/require_signing_os_context.sh"
+
 export BUNDLE_DIR
 
 BUNDLE_PATH="$BUNDLE_DIR" "$SCRIPT_DIR/verify_bundle.sh"

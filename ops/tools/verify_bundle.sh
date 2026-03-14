@@ -28,6 +28,8 @@ if [[ ! -f "$BUNDLE_DIR/bundle_manifest.json" ]]; then
   exit 2
 fi
 
+SCRIPT_NAME=$(basename "$0") BUNDLE_DIR="$BUNDLE_DIR" "$ROOT/ops/tools/require_signing_os_context.sh"
+
 export BUNDLE_DIR ROOT NETWORK
 
 python3 - <<'PY'

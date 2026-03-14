@@ -32,6 +32,8 @@ if [[ ! -f "$BUNDLE_DIR/intent.json" ]]; then
   exit 2
 fi
 
+SCRIPT_NAME=$(basename "$0") BUNDLE_DIR="$BUNDLE_DIR" "$ROOT/ops/tools/require_signing_os_context.sh"
+
 TXS_PRESENT="false"
 if [[ -f "$BUNDLE_DIR/txs.json" ]]; then
   TXS_PRESENT="true"
