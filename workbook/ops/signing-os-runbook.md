@@ -182,6 +182,7 @@ Starting Codex on the Signing OS is acceptable if:
 - keystore/password stay local to the machine
 - you do not paste secrets into chat
 - you do not ask it to print secret values
+- you keep the agent in a guide-and-review role for sensitive steps
 
 Good first prompt on the Signing OS:
 
@@ -199,7 +200,48 @@ Bad prompts:
 - anything asking to print private keys
 - anything asking to rewrite env files with secret literals in the repo
 
-## G) What you carry from Dev OS to Signing OS
+## G) Operator-controlled mode on Signing OS
+
+Use Codex as a local guide, not as an unreviewed signer.
+
+Recommended control model:
+- Codex may read repo state, bundle files, and runbooks
+- Codex may prepare exact commands and summarize outputs
+- Codex may run non-sensitive read steps
+- you inspect and approve each sensitive step before it runs
+
+Sensitive steps that deserve explicit operator review:
+- creating or editing local env files
+- placing keystore/password files
+- sourcing the network env file
+- running `ops:approve`
+- running `ops:apply`
+- accepting final `postconditions` as sufficient evidence
+
+For each sensitive step, require Codex to give:
+- the exact command
+- what file(s) it will read
+- what file(s) it will write
+- what success should look like
+- what would make it unsafe or wrong
+
+Good interaction pattern:
+1. ask Codex to inspect and summarize
+2. read the proposed command yourself
+3. run or approve the command
+4. ask Codex to interpret the output
+
+Example prompt pattern:
+
+```text
+Guide me step by step from the Signing OS runbook. For each sensitive step, stop and show:
+1. exact command
+2. files read/written
+3. what I should check before continuing
+Do not print secrets.
+```
+
+## H) What you carry from Dev OS to Signing OS
 
 Carry only these identifiers:
 - `NETWORK`
@@ -214,7 +256,7 @@ Do not carry:
 - CI secrets
 - ad hoc calldata or handwritten addresses
 
-## H) Fetch bundle on Signing OS
+## I) Fetch bundle on Signing OS
 
 From the Signing OS repo root:
 
@@ -254,7 +296,7 @@ If you want an explicit cross-check:
 find "bundles/$NETWORK" -maxdepth 2 -name run.json | sort
 ```
 
-## I) Checkout the exact pinned commit
+## J) Checkout the exact pinned commit
 
 Do not assume latest `main` is correct.
 
@@ -271,7 +313,7 @@ Why:
 - `ops:verify` requires `run.json.git_commit == HEAD`
 - `ops:apply` refuses dirty tracked state
 
-## J) Load local Signing OS env
+## K) Load local Signing OS env
 
 Sepolia:
 
@@ -304,7 +346,31 @@ gh auth status
 
 Adapt variable names for mainnet as needed.
 
-## K) Local CD on Signing OS
+## L) Local CD on Signing OS
+
+Before `ops:verify`, check:
+- `RUN_ID` matches the intended CI bundle
+- `git rev-parse HEAD` matches `run.json.git_commit` after checkout
+- tracked tree is clean
+- the loaded env file is the Signing OS env file, not the Dev OS env file
+
+Before `ops:approve`, check:
+- bundle path is the intended one
+- inputs summary matches intended deploy params
+- signer address expected by policy is the one you intend to use
+
+Before `ops:apply`, check:
+- you are on the Signing OS checkout
+- `SIGNING_OS=1` is present
+- the keystore path and password file are local-only
+- you understand the network and `RUN_ID`
+- you are satisfied with the approval and bundle pin
+
+Before accepting `postconditions`, check:
+- `postconditions.json` exists under the expected bundle directory
+- `mode` is `auto` unless you intentionally used manual mode
+- `status` is `pass`
+- deployment output files exist where expected
 
 Sepolia:
 
@@ -331,7 +397,7 @@ Expected final shape:
   - `"mode": "auto"`
   - `"status": "pass"`
 
-## L) Mainnet-specific gate
+## M) Mainnet-specific gate
 
 Current mainnet deploy policy requires rehearsal proof.
 
@@ -341,7 +407,7 @@ Operational meaning:
   - local keystore on Signing OS
   - `REHEARSAL_PROOF_RUN_ID` set to an accepted rehearsal bundle id
 
-## M) Failure rules
+## N) Failure rules
 
 If `ops:verify` says commit mismatch:
 - fetch latest refs
@@ -364,7 +430,7 @@ If `ops:postconditions` fails because of probe logic:
 - commit the fix
 - start a fresh bundle flow if commit pin changes
 
-## N) Minimal serious sequence
+## O) Minimal serious sequence
 
 This is the shortest serious operator flow:
 
