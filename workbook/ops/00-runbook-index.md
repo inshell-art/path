@@ -4,9 +4,14 @@
 - [Sepolia runbook](sepolia-runbook.md)
 - [Mainnet runbook](mainnet-runbook.md)
 - [Signing OS runbook](signing-os-runbook.md)
+  - operator-first, agent-optional
+  - includes the rehearsal ladder:
+    - stage 1: separate signer workspace
+    - stage 2: separate local macOS account
+    - stage 3: real Signing OS machine
 
 All runbooks assume:
-- env files live outside the repo (e.g., `~/.config/inshell/path/env/<network>.env`)
+- env files live outside the repo (e.g., `~/.opsec/path/<network>.env`)
 - scripts are run from the repo root
   - use ops-lane commands (`npm run ops:*`)
 - EVM deploy/test entrypoints are in `npm run evm:*`

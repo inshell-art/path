@@ -1,6 +1,8 @@
 # Signing OS runbook
 
 This runbook is the serious Sepolia/Mainnet operator path.
+It is written to work for a human operator without any agent help.
+Codex usage is optional and comes last.
 
 Use it when:
 - the bundle is built remotely in CI
@@ -8,12 +10,35 @@ Use it when:
 - you want Sepolia rehearsal to mirror mainnet shape as closely as possible
 - the Signing OS starts as a cold machine with no repo context loaded
 
-For a same-machine level-2 rehearsal:
+For a same-machine stage-1 rehearsal:
 - use a second checkout, for example `/Users/bigu/Projects/SIGNING_OS/path`
 - use a separate secrets root, for example `/Users/bigu/Projects/SIGNING_OS/.opsec`
 - replace `~/.opsec/...` below with that alternate root
 
-## A) Trust boundary
+## A) Rehearsal ladder
+
+Use this order and do not skip ahead:
+
+1. Stage 1: dedicated signer workspace on the same macOS account
+- repo example: `/Users/bigu/Projects/SIGNING_OS/path`
+- secrets example: `/Users/bigu/Projects/SIGNING_OS/.opsec`
+- goal: prove the process split with a separate checkout and separate secrets root
+
+2. Stage 2: separate local macOS account on the same machine
+- use a different macOS user account
+- use that account's own `~/Projects/path` and `~/.opsec`
+- goal: prove home-directory and shell-history separation
+
+3. Stage 3: real Signing OS machine
+- separate machine
+- separate home directory
+- separate local-only secrets storage
+- goal: match mainnet operating shape
+
+Progression rule:
+- do not move to the next stage until the previous stage completes a full Sepolia deploy run with the current runbook and no ad hoc fixes during execution
+
+## B) Trust boundary
 
 Dev OS does:
 - code and policy edits
@@ -41,7 +66,7 @@ Signing OS does:
 
 Never do serious Sepolia/Mainnet `apply` from the Dev OS.
 
-## B) Cold-start bootstrap on Signing OS
+## C) Cold-start bootstrap on Signing OS
 
 Install required tools using the machine's package manager:
 - `node`
@@ -81,7 +106,7 @@ Install repo dependencies:
 npm --prefix evm ci
 ```
 
-## C) Create local-only Signing OS storage
+## D) Create local-only Signing OS storage
 
 Create local-only operator directories:
 
@@ -96,7 +121,7 @@ chmod 600 ~/.opsec/path/signing_os.marker
 These paths are outside the repo and must never be committed.
 The marker file is the local machine-role gate for Sepolia/Mainnet deploy-side ops.
 
-## D) Provision keystore and password with opsec discipline
+## E) Provision keystore and password with opsec discipline
 
 Preferred rule:
 - transfer or generate only encrypted keystore JSON on the Signing OS
@@ -137,7 +162,7 @@ Why:
 - avoids echoing secrets in terminal logs
 - matches `apply_bundle.sh` keystore mode
 
-## E) Create Signing OS env files
+## F) Create Signing OS env files
 
 Create local-only network env files:
 
@@ -181,74 +206,7 @@ Optional local sanity checks:
 [[ -f "${HOME}/.opsec/path/signing_os.marker" ]] && echo "signing os marker ok"
 ```
 
-## F) Start Codex on the Signing OS
-
-Starting Codex on the Signing OS is acceptable if:
-- it operates in the local repo checkout only
-- keystore/password stay local to the machine
-- you do not paste secrets into chat
-- you do not ask it to print secret values
-- you keep the agent in a guide-and-review role for sensitive steps
-
-Good first prompt on the Signing OS:
-
-```text
-Read workbook/ops/signing-os-runbook.md and guide me through the Signing OS half for NETWORK=sepolia and RUN_ID=<bundle-run-id>. Do not print secrets.
-```
-
-Good prompts later:
-- `fetch the bundle for run id X and verify it`
-- `show me the pinned commit in run.json and switch to it`
-- `run ops:verify and summarize the failing check`
-- `run ops:apply and summarize the deployment output`
-
-Bad prompts:
-- anything asking to print private keys
-- anything asking to rewrite env files with secret literals in the repo
-
-## G) Operator-controlled mode on Signing OS
-
-Use Codex as a local guide, not as an unreviewed signer.
-
-Recommended control model:
-- Codex may read repo state, bundle files, and runbooks
-- Codex may prepare exact commands and summarize outputs
-- Codex may run non-sensitive read steps
-- you inspect and approve each sensitive step before it runs
-
-Sensitive steps that deserve explicit operator review:
-- creating or editing local env files
-- placing keystore/password files
-- sourcing the network env file
-- setting `SIGNING_OS=1`
-- running `ops:approve`
-- running `ops:apply`
-- accepting final `postconditions` as sufficient evidence
-
-For each sensitive step, require Codex to give:
-- the exact command
-- what file(s) it will read
-- what file(s) it will write
-- what success should look like
-- what would make it unsafe or wrong
-
-Good interaction pattern:
-1. ask Codex to inspect and summarize
-2. read the proposed command yourself
-3. run or approve the command
-4. ask Codex to interpret the output
-
-Example prompt pattern:
-
-```text
-Guide me step by step from the Signing OS runbook. For each sensitive step, stop and show:
-1. exact command
-2. files read/written
-3. what I should check before continuing
-Do not print secrets.
-```
-
-## H) What you carry from Dev OS to Signing OS
+## G) What you carry from Dev OS to Signing OS
 
 Carry only these identifiers:
 - `NETWORK`
@@ -263,7 +221,7 @@ Do not carry:
 - CI secrets
 - ad hoc calldata or handwritten addresses
 
-## I) Fetch bundle on Signing OS
+## H) Fetch bundle on Signing OS
 
 From the Signing OS repo root:
 
@@ -313,7 +271,7 @@ If you want an explicit cross-check:
 find "bundles/$NETWORK" -maxdepth 2 -name run.json | sort
 ```
 
-## J) Checkout the exact pinned commit
+## I) Checkout the exact pinned commit
 
 Do not assume latest `main` is correct.
 
@@ -330,7 +288,7 @@ Why:
 - `ops:verify` requires `run.json.git_commit == HEAD`
 - `ops:apply` refuses dirty tracked state
 
-## K) Load local Signing OS env
+## J) Load local Signing OS env
 
 Sepolia:
 
@@ -363,7 +321,7 @@ gh auth status
 
 Adapt variable names for mainnet as needed.
 
-## L) Local CD on Signing OS
+## K) Local CD on Signing OS
 
 Before `ops:verify`, check:
 - `RUN_ID` matches the intended CI bundle
@@ -415,7 +373,7 @@ Expected final shape:
   - `"mode": "auto"`
   - `"status": "pass"`
 
-## M) Mainnet-specific gate
+## L) Mainnet-specific gate
 
 Current mainnet deploy policy requires rehearsal proof.
 
@@ -425,7 +383,7 @@ Operational meaning:
   - local keystore on Signing OS
   - `REHEARSAL_PROOF_RUN_ID` set to an accepted rehearsal bundle id
 
-## N) Failure rules
+## M) Failure rules
 
 If `ops:verify` says commit mismatch:
 - fetch latest refs
@@ -448,7 +406,7 @@ If `ops:postconditions` fails because of probe logic:
 - commit the fix
 - start a fresh bundle flow if commit pin changes
 
-## O) Minimal serious sequence
+## N) Minimal serious sequence
 
 This is the shortest serious operator flow:
 
@@ -468,3 +426,38 @@ This is the shortest serious operator flow:
 - approve
 - apply
 - postconditions
+
+## O) Optional Codex assistance
+
+This runbook does not require Codex.
+
+If you do use Codex on the Signing OS:
+- keep it in the local repo checkout only
+- do not paste secrets into chat
+- do not ask it to print secret values
+- keep it in a guide-and-review role for sensitive steps
+
+Good first prompt:
+
+```text
+Read workbook/ops/signing-os-runbook.md and guide me through the Signing OS half for NETWORK=sepolia and RUN_ID=<bundle-run-id>. Do not print secrets.
+```
+
+Good prompts later:
+- `fetch the bundle for run id X and verify it`
+- `show me the pinned commit in run.json and switch to it`
+- `run ops:verify and summarize the failing check`
+- `run ops:apply and summarize the deployment output`
+
+Bad prompts:
+- anything asking to print private keys
+- anything asking to rewrite env files with secret literals in the repo
+
+Sensitive steps that still deserve explicit operator review:
+- creating or editing local env files
+- placing keystore/password files
+- sourcing the network env file
+- setting `SIGNING_OS=1`
+- running `ops:approve`
+- running `ops:apply`
+- accepting final `postconditions` as sufficient evidence

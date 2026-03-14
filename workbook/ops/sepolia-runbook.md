@@ -14,9 +14,9 @@ See also:
   - its own `SIGNING_OS_MARKER_FILE`
 - Dev OS does not need Sepolia signing env for `lock-inputs` or `dispatch-bundle`
 
-## B) Execute deploy lane
+## B) Dev OS steps
 ```bash
-mkdir -p ~/.opsec/path
+install -d -m 700 ~/.opsec/path
 $EDITOR ~/.opsec/path/params.sepolia.deploy.json
 
 # Example params file:
@@ -45,14 +45,44 @@ RUN_ID=sepolia-deploy-$(date -u +%Y%m%dT%H%M%SZ)
 PARAMS_FILE=~/.opsec/path/params.sepolia.deploy.json
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
+printf 'NETWORK=%s\nRUN_ID=%s\n' sepolia "$RUN_ID"
+```
+
+## C) Handoff note
+
+Carry only:
+
+```text
+NETWORK=sepolia
+RUN_ID=<bundle-run-id>
+```
+
+## D) Signing OS steps
+
+On the Signing OS, from the repo root:
+
+```bash
+NETWORK=sepolia
+RUN_ID=<bundle-run-id>
+GH_REPO=inshell-art/path
 
 # After the workflow succeeds, fetch the bundle artifact on the Signing OS.
-NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:fetch-bundle
+git fetch origin
+git checkout main
+git pull origin main
+git diff --quiet && git diff --cached --quiet || { echo "tracked tree is dirty"; exit 1; }
 
-# On the Signing OS, switch to the exact pinned commit before local CD.
+npm run ops:fetch-bundle
+
 BUNDLE_SHA=$(jq -r .git_commit bundles/sepolia/$RUN_ID/run.json)
 git fetch origin
 git checkout "$BUNDLE_SHA"
+git diff --quiet && git diff --cached --quiet || { echo "tracked tree is dirty"; exit 1; }
+
+set -a
+source ~/.opsec/path/sepolia.env
+set +a
+unset SEPOLIA_PRIVATE_KEY
 
 # verify runs the Sepolia deploy prechecks locally on the Signing OS
 # (the remote CI bundle intentionally omits immutable checks.path.json for deploy lanes).
@@ -67,10 +97,10 @@ Manual override (optional):
 SIGNING_OS=1 POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
-## C) Capture deployment outputs
+## E) Capture deployment outputs
 - confirm `bundles/sepolia/$RUN_ID/deployments/sepolia-eth.json` exists
 - copy promoted deployment metadata to your chosen publishing target if needed
 
-## D) Failure handling
+## F) Failure handling
 - if verify fails due policy/check mismatch: fix policy or deployment inputs, then create a new `RUN_ID`
 - if commit changes after bundle: rerun bundle/verify/approve with a new `RUN_ID`
