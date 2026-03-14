@@ -44,6 +44,10 @@ RUN_ID=<bundle-run-id>
 REHEARSAL_PROOF_RUN_ID=<accepted-proof-run-id>
 ```
 
+Target Signing OS rule:
+- execute the Signing OS half from the runbook only
+- if any Signing OS step fails because the process or docs are insufficient, stop and return to Dev OS for the fix
+
 ## D) Signing OS steps
 
 On the Signing OS, from the repo root:
@@ -85,3 +89,4 @@ SIGNING_OS=1 POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=mainn
 ## E) Failure handling
 - if rehearsal proof gate fails: provide valid `REHEARSAL_PROOF_RUN_ID`
 - if verify/apply fails: do not reuse the same bundle after code/policy changes; create a new `RUN_ID`
+- if the Signing OS runbook proves insufficient during execution: stop the Signing OS run, fix the repo on Dev OS, push, and restart with a fresh run

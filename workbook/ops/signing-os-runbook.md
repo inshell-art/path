@@ -2,13 +2,22 @@
 
 This runbook is the serious Sepolia/Mainnet operator path.
 It is written to work for a human operator without any agent help.
-Codex usage is optional and comes last.
+That is the target operating model.
 
 Use it when:
 - the bundle is built remotely in CI
 - signing happens on a separate machine
 - you want Sepolia rehearsal to mirror mainnet shape as closely as possible
 - the Signing OS starts as a cold machine with no repo context loaded
+
+Target rule:
+- operate the Signing OS from this runbook alone
+- do not depend on an agent on the Signing OS
+- if the Signing OS run blocks, stop there
+- bring the failure back to Dev OS
+- fix repo code, policy, or docs on Dev OS
+- commit and push the fix
+- start a fresh run only after the fix is published
 
 For a same-machine stage-1 rehearsal:
 - use a second checkout, for example `~/Projects/SIGNING_OS/path`
@@ -37,6 +46,7 @@ Use this order and do not skip ahead:
 
 Progression rule:
 - do not move to the next stage until the previous stage completes a full Sepolia deploy run with the current runbook and no ad hoc fixes during execution
+- do not count agent intervention on the Signing OS as a passing run
 
 ## B) Stage 2: separate local macOS account
 
@@ -100,6 +110,7 @@ Signing OS does:
 - `ops:postconditions`
 
 Never do serious Sepolia/Mainnet `apply` from the Dev OS.
+Never patch repo code, policy, or runbook content on the Signing OS during an active run.
 
 ## D) Cold-start bootstrap on Signing OS
 
@@ -140,6 +151,12 @@ Install repo dependencies:
 ```bash
 npm --prefix evm ci
 ```
+
+Operator rule on the Signing OS:
+- follow the runbook only
+- do not improvise alternate commands during an active run
+- do not invent a local workaround on the Signing OS
+- if a step fails, capture the error and return to Dev OS for any fix
 
 ## E) Create local-only Signing OS storage
 
@@ -461,6 +478,13 @@ If `ops:postconditions` fails because of probe logic:
 - commit the fix
 - start a fresh bundle flow if commit pin changes
 
+If any Signing OS step reveals a process or documentation gap:
+- stop the run
+- do not patch locally on the Signing OS
+- return to Dev OS
+- fix the repo and push the fix
+- restart from the appropriate earlier boundary with a fresh run when needed
+
 ## O) Minimal serious sequence
 
 This is the shortest serious operator flow:
@@ -485,12 +509,18 @@ This is the shortest serious operator flow:
 ## P) Optional Codex assistance
 
 This runbook does not require Codex.
+Codex is not part of the target Signing OS process.
 
 If you do use Codex on the Signing OS:
 - keep it in the local repo checkout only
 - do not paste secrets into chat
 - do not ask it to print secret values
 - keep it in a guide-and-review role for sensitive steps
+
+Preferred rule:
+- for stage 2 and stage 3, do not use Codex on the Signing OS
+- if the runbook is insufficient, treat that as a Dev OS documentation/process bug
+- fix it on Dev OS, push, and retry
 
 Good first prompt:
 

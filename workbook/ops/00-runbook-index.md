@@ -4,7 +4,8 @@
 - [Sepolia runbook](sepolia-runbook.md)
 - [Mainnet runbook](mainnet-runbook.md)
 - [Signing OS runbook](signing-os-runbook.md)
-  - operator-first, agent-optional
+  - operator-first
+  - target process is runbook-only on Signing OS
   - includes the rehearsal ladder:
     - stage 1: separate signer workspace
     - stage 2: separate local macOS account

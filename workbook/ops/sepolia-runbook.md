@@ -60,6 +60,10 @@ NETWORK=sepolia
 RUN_ID=<bundle-run-id>
 ```
 
+Target Signing OS rule:
+- execute the Signing OS half from the runbook only
+- if any Signing OS step fails because the process or docs are insufficient, stop and return to Dev OS for the fix
+
 ## D) Signing OS steps
 
 On the Signing OS, from the repo root:
@@ -107,3 +111,4 @@ SIGNING_OS=1 POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=sepol
 ## F) Failure handling
 - if verify fails due policy/check mismatch: fix policy or deployment inputs, then create a new `RUN_ID`
 - if commit changes after bundle: rerun bundle/verify/approve with a new `RUN_ID`
+- if the Signing OS runbook proves insufficient during execution: stop the Signing OS run, fix the repo on Dev OS, push, and restart with a fresh run
