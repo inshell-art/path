@@ -47,8 +47,7 @@ NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=co
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
 
 # After the workflow succeeds, fetch the bundle artifact on the Signing OS.
-RUN_DB_ID=<github-actions-run-id>
-NETWORK=sepolia RUN_DB_ID=$RUN_DB_ID npm run ops:fetch-bundle
+NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:fetch-bundle
 
 # On the Signing OS, switch to the exact pinned commit before local CD.
 BUNDLE_SHA=$(jq -r .git_commit bundles/sepolia/$RUN_ID/run.json)

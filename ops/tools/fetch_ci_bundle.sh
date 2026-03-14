@@ -10,10 +10,11 @@ ROOT=$(git rev-parse --show-toplevel)
 DEST_PARENT=${DEST_PARENT:-"$ROOT/bundles/$NETWORK"}
 TARGET_DIR=${TARGET_DIR:-}
 FORCE=${FORCE:-0}
+RUN_LOOKBACK=${RUN_LOOKBACK:-100}
 
-if [[ -z "$NETWORK" || -z "$RUN_DB_ID" ]]; then
-  echo "Usage: NETWORK=<devnet|sepolia|mainnet> RUN_DB_ID=<gh-run-id> $0" >&2
-  echo "   optional: RUN_ID=<id> GH_REPO=<owner/repo> DEST_PARENT=<dir> TARGET_DIR=<dir> FORCE=1" >&2
+if [[ -z "$NETWORK" || ( -z "$RUN_DB_ID" && -z "$RUN_ID" && -z "$ARTIFACT_NAME" ) ]]; then
+  echo "Usage: NETWORK=<devnet|sepolia|mainnet> (RUN_DB_ID=<gh-run-id> | RUN_ID=<id>) $0" >&2
+  echo "   optional: GH_REPO=<owner/repo> ARTIFACT_NAME=<artifact> DEST_PARENT=<dir> TARGET_DIR=<dir> FORCE=1 RUN_LOOKBACK=<n>" >&2
   exit 2
 fi
 
@@ -29,6 +30,67 @@ fi
 if [[ -z "$GH_REPO" ]]; then
   echo "Unable to determine GitHub repository. Set GH_REPO=<owner/repo>." >&2
   exit 2
+fi
+
+RESOLVED_ARTIFACT_NAME="$ARTIFACT_NAME"
+if [[ -z "$RESOLVED_ARTIFACT_NAME" && -n "$RUN_ID" ]]; then
+  RESOLVED_ARTIFACT_NAME="ops-bundle-${NETWORK}-${RUN_ID}"
+fi
+
+if [[ -z "$RUN_DB_ID" ]]; then
+  if [[ -z "$RESOLVED_ARTIFACT_NAME" ]]; then
+    echo "RUN_ID or ARTIFACT_NAME is required when RUN_DB_ID is not set." >&2
+    exit 2
+  fi
+
+  ARTIFACTS_JSON=$(gh api --method GET "/repos/$GH_REPO/actions/artifacts" \
+    -f per_page="$RUN_LOOKBACK" \
+    -f name="$RESOLVED_ARTIFACT_NAME")
+
+  RUN_DB_ID=$(ARTIFACTS_JSON="$ARTIFACTS_JSON" python3 - "$RESOLVED_ARTIFACT_NAME" <<'PY'
+import json
+import os
+import sys
+from datetime import datetime
+
+artifact_name = sys.argv[1]
+payload = json.loads(os.environ["ARTIFACTS_JSON"])
+artifacts = payload.get("artifacts") or []
+
+matches = []
+for artifact in artifacts:
+    if artifact.get("name") != artifact_name:
+        continue
+    if artifact.get("expired"):
+        continue
+    workflow_run = artifact.get("workflow_run") or {}
+    run_id = workflow_run.get("id")
+    created_at = artifact.get("created_at") or ""
+    if not run_id:
+        continue
+    matches.append(
+        {
+            "run_id": str(run_id),
+            "created_at": created_at,
+            "artifact_id": artifact.get("id"),
+        }
+    )
+
+if not matches:
+    raise SystemExit(f"No non-expired artifact found named {artifact_name}")
+
+def sort_key(item):
+    created_at = item["created_at"]
+    try:
+        return datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    except ValueError:
+        return datetime.min
+
+matches.sort(key=sort_key, reverse=True)
+selected = matches[0]
+print(selected["run_id"])
+PY
+  )
 fi
 
 TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/path-bundle-download.XXXXXX")
@@ -54,8 +116,8 @@ if [[ ${#artifact_dirs[@]} -eq 0 ]]; then
 fi
 
 DOWNLOADED_DIR=""
-if [[ -n "$ARTIFACT_NAME" ]]; then
-  candidate="$TMP_DIR/$ARTIFACT_NAME"
+if [[ -n "$RESOLVED_ARTIFACT_NAME" ]]; then
+  candidate="$TMP_DIR/$RESOLVED_ARTIFACT_NAME"
   if [[ -d "$candidate" ]]; then
     DOWNLOADED_DIR="$candidate"
   fi
@@ -154,5 +216,6 @@ print(f"network={run_network}")
 print(f"lane={lane}")
 PY
 
+echo "run_db_id=$RUN_DB_ID"
 echo "files:"
 find "$TARGET_DIR" -maxdepth 1 -type f -exec basename {} \; | sort

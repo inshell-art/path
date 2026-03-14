@@ -193,7 +193,7 @@ Starting Codex on the Signing OS is acceptable if:
 Good first prompt on the Signing OS:
 
 ```text
-Read workbook/ops/signing-os-runbook.md and guide me through the Signing OS half for NETWORK=sepolia and RUN_DB_ID=<github-actions-run-id>. Do not print secrets.
+Read workbook/ops/signing-os-runbook.md and guide me through the Signing OS half for NETWORK=sepolia and RUN_ID=<bundle-run-id>. Do not print secrets.
 ```
 
 Good prompts later:
@@ -252,8 +252,8 @@ Do not print secrets.
 
 Carry only these identifiers:
 - `NETWORK`
-- `RUN_DB_ID`
-- optionally `RUN_ID`
+- `RUN_ID`
+- optionally `RUN_DB_ID`
 - for mainnet only, rehearsal proof run id if required:
   - `REHEARSAL_PROOF_RUN_ID`
 
@@ -279,15 +279,25 @@ Fetch the CI bundle:
 
 ```bash
 NETWORK=<sepolia|mainnet>
-RUN_DB_ID=<github-actions-run-id>
+RUN_ID=<bundle-run-id>
 GH_REPO=inshell-art/path
 npm run ops:fetch-bundle
 ```
 
-The helper derives the bundle run id from `run.json` and installs the artifact under:
+Preferred handoff is `NETWORK + RUN_ID` only.
+The helper resolves the matching GitHub Actions run from exact artifact name `ops-bundle-<network>-<run_id>`, then installs the artifact under:
 
 ```bash
 bundles/<network>/<run_id>/
+```
+
+If you already have the GitHub run id, this also works:
+
+```bash
+NETWORK=<sepolia|mainnet>
+RUN_DB_ID=<github-actions-run-id>
+GH_REPO=inshell-art/path
+npm run ops:fetch-bundle
 ```
 
 Set `RUN_ID` explicitly from the fetched bundle before continuing:

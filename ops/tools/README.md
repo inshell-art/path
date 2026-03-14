@@ -10,7 +10,7 @@ Expected behavior by script:
 - `postconditions.sh` records post-apply verification and writes `postconditions.json` (default `POSTCONDITIONS_MODE=auto`; optional `POSTCONDITIONS_MODE=manual` with explicit `POSTCONDITIONS_STATUS`). Sepolia/Mainnet deploy postconditions requires Signing OS context (`SIGNING_OS=1` + local marker file).
 - `generate_path_checks.sh` probes PATH readiness (devnet/sepolia/mainnet) and writes `checks.path.json` with `required_checks` and `path_invariants`.
 - `dispatch_ci_bundle.sh` dispatches the remote `Ops Bundle (CI)` workflow using the locked inputs wrapper file and prints the resulting GitHub run id when available.
-- `fetch_ci_bundle.sh` downloads a remote CI bundle artifact by GitHub run id, derives the bundle run id from `run.json`, places it under `bundles/<network>/<run_id>/`, and sanity-checks the downloaded `run.json`.
+- `fetch_ci_bundle.sh` downloads a remote CI bundle artifact. Preferred Signing OS handoff is `NETWORK + RUN_ID`; the helper resolves the matching GitHub Actions run from exact artifact name `ops-bundle-<network>-<run_id>`, derives the bundle run id from `run.json`, places it under `bundles/<network>/<run_id>/`, and sanity-checks the downloaded `run.json`.
 - `audit_plan.sh` creates `audit_plan.json`.
 - `audit_collect.sh` indexes evidence files and writes `audit_evidence_index.json`.
 - `audit_verify.sh` runs control checks and writes `audit_verification.json`.
