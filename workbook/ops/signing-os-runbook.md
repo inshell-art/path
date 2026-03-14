@@ -169,6 +169,26 @@ Acceptable ways to get the keystore onto the Signing OS:
 
 Do not use this runbook to move raw private keys around.
 
+If you want to generate a fresh encrypted keystore directly on the Signing OS with Foundry, use `cast wallet new` and let it prompt for the keystore password locally:
+
+```bash
+cast wallet new ~/.opsec/sepolia/deploy_sw_a keystore.json
+cast wallet new ~/.opsec/mainnet/deploy_sw_a keystore.json
+```
+
+This writes encrypted keystore files at:
+
+```bash
+~/.opsec/sepolia/deploy_sw_a/keystore.json
+~/.opsec/mainnet/deploy_sw_a/keystore.json
+```
+
+Rules for the Foundry path:
+- use the default hidden password prompt on the Signing OS
+- do not use `--unsafe-password`
+- record the resulting address and verify it matches the intended signer before funding or use
+- if you need an existing deploy identity rather than a fresh one, import it through a trusted procedure that still ends with an encrypted keystore file on the Signing OS
+
 Place the encrypted keystore under the local-only directory, for example:
 
 ```bash
