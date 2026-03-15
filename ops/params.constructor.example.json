@@ -1,0 +1,15 @@
+{
+  "name": "PATH NFT",
+  "symbol": "PATH",
+  "baseUri": "",
+  "startDelaySec": "600",
+  "k": "600",
+  "genesisPrice": "1000",
+  "genesisFloor": "900",
+  "pts": "1",
+  "firstPublicId": "1",
+  "epochBase": "1",
+  "reservedCap": "3",
+  "paymentToken": "0x0000000000000000000000000000000000000000",
+  "treasury": "0x1111111111111111111111111111111111111111"
+}

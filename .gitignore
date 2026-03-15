@@ -10,9 +10,6 @@ tmp_tx.json
 tmp/
 .DS_Store
 .vscode/
-output/*
-!output/addresses.sepolia.json
-!output/deploy.sepolia.json
 deployments/
 scripts/.env.local
 scripts/params.devnet.local
@@ -22,6 +19,11 @@ scripts/params.devnet.local
 .env
 .env.*
 .env.*.local
+*.env
+*.local
+*.local.*
+ops/**/*.env
+ops/**/*.local.*
 
 # keys & sensitive files
 *.key
@@ -30,3 +32,45 @@ scripts/params.devnet.local
 *serviceAccount*.json
 workbook/artifacts/**/keystore*
 .last_ops_rid
+**/keystore
+**/keystore.json
+**/password.txt
+**/*.password.txt
+**/*.kdbx
+**/*.kdbx-key
+**/*.seed
+**/*.mnemonic
+**/recovery-key*
+
+# generated outputs: keep directory shell + examples/redactions only
+artifacts/**
+!artifacts/
+!artifacts/**/
+!artifacts/README.md
+!artifacts/.gitkeep
+!artifacts/**/*.example.*
+!artifacts/**/*.redacted.*
+
+bundles/**
+!bundles/
+!bundles/**/
+!bundles/README.md
+!bundles/.gitkeep
+!bundles/**/*.example.*
+!bundles/**/*.redacted.*
+
+output/**
+!output/
+!output/**/
+!output/README.md
+!output/.gitkeep
+!output/**/*.example.*
+!output/**/*.redacted.*
+
+audits/**
+!audits/
+!audits/**/
+!audits/README.md
+!audits/.gitkeep
+!audits/**/*.example.*
+!audits/**/*.redacted.*

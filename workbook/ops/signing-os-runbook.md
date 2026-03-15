@@ -164,8 +164,10 @@ Create local-only operator directories:
 
 ```bash
 install -d -m 700 ~/.opsec/path
-install -d -m 700 ~/.opsec/sepolia/deploy_sw_a
-install -d -m 700 ~/.opsec/mainnet/deploy_sw_a
+install -d -m 700 ~/.opsec/sepolia/signers/deploy_sw_a
+install -d -m 700 ~/.opsec/sepolia/password-files
+install -d -m 700 ~/.opsec/mainnet/signers/deploy_sw_a
+install -d -m 700 ~/.opsec/mainnet/password-files
 touch ~/.opsec/path/signing_os.marker
 chmod 600 ~/.opsec/path/signing_os.marker
 ```
@@ -189,15 +191,15 @@ Do not use this runbook to move raw private keys around.
 If you want to generate a fresh encrypted keystore directly on the Signing OS with Foundry, use `cast wallet new` and let it prompt for the keystore password locally:
 
 ```bash
-cast wallet new ~/.opsec/sepolia/deploy_sw_a keystore.json
-cast wallet new ~/.opsec/mainnet/deploy_sw_a keystore.json
+cast wallet new ~/.opsec/sepolia/signers/deploy_sw_a keystore.json
+cast wallet new ~/.opsec/mainnet/signers/deploy_sw_a keystore.json
 ```
 
 This writes encrypted keystore files at:
 
 ```bash
-~/.opsec/sepolia/deploy_sw_a/keystore.json
-~/.opsec/mainnet/deploy_sw_a/keystore.json
+~/.opsec/sepolia/signers/deploy_sw_a/keystore.json
+~/.opsec/mainnet/signers/deploy_sw_a/keystore.json
 ```
 
 Rules for the Foundry path:
@@ -209,30 +211,31 @@ Rules for the Foundry path:
 Place the encrypted keystore under the local-only directory, for example:
 
 ```bash
-~/.opsec/sepolia/deploy_sw_a/keystore.json
-~/.opsec/mainnet/deploy_sw_a/keystore.json
+~/.opsec/sepolia/signers/deploy_sw_a/keystore.json
+~/.opsec/mainnet/signers/deploy_sw_a/keystore.json
 ```
 
 Lock permissions:
 
 ```bash
-chmod 600 ~/.opsec/sepolia/deploy_sw_a/keystore.json
-chmod 600 ~/.opsec/mainnet/deploy_sw_a/keystore.json
+chmod 600 ~/.opsec/sepolia/signers/deploy_sw_a/keystore.json
+chmod 600 ~/.opsec/mainnet/signers/deploy_sw_a/keystore.json
 ```
 
-Create the password file locally on the Signing OS using an editor, not a shell literal:
+If you need password-file mode, create the password file locally on the Signing OS using an editor, not a shell literal, and keep it separate from the keystore path:
 
 ```bash
-$EDITOR ~/.opsec/sepolia/deploy_sw_a/password.txt
-$EDITOR ~/.opsec/mainnet/deploy_sw_a/password.txt
-chmod 600 ~/.opsec/sepolia/deploy_sw_a/password.txt
-chmod 600 ~/.opsec/mainnet/deploy_sw_a/password.txt
+$EDITOR ~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
+$EDITOR ~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
+chmod 600 ~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
+chmod 600 ~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
 ```
 
 Why:
 - avoids storing secrets in shell history
 - avoids echoing secrets in terminal logs
-- matches `apply_bundle.sh` keystore mode
+- keeps password files out of the keystore directory by default
+- matches `apply_bundle.sh` explicit password-file mode
 
 ## G) Create Signing OS env files
 
@@ -249,8 +252,8 @@ Sepolia env shape:
 
 ```bash
 SEPOLIA_RPC_URL=https://<your-sepolia-rpc>
-SEPOLIA_DEPLOY_KEYSTORE_JSON=~/.opsec/sepolia/deploy_sw_a/keystore.json
-SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/sepolia/deploy_sw_a/password.txt
+SEPOLIA_DEPLOY_KEYSTORE_JSON=~/.opsec/sepolia/signers/deploy_sw_a/keystore.json
+SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
 SIGNING_OS_MARKER_FILE=~/.opsec/path/signing_os.marker
 ```
 
@@ -258,8 +261,8 @@ Mainnet env shape:
 
 ```bash
 MAINNET_RPC_URL=https://<your-mainnet-rpc>
-MAINNET_DEPLOY_KEYSTORE_JSON=~/.opsec/mainnet/deploy_sw_a/keystore.json
-MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/mainnet/deploy_sw_a/password.txt
+MAINNET_DEPLOY_KEYSTORE_JSON=~/.opsec/mainnet/signers/deploy_sw_a/keystore.json
+MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
 SIGNING_OS_MARKER_FILE=~/.opsec/path/signing_os.marker
 ```
 
@@ -271,10 +274,10 @@ Rules:
 Optional local sanity checks:
 
 ```bash
-[[ -f "${HOME}/.opsec/sepolia/deploy_sw_a/keystore.json" ]] && echo "sepolia keystore ok"
-[[ -f "${HOME}/.opsec/sepolia/deploy_sw_a/password.txt" ]] && echo "sepolia password file ok"
-[[ -f "${HOME}/.opsec/mainnet/deploy_sw_a/keystore.json" ]] && echo "mainnet keystore ok"
-[[ -f "${HOME}/.opsec/mainnet/deploy_sw_a/password.txt" ]] && echo "mainnet password file ok"
+[[ -f "${HOME}/.opsec/sepolia/signers/deploy_sw_a/keystore.json" ]] && echo "sepolia keystore ok"
+[[ -f "${HOME}/.opsec/sepolia/password-files/deploy_sw_a.password.txt" ]] && echo "sepolia password file ok"
+[[ -f "${HOME}/.opsec/mainnet/signers/deploy_sw_a/keystore.json" ]] && echo "mainnet keystore ok"
+[[ -f "${HOME}/.opsec/mainnet/password-files/deploy_sw_a.password.txt" ]] && echo "mainnet password file ok"
 [[ -f "${HOME}/.opsec/path/signing_os.marker" ]] && echo "signing os marker ok"
 ```
 

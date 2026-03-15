@@ -33,6 +33,7 @@
     "ops:audit:report": "make -C ops audit-report",
     "ops:audit:signoff": "make -C ops audit-signoff",
     "ops:audit:all": "make -C ops audit-all",
+    "ops:check:public-safe": "./scripts/check-public-safe-ops.sh",
     "ops:lint:secret-snippets": "make -C ops lint-secret-snippets",
     "ops:scan-secrets": "make -C ops scan-secrets",
     "prepare": "husky"

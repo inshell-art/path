@@ -5,6 +5,8 @@ Purpose: run process controls over lane evidence and produce signoff artifacts.
 Prereqs:
 - Audit policy is configured (`ops/policy/audit.policy.json` or `.example.json`).
 - Target run ids are available under `bundles/<network>/`.
+- Audit outputs are generated under `audits/<network>/<audit_id>/` and are local by default.
+- Do not commit live audit outputs unless they are deliberately reviewed and redacted.
 
 Steps:
 1. `NETWORK=<net> AUDIT_ID=<id> RUN_IDS=<r1,r2> ops/tools/audit_plan.sh`

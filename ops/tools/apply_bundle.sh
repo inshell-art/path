@@ -404,12 +404,6 @@ if [[ "$LANE_FROM_RUN" == "deploy" ]]; then
       echo "Set only one of ${KEYSTORE_PASSWORD_VAR} or ${KEYSTORE_PASSWORD_FILE_VAR}." >&2
       exit 2
     fi
-    if [[ -z "$KEYSTORE_PASSWORD_VALUE" && -z "$KEYSTORE_PASSWORD_FILE" && -f "$KEYSTORE_SOURCE" ]]; then
-      INFERRED_PASSWORD_FILE="$(dirname "$KEYSTORE_SOURCE")/password.txt"
-      if [[ -f "$INFERRED_PASSWORD_FILE" ]]; then
-        KEYSTORE_PASSWORD_FILE="$INFERRED_PASSWORD_FILE"
-      fi
-    fi
     if [[ -n "$KEYSTORE_PASSWORD_FILE" ]]; then
       if [[ ! -f "$KEYSTORE_PASSWORD_FILE" ]]; then
         echo "${KEYSTORE_PASSWORD_FILE_VAR} file not found: $KEYSTORE_PASSWORD_FILE" >&2

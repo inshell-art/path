@@ -1,0 +1,3 @@
+# Optional regex allowlist for scripts/check-public-safe-ops.sh.
+# One regex per line, matched against repo-relative paths.
+# Keep this file small and review any exception deliberately.
