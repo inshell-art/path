@@ -106,3 +106,8 @@ If Class A material ever entered git history:
 3. remove it from current HEAD
 4. consider history rewrite if warranted
 5. do not rely on history rewrite alone as the fix
+
+Historical note for this repo:
+- `keystore.json` existed in repo history in commits `ec6a66a267deeb06ad256a4639617876b6cc7cb9` and `0850f4a91ca5334754a6ea0441f858100d2c9ddd`
+- any material from that file must be treated as disclosed and permanently retired
+- current HEAD keeps keystore/password/env material out of git and blocks reintroduction with the public-safe guard
