@@ -1,4 +1,4 @@
-# Deploy runbook (template)
+# Deploy procedure template
 
 Purpose: deploy contracts and capture addresses using the `deploy` lane rules.
 

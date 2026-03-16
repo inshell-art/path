@@ -1,4 +1,4 @@
-# Governance runbook (template)
+# Governance procedure template
 
 Purpose: execute governance actions via Safe.
 

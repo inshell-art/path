@@ -80,8 +80,8 @@ examples/scaffold/
       audit_verify.sh
       audit_report.sh
       audit_signoff.sh
-    runbooks/
-      audit.md
+    procedure-templates/
+      audit-template.md
     policy/
       audit.policy.example.json
       audit.policy.json
@@ -289,4 +289,3 @@ Deliverables:
 - Audit should be integrated into the template, not a separate repo by default.
 - Repo rename is optional; stability-first path is keep current name now.
 - First milestone should prioritize docs/schemas/scaffold over strict enforcement.
-

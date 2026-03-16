@@ -1,4 +1,4 @@
-# Audit runbook (template)
+# Audit procedure template
 
 Purpose: run process controls over lane evidence and produce signoff artifacts.
 

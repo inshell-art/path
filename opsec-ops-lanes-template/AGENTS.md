@@ -83,7 +83,7 @@ then the response MUST use:
 ## What agents may do in downstream repos
 - Reference template docs directly from the subtree path.
 - Copy example policy files into `ops/policy/` and edit the copies.
-- Create runbooks in `ops/runbooks/`.
+- Create concrete runbooks in `workbook/ops/` from the starter material in `ops/procedure-templates/`.
 - Maintain run artifacts in `artifacts/<network>/...` (commit only what is safe).
 - Add local `.env.example` and `.gitignore` entries that keep secrets out of git.
 

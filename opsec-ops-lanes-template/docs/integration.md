@@ -26,10 +26,15 @@ downstream-repo/
       lane.sepolia.json         # your real policy (no secrets)
       lane.mainnet.json
       audit.policy.json
-    runbooks/
-      deploy.md
-      handoff.md
-      govern.md
+    procedure-templates/
+      deploy-template.md
+      handoff-template.md
+      govern-template.md
+  workbook/
+    ops/
+      deploy-runbook.md
+      handoff-runbook.md
+      govern-runbook.md
   artifacts/
     devnet/current/             # generated artifacts (safe to commit if redacted)
     devnet/runs/<run_id>/
@@ -112,7 +117,7 @@ Schema discipline for required inputs:
 
 2) Define your signer aliases (EOA + Safe addresses) in `artifacts/<net>/current/addresses.json`.
 
-3) Keep runbooks in `ops/runbooks/`, but reference the lane rules in:
+3) Keep concrete runbooks in `workbook/ops/`, and keep starter procedure templates in `ops/procedure-templates/`. Reference the lane rules in:
 - `ops-template/docs/ops-lanes-agent.md`
 - `ops-template/docs/opsec-ops-lanes-signer-map.md`
 

@@ -1,4 +1,4 @@
-# Handoff and lockdown runbook (template)
+# Handoff and lockdown procedure template
 
 Purpose: transfer ownership and revoke deployer privileges.
 
@@ -12,6 +12,9 @@ Steps:
 3. Human approves the intent meaning.
 4. Apply in signing context only.
 5. Verify postconditions that deployer has zero privilege.
+6. Run postconditions (auto mode default):
+   - `NETWORK=<network> RUN_ID=<run_id> ops/tools/postconditions.sh`
+   - manual compatibility (if needed): `POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=<network> RUN_ID=<run_id> ops/tools/postconditions.sh`
 
 Stop conditions:
 - Ownership or roles do not match expected preconditions.

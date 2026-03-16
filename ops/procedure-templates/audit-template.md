@@ -1,6 +1,6 @@
-# Audit runbook (template)
+# Audit procedure template
 
-This directory contains template runbooks for downstream repos.
+This directory contains procedure templates for downstream repos.
 
 In this repo, the canonical operator audit procedure lives at:
 - `workbook/ops/audit-runbook.md`

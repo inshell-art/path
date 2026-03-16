@@ -24,7 +24,7 @@ ROOT=$(git rev-parse --show-toplevel)
 SCAN_PATHS=(
   "$ROOT/README.md"
   "$ROOT/AGENTS.md"
-  "$ROOT/ops/runbooks"
+  "$ROOT/ops/procedure-templates"
   "$ROOT/workbook/ops"
   "$ROOT/docs"
 )
