@@ -10,7 +10,7 @@
     - stage 1: separate signer workspace
     - stage 2: separate local macOS account
     - stage 3: real Signing OS machine
-- Audit runbook: `ops/runbooks/audit.md`
+- [Audit runbook](audit-runbook.md)
   - run after `postconditions`
   - required for accepting serious Sepolia rehearsals and mainnet release evidence
 
