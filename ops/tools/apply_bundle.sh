@@ -490,6 +490,15 @@ if deployment_file and Path(deployment_file).exists():
     except Exception:
         deployment = {}
 
+# Devnet deploys do not use keystore resolution. Fall back to the recorded
+# deployer in the deployment output so audit can still bind observed signer use.
+if not signer_address_used:
+    deployer_from_file = deployment.get("deployer")
+    if isinstance(deployer_from_file, str) and deployer_from_file.strip():
+        signer_address_used = deployer_from_file.strip()
+        if not signer_input_source:
+            signer_input_source = "deployment:deployer_field"
+
 txs = []
 if execution_mode == "deployed":
     deploy_txs = deployment.get("deployTxs", {})
