@@ -129,15 +129,28 @@ git --version
 gh --version
 ```
 
-Clone the repo:
+Clone the repo.
+
+For a same-machine stage-1 rehearsal, use the dedicated signer workspace path:
+
+```bash
+mkdir -p ~/Projects/SIGNING_OS
+cd ~/Projects/SIGNING_OS
+git clone git@github.com:inshell-art/path.git path
+cd path
+git checkout main
+git pull --ff-only origin main
+```
+
+For stage 2 or stage 3, use the normal repo location in that account or machine home:
 
 ```bash
 mkdir -p ~/Projects
 cd ~/Projects
-git clone git@github.com:inshell-art/path.git
+git clone git@github.com:inshell-art/path.git path
 cd path
 git checkout main
-git pull origin main
+git pull --ff-only origin main
 ```
 
 Authenticate GitHub CLI for bundle download:
