@@ -487,7 +487,7 @@ NETWORK=$NETWORK AUDIT_ID=$AUDIT_ID npm run ops:audit:report
 NETWORK=$NETWORK AUDIT_ID=$AUDIT_ID AUDIT_APPROVER=<name> npm run ops:audit:signoff
 ```
 
-Use `workbook/ops/audit-runbook.md` as the detailed audit procedure.
+Use `audit-runbook.md` as the detailed audit procedure.
 
 Stage completion rule:
 - for stage 1 and stage 2 Sepolia rehearsals, do not mark the stage passed until:

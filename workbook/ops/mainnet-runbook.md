@@ -101,7 +101,7 @@ NETWORK=mainnet AUDIT_ID=$AUDIT_ID AUDIT_APPROVER=<name> npm run ops:audit:signo
 ```
 
 Detailed audit procedure:
-- `workbook/ops/audit-runbook.md`
+- `audit-runbook.md`
 
 Acceptance rule:
 - `postconditions.json` status is `pass`
