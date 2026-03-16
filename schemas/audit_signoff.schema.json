@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["audit_id", "network", "run_ids", "plan_sha256", "manifest_sha256", "verify_sha256", "report_sha256", "approver", "signed_off_at", "decision"],
+  "properties": {
+    "audit_id": {"type": "string"},
+    "network": {"type": "string", "enum": ["devnet", "sepolia", "mainnet"]},
+    "run_ids": {"type": "array", "items": {"type": "string"}},
+    "plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "verify_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "report_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "approver": {"type": "string"},
+    "signed_off_at": {"type": "string"},
+    "decision": {"type": "string", "enum": ["approve"]}
+  }
+}

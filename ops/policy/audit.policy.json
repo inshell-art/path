@@ -4,35 +4,41 @@
       "AUD-001",
       "AUD-002",
       "AUD-003",
-      "AUD-004",
-      "AUD-006",
-      "AUD-009"
+      "AUD-009",
+      "AUD-010"
     ],
     "sepolia": [
       "AUD-001",
       "AUD-002",
       "AUD-003",
-      "AUD-004",
-      "AUD-006",
-      "AUD-007",
       "AUD-009",
-      "AUD-011"
+      "AUD-010"
     ],
     "mainnet": [
       "AUD-001",
       "AUD-002",
       "AUD-003",
+      "AUD-009",
+      "AUD-010"
+    ]
+  },
+  "lane_feature_controls": {
+    "write_lane": [
       "AUD-004",
       "AUD-005",
-      "AUD-006",
-      "AUD-007",
-      "AUD-008",
-      "AUD-009",
-      "AUD-010",
+      "AUD-006"
+    ],
+    "signer_allowlist": [
+      "AUD-008"
+    ],
+    "rehearsal_proof": [
+      "AUD-007"
+    ],
+    "required_inputs": [
       "AUD-011"
     ]
   },
-  "min_coverage_percent": 90,
+  "min_coverage_percent": 100,
   "max_open_findings_by_severity": {
     "critical": 0,
     "high": 0,

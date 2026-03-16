@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["audit_id", "network", "run_ids", "runs", "plan_sha256", "evidence_set_sha256", "collected_at"],
+  "properties": {
+    "audit_id": {"type": "string"},
+    "network": {"type": "string", "enum": ["devnet", "sepolia", "mainnet"]},
+    "run_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidence_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "collected_at": {"type": "string"},
+    "runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["run_id", "lane", "git_commit", "bundle_hash", "files", "missing_files"],
+        "properties": {
+          "run_id": {"type": "string"},
+          "lane": {"type": "string"},
+          "git_commit": {"type": "string"},
+          "bundle_hash": {"type": "string"},
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["path", "sha256", "required", "source"],
+              "properties": {
+                "path": {"type": "string"},
+                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "required": {"type": "boolean"},
+                "source": {"type": "string"}
+              }
+            }
+          },
+          "missing_files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["path", "required", "reason"],
+              "properties": {
+                "path": {"type": "string"},
+                "required": {"type": "boolean"},
+                "reason": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

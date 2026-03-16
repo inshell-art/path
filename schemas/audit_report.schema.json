@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["audit_id", "network", "status", "generated_at", "run_ids", "coverage", "summary", "controls", "missing_evidence", "bundle_hashes", "git_commits"],
+  "properties": {
+    "audit_id": {"type": "string"},
+    "network": {"type": "string", "enum": ["devnet", "sepolia", "mainnet"]},
+    "status": {"type": "string", "enum": ["pass", "fail", "incomplete"]},
+    "generated_at": {"type": "string"},
+    "run_ids": {"type": "array", "items": {"type": "string"}},
+    "coverage": {
+      "type": "object",
+      "required": ["covered", "total", "percent"],
+      "properties": {
+        "covered": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0},
+        "percent": {"type": "number", "minimum": 0}
+      }
+    },
+    "summary": {"type": "object"},
+    "controls": {"type": "array"},
+    "missing_evidence": {"type": "array"},
+    "bundle_hashes": {"type": "array"},
+    "git_commits": {"type": "array"}
+  }
+}

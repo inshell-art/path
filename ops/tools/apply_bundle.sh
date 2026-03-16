@@ -457,7 +457,7 @@ EOF_KEY
   fi
 fi
 
-export APPLIED_AT TXS_PATH SNAP_DIR INPUTS_FILE_USED INPUTS_SHA256_USED APPLY_EXECUTION_MODE DEPLOY_FILE DEPLOY_LOG DEPLOY_COMMAND NETWORK_FROM_RUN LANE_FROM_RUN DEPLOY_PARAMS_FILE_USED SIGNER_INPUT_SOURCE SIGNER_ADDRESS_USED EXPECTED_DEPLOYER_ADDRESS
+export APPLIED_AT TXS_PATH SNAP_DIR INPUTS_FILE_USED INPUTS_SHA256_USED APPLY_EXECUTION_MODE DEPLOY_FILE DEPLOY_LOG DEPLOY_COMMAND NETWORK_FROM_RUN LANE_FROM_RUN DEPLOY_PARAMS_FILE_USED SIGNER_INPUT_SOURCE SIGNER_ADDRESS_USED EXPECTED_DEPLOYER_ADDRESS PROOF_RUN_ID REHEARSAL_NETWORK
 python3 - <<'PY'
 import json
 import os
@@ -474,6 +474,8 @@ deploy_params_file = os.environ.get("DEPLOY_PARAMS_FILE_USED", "").strip()
 signer_input_source = os.environ.get("SIGNER_INPUT_SOURCE", "").strip()
 signer_address_used = os.environ.get("SIGNER_ADDRESS_USED", "").strip()
 expected_deployer_address = os.environ.get("EXPECTED_DEPLOYER_ADDRESS", "").strip()
+rehearsal_proof_run_id = os.environ.get("PROOF_RUN_ID", "").strip()
+rehearsal_proof_network = os.environ.get("REHEARSAL_NETWORK", "").strip()
 
 inputs_file = os.environ.get("INPUTS_FILE_USED", "").strip()
 inputs_hash = os.environ.get("INPUTS_SHA256_USED", "").strip()
@@ -523,6 +525,10 @@ if signer_address_used:
     txs_payload["signer_address_used"] = signer_address_used
 if expected_deployer_address:
     txs_payload["expected_deployer_address"] = expected_deployer_address
+if rehearsal_proof_run_id:
+    txs_payload["rehearsal_proof_run_id"] = rehearsal_proof_run_id
+if rehearsal_proof_network:
+    txs_payload["rehearsal_proof_network"] = rehearsal_proof_network
 
 Path(os.environ["TXS_PATH"]).write_text(json.dumps(txs_payload, indent=2, sort_keys=True) + "\n")
 
@@ -545,6 +551,10 @@ if signer_address_used:
     snapshot_payload["signer_address_used"] = signer_address_used
 if expected_deployer_address:
     snapshot_payload["expected_deployer_address"] = expected_deployer_address
+if rehearsal_proof_run_id:
+    snapshot_payload["rehearsal_proof_run_id"] = rehearsal_proof_run_id
+if rehearsal_proof_network:
+    snapshot_payload["rehearsal_proof_network"] = rehearsal_proof_network
 if deployment:
     snapshot_payload["deployment"] = {
         "network": deployment.get("network"),

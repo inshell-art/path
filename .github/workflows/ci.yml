@@ -16,6 +16,20 @@ jobs:
       - name: Check public-safe boundary
         run: ./scripts/check-public-safe-ops.sh
 
+  audit-smoke:
+    name: Audit Smoke Tests
+    needs: public-safe-boundary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Run audit smoke
+        run: ./ops/tests/audit_smoke.sh
+
+      - name: Run audit negative
+        run: ./ops/tests/audit_negative.sh
+
   evm-test:
     name: EVM Solidity Tests
     needs: public-safe-boundary

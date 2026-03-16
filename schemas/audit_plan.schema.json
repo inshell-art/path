@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "audit_id",
+    "network",
+    "run_ids",
+    "allowed_lanes",
+    "purpose",
+    "created_at",
+    "controls",
+    "runs",
+    "project"
+  ],
+  "properties": {
+    "audit_id": {"type": "string", "minLength": 1},
+    "network": {"type": "string", "enum": ["devnet", "sepolia", "mainnet"]},
+    "run_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "allowed_lanes": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "purpose": {"type": "string"},
+    "created_at": {"type": "string"},
+    "controls": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^AUD-[0-9]{3}$"}},
+    "runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["run_id", "lane", "git_commit", "bundle_path", "policy_snapshot_path", "policy_snapshot_sha256"],
+        "properties": {
+          "run_id": {"type": "string"},
+          "lane": {"type": "string"},
+          "git_commit": {"type": "string", "minLength": 7},
+          "bundle_path": {"type": "string"},
+          "policy_snapshot_path": {"type": "string"},
+          "policy_snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "required": ["repo_name", "repo_remote"],
+      "properties": {
+        "repo_name": {"type": "string"},
+        "repo_remote": {"type": "string"}
+      }
+    }
+  }
+}

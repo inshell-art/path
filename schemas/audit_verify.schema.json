@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["audit_id", "network", "status", "verified_at", "run_ids", "control_results", "plan_sha256", "manifest_sha256", "frozen_input_sha256"],
+  "properties": {
+    "audit_id": {"type": "string"},
+    "network": {"type": "string", "enum": ["devnet", "sepolia", "mainnet"]},
+    "status": {"type": "string", "enum": ["pass", "fail", "incomplete"]},
+    "verified_at": {"type": "string"},
+    "run_ids": {"type": "array", "items": {"type": "string"}},
+    "plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "frozen_input_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "control_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["control_id", "status", "tier", "details", "evidence_refs"],
+        "properties": {
+          "control_id": {"type": "string", "pattern": "^AUD-[0-9]{3}$"},
+          "status": {"type": "string", "enum": ["pass", "fail", "incomplete"]},
+          "tier": {"type": "string"},
+          "details": {"type": "string"},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  }
+}
