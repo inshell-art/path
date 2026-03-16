@@ -164,6 +164,8 @@ Create local-only operator directories:
 
 ```bash
 install -d -m 700 ~/.opsec/path
+install -d -m 700 ~/.opsec/path/env
+install -d -m 700 ~/.opsec/path/params
 install -d -m 700 ~/.opsec/sepolia/signers/deploy_sw_a
 install -d -m 700 ~/.opsec/sepolia/password-files
 install -d -m 700 ~/.opsec/mainnet/signers/deploy_sw_a
@@ -242,10 +244,10 @@ Why:
 Create local-only network env files:
 
 ```bash
-$EDITOR ~/.opsec/path/sepolia.env
-$EDITOR ~/.opsec/path/mainnet.env
-chmod 600 ~/.opsec/path/sepolia.env
-chmod 600 ~/.opsec/path/mainnet.env
+$EDITOR ~/.opsec/path/env/sepolia.env
+$EDITOR ~/.opsec/path/env/mainnet.env
+chmod 600 ~/.opsec/path/env/sepolia.env
+chmod 600 ~/.opsec/path/env/mainnet.env
 ```
 
 Sepolia env shape:
@@ -278,6 +280,8 @@ Optional local sanity checks:
 [[ -f "${HOME}/.opsec/sepolia/password-files/deploy_sw_a.password.txt" ]] && echo "sepolia password file ok"
 [[ -f "${HOME}/.opsec/mainnet/signers/deploy_sw_a/keystore.json" ]] && echo "mainnet keystore ok"
 [[ -f "${HOME}/.opsec/mainnet/password-files/deploy_sw_a.password.txt" ]] && echo "mainnet password file ok"
+[[ -f "${HOME}/.opsec/path/env/sepolia.env" ]] && echo "sepolia env ok"
+[[ -f "${HOME}/.opsec/path/env/mainnet.env" ]] && echo "mainnet env ok"
 [[ -f "${HOME}/.opsec/path/signing_os.marker" ]] && echo "signing os marker ok"
 ```
 
@@ -369,7 +373,7 @@ Sepolia:
 
 ```bash
 set -a
-source ~/.opsec/path/sepolia.env
+source ~/.opsec/path/env/sepolia.env
 set +a
 unset SEPOLIA_PRIVATE_KEY
 ```
@@ -378,7 +382,7 @@ Mainnet:
 
 ```bash
 set -a
-source ~/.opsec/path/mainnet.env
+source ~/.opsec/path/env/mainnet.env
 set +a
 unset MAINNET_PRIVATE_KEY
 ```

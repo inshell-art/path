@@ -8,7 +8,7 @@ Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionall
 
 ## A) Preflight checklist
 - correct network selected (`sepolia`)
-- constructor params file exists at `~/.opsec/path/params.sepolia.deploy.json`
+- constructor params file exists at `~/.opsec/path/params/params.sepolia.deploy.json`
 - `ops/policy/lane.sepolia.json` placeholders resolved (RPC allowlist, signer map, fee policy)
 - tracked git tree clean before bundle
 - Signing OS is prepared separately with:
@@ -20,7 +20,8 @@ Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionall
 ## B) Dev OS steps
 ```bash
 install -d -m 700 ~/.opsec/path
-$EDITOR ~/.opsec/path/params.sepolia.deploy.json
+install -d -m 700 ~/.opsec/path/params
+$EDITOR ~/.opsec/path/params/params.sepolia.deploy.json
 
 # Example params file:
 # {
@@ -39,13 +40,13 @@ $EDITOR ~/.opsec/path/params.sepolia.deploy.json
 #   "paymentToken": "0x0000000000000000000000000000000000000000",
 #   "treasury": "0xYourTreasuryAddress"
 # }
-chmod 600 ~/.opsec/path/params.sepolia.deploy.json
+chmod 600 ~/.opsec/path/params/params.sepolia.deploy.json
 
 npm run evm:compile
 npm run evm:test
 
 RUN_ID=sepolia-deploy-$(date -u +%Y%m%dT%H%M%SZ)
-PARAMS_FILE=~/.opsec/path/params.sepolia.deploy.json
+PARAMS_FILE=~/.opsec/path/params/params.sepolia.deploy.json
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
 printf 'NETWORK=%s\nRUN_ID=%s\n' sepolia "$RUN_ID"
@@ -87,7 +88,7 @@ git checkout "$BUNDLE_SHA"
 git diff --quiet && git diff --cached --quiet || { echo "tracked tree is dirty"; exit 1; }
 
 set -a
-source ~/.opsec/path/sepolia.env
+source ~/.opsec/path/env/sepolia.env
 set +a
 unset SEPOLIA_PRIVATE_KEY
 

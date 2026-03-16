@@ -12,7 +12,8 @@
     - stage 3: real Signing OS machine
 
 All runbooks assume:
-- env files live outside the repo (e.g., `~/.opsec/path/<network>.env`)
+- env files live outside the repo (e.g., `~/.opsec/path/env/<network>.env`)
+- params files live outside the repo (e.g., `~/.opsec/path/params/params.<network>.deploy.json`)
 - scripts are run from the repo root
   - use ops-lane commands (`npm run ops:*`)
 - EVM deploy/test entrypoints are in `npm run evm:*`

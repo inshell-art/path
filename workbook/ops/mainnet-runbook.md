@@ -11,7 +11,7 @@ Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionall
 - mainnet policy file configured and reviewed
 - rehearsal proof available when policy requires it
 - tracked git tree clean before bundle
-- constructor params file exists at `~/.opsec/path/params.mainnet.deploy.json`
+- constructor params file exists at `~/.opsec/path/params/params.mainnet.deploy.json`
 - Signing OS is prepared separately with:
   - its own `MAINNET_RPC_URL`
   - its own keystore/password refs
@@ -21,14 +21,15 @@ Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionall
 ## B) Dev OS steps
 ```bash
 install -d -m 700 ~/.opsec/path
-$EDITOR ~/.opsec/path/params.mainnet.deploy.json
-chmod 600 ~/.opsec/path/params.mainnet.deploy.json
+install -d -m 700 ~/.opsec/path/params
+$EDITOR ~/.opsec/path/params/params.mainnet.deploy.json
+chmod 600 ~/.opsec/path/params/params.mainnet.deploy.json
 
 npm run evm:compile
 npm run evm:test
 
 RUN_ID=mainnet-deploy-$(date -u +%Y%m%dT%H%M%SZ)
-PARAMS_FILE=~/.opsec/path/params.mainnet.deploy.json
+PARAMS_FILE=~/.opsec/path/params/params.mainnet.deploy.json
 NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
 NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
 printf 'NETWORK=%s\nRUN_ID=%s\n' mainnet "$RUN_ID"
@@ -71,7 +72,7 @@ git checkout "$BUNDLE_SHA"
 git diff --quiet && git diff --cached --quiet || { echo "tracked tree is dirty"; exit 1; }
 
 set -a
-source ~/.opsec/path/mainnet.env
+source ~/.opsec/path/env/mainnet.env
 set +a
 unset MAINNET_PRIVATE_KEY
 
