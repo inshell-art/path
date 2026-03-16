@@ -87,7 +87,30 @@ Manual override (optional):
 SIGNING_OS=1 POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
-## E) Failure handling
+## E) Audit the completed run
+
+Do not treat a completed mainnet run as accepted release evidence until the post-run audit passes and signoff is written:
+
+```bash
+AUDIT_ID=mainnet-audit-$(date -u +%Y%m%dT%H%M%SZ)
+NETWORK=mainnet AUDIT_ID=$AUDIT_ID RUN_IDS=$RUN_ID npm run ops:audit:plan
+NETWORK=mainnet AUDIT_ID=$AUDIT_ID npm run ops:audit:collect
+NETWORK=mainnet AUDIT_ID=$AUDIT_ID npm run ops:audit:verify
+NETWORK=mainnet AUDIT_ID=$AUDIT_ID npm run ops:audit:report
+NETWORK=mainnet AUDIT_ID=$AUDIT_ID AUDIT_APPROVER=<name> npm run ops:audit:signoff
+```
+
+Detailed audit procedure:
+- `ops/runbooks/audit.md`
+
+Acceptance rule:
+- `postconditions.json` status is `pass`
+- `audit_verify.json` status is `pass`
+- `audit_report.json` status is `pass`
+- `audit_signoff.json` exists
+
+## F) Failure handling
 - if rehearsal proof gate fails: provide valid `REHEARSAL_PROOF_RUN_ID`
 - if verify/apply fails: do not reuse the same bundle after code/policy changes; create a new `RUN_ID`
+- if audit fails or is incomplete: the run is already on-chain, but do not accept it as clean release evidence until the audit gap is resolved through the documented process
 - if the Signing OS runbook proves insufficient during execution: stop the Signing OS run, fix the repo on Dev OS, push, and restart with a fresh run

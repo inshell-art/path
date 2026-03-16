@@ -1,6 +1,8 @@
 # Audit runbook
 
 Purpose: audit is the read-only evidence layer over completed runs. It is not part of the authority path for `bundle`, `verify`, `approve`, `apply`, or `postconditions`.
+Run it after `postconditions`.
+For serious Sepolia rehearsals and mainnet runs, use audit before accepting the completed run as valid evidence.
 
 Prereqs:
 - Audit policy is configured in `ops/policy/audit.policy.json`.

@@ -10,6 +10,9 @@
     - stage 1: separate signer workspace
     - stage 2: separate local macOS account
     - stage 3: real Signing OS machine
+- Audit runbook: `ops/runbooks/audit.md`
+  - run after `postconditions`
+  - required for accepting serious Sepolia rehearsals and mainnet release evidence
 
 All runbooks assume:
 - env files live outside the repo (e.g., `~/.opsec/path/env/<network>.env`)

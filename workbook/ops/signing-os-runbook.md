@@ -45,7 +45,7 @@ Use this order and do not skip ahead:
 - goal: match mainnet operating shape
 
 Progression rule:
-- do not move to the next stage until the previous stage completes a full Sepolia deploy run with the current runbook and no ad hoc fixes during execution
+- do not move to the next stage until the previous stage completes a full Sepolia deploy run, then a post-run audit pass/signoff, with the current runbook and no ad hoc fixes during execution
 - do not count agent intervention on the Signing OS as a passing run
 
 ## B) Stage 2: separate local macOS account
@@ -427,6 +427,12 @@ Before accepting `postconditions`, check:
 - `status` is `pass`
 - deployment output files exist where expected
 
+Before accepting the run as a passed rehearsal or release record, check:
+- the completed run has a fresh `AUDIT_ID`
+- `audit_verify.json` status is `pass`
+- `audit_report.json` status is `pass`
+- `audit_signoff.json` exists
+
 Sepolia:
 
 ```bash
@@ -452,7 +458,38 @@ Expected final shape:
   - `"mode": "auto"`
   - `"status": "pass"`
 
-## M) Mainnet-specific gate
+## M) Audit after postconditions
+
+Audit is not part of the authority path for `verify`, `approve`, `apply`, or `postconditions`.
+It is the read-only review layer for accepting the completed run as valid rehearsal or release evidence.
+
+Run audit from the same repo checkout that holds the completed bundle:
+
+```bash
+AUDIT_ID=$NETWORK-audit-$(date -u +%Y%m%dT%H%M%SZ)
+NETWORK=$NETWORK AUDIT_ID=$AUDIT_ID RUN_IDS=$RUN_ID npm run ops:audit:plan
+NETWORK=$NETWORK AUDIT_ID=$AUDIT_ID npm run ops:audit:collect
+NETWORK=$NETWORK AUDIT_ID=$AUDIT_ID npm run ops:audit:verify
+NETWORK=$NETWORK AUDIT_ID=$AUDIT_ID npm run ops:audit:report
+NETWORK=$NETWORK AUDIT_ID=$AUDIT_ID AUDIT_APPROVER=<name> npm run ops:audit:signoff
+```
+
+Use `ops/runbooks/audit.md` as the detailed audit procedure.
+
+Stage completion rule:
+- for stage 1 and stage 2 Sepolia rehearsals, do not mark the stage passed until:
+  - `postconditions.json` is `pass`
+  - `audit_verify.json` is `pass`
+  - `audit_report.json` is `pass`
+  - `audit_signoff.json` is written
+
+For mainnet:
+- treat audit the same way
+- the deployment is already on-chain after `apply`
+- audit does not undo the run
+- audit decides whether the completed run is accepted as valid release evidence
+
+## N) Mainnet-specific gate
 
 Current mainnet deploy policy requires rehearsal proof.
 
@@ -462,7 +499,7 @@ Operational meaning:
   - local keystore on Signing OS
   - `REHEARSAL_PROOF_RUN_ID` set to an accepted rehearsal bundle id
 
-## N) Failure rules
+## O) Failure rules
 
 If `ops:verify` says commit mismatch:
 - fetch latest refs
@@ -485,6 +522,12 @@ If `ops:postconditions` fails because of probe logic:
 - commit the fix
 - start a fresh bundle flow if commit pin changes
 
+If audit fails or is incomplete:
+- do not count the run as passed rehearsal or accepted release evidence
+- inspect `audit_verify.json` and `audit_report.json`
+- fix the repo, policy, or runbook on Dev OS if the gap is process-related
+- rerun with a fresh `RUN_ID` if the generated run evidence must change
+
 If any Signing OS step reveals a process or documentation gap:
 - stop the run
 - do not patch locally on the Signing OS
@@ -492,7 +535,7 @@ If any Signing OS step reveals a process or documentation gap:
 - fix the repo and push the fix
 - restart from the appropriate earlier boundary with a fresh run when needed
 
-## O) Minimal serious sequence
+## P) Minimal serious sequence
 
 This is the shortest serious operator flow:
 
@@ -512,8 +555,10 @@ This is the shortest serious operator flow:
 - approve
 - apply
 - postconditions
+- audit
+- signoff
 
-## P) Optional Codex assistance
+## Q) Optional Codex assistance
 
 This runbook does not require Codex.
 Codex is not part of the target Signing OS process.
@@ -552,4 +597,4 @@ Sensitive steps that still deserve explicit operator review:
 - setting `SIGNING_OS=1`
 - running `ops:approve`
 - running `ops:apply`
-- accepting final `postconditions` as sufficient evidence
+- accepting final audit signoff as sufficient evidence

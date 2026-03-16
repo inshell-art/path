@@ -105,11 +105,35 @@ Manual override (optional):
 SIGNING_OS=1 POSTCONDITIONS_MODE=manual POSTCONDITIONS_STATUS=pass NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
-## E) Capture deployment outputs
+## E) Audit the completed rehearsal
+
+For a serious stage-1, stage-2, or stage-3 Sepolia rehearsal, do not stop at `postconditions`.
+Run the post-run audit and require signoff before counting the rehearsal as passed:
+
+```bash
+AUDIT_ID=sepolia-audit-$(date -u +%Y%m%dT%H%M%SZ)
+NETWORK=sepolia AUDIT_ID=$AUDIT_ID RUN_IDS=$RUN_ID npm run ops:audit:plan
+NETWORK=sepolia AUDIT_ID=$AUDIT_ID npm run ops:audit:collect
+NETWORK=sepolia AUDIT_ID=$AUDIT_ID npm run ops:audit:verify
+NETWORK=sepolia AUDIT_ID=$AUDIT_ID npm run ops:audit:report
+NETWORK=sepolia AUDIT_ID=$AUDIT_ID AUDIT_APPROVER=<name> npm run ops:audit:signoff
+```
+
+Detailed audit procedure:
+- `ops/runbooks/audit.md`
+
+Passing rehearsal rule:
+- `postconditions.json` status is `pass`
+- `audit_verify.json` status is `pass`
+- `audit_report.json` status is `pass`
+- `audit_signoff.json` exists
+
+## F) Capture deployment outputs
 - confirm `bundles/sepolia/$RUN_ID/deployments/sepolia-eth.json` exists
 - copy promoted deployment metadata to your chosen publishing target if needed
 
-## F) Failure handling
+## G) Failure handling
 - if verify fails due policy/check mismatch: fix policy or deployment inputs, then create a new `RUN_ID`
 - if commit changes after bundle: rerun bundle/verify/approve with a new `RUN_ID`
+- if audit fails or is incomplete: do not count the rehearsal as passed; inspect the audit outputs, fix the process on Dev OS, and rerun with a fresh `RUN_ID` when needed
 - if the Signing OS runbook proves insufficient during execution: stop the Signing OS run, fix the repo on Dev OS, push, and restart with a fresh run
