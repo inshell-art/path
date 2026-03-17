@@ -1,0 +1,16 @@
+title = "PATH gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Allow known Starknet token constant in published sepolia deploy output"
+regexTarget = "match"
+paths = ['''^output/deploy\.sepolia\.json$''']
+regexes = ['''payment_token": "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"''']
+
+[[allowlists]]
+description = "Allow known Starknet token constant in legacy devnet params example"
+regexTarget = "match"
+paths = ['''^scripts/params\.devnet\.example$''']
+regexes = ['''PAYTOKEN=0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d''']

@@ -12,6 +12,7 @@ Expected behavior by script:
 - `dispatch_ci_bundle.sh` dispatches the remote `Ops Bundle (CI)` workflow using the locked inputs wrapper file and prints the resulting GitHub run id when available.
 - `fetch_ci_bundle.sh` downloads a remote CI bundle artifact. Preferred Signing OS handoff is `NETWORK + RUN_ID`; the helper resolves the matching GitHub Actions run from exact artifact name `ops-bundle-<network>-<run_id>`, derives the bundle run id from `run.json`, places it under `bundles/<network>/<run_id>/`, and sanity-checks the downloaded `run.json`.
 - `check_policy_initialization.sh` reports one-time policy initialization gaps such as missing signer alias map entries, unresolved fee-policy placeholders, and non-allowlisted configured RPC hosts for `sepolia` and `mainnet`.
+- `scan_secrets_staged.sh` materializes the staged git snapshot into a temporary directory and runs `gitleaks --no-git` against that snapshot; this is the hook-safe local secret scan for `pre-commit`.
 - `audit_plan.sh` creates `audit_plan.json` with the exact ordered `RUN_ID` scope, explicit lane scope, and the lane-derived control set.
 - `audit_collect.sh` copies read-only evidence into `audits/<network>/<audit_id>/runs/<run_id>/`, snapshots `policy.json` at each run's pinned commit, writes `audit_manifest.json`, and also emits the compatibility alias `audit_evidence_index.json`.
 - `audit_verify.sh` re-hashes collected evidence, verifies plan/manifest/run coherence, and writes `audit_verify.json` plus the compatibility alias `audit_verification.json`.

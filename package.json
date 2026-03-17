@@ -38,6 +38,7 @@
     "ops:check:public-safe": "./scripts/check-public-safe-ops.sh",
     "ops:lint:secret-snippets": "make -C ops lint-secret-snippets",
     "ops:scan-secrets": "make -C ops scan-secrets",
+    "ops:scan-secrets:staged": "make -C ops scan-secrets-staged",
     "prepare": "husky"
   },
   "repository": {

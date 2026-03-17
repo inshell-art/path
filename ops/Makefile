@@ -13,7 +13,7 @@ PARAMS_SCHEMA ?=
 LOCKED_INPUTS_FILE ?=
 INPUTS_TEMPLATE ?=
 
-.PHONY: lock-inputs bundle verify approve apply postconditions audit-plan audit-collect audit-verify audit-report audit-signoff audit-all policy-init-check scan-secrets lint-secret-snippets
+.PHONY: lock-inputs bundle verify approve apply postconditions audit-plan audit-collect audit-verify audit-report audit-signoff audit-all policy-init-check scan-secrets scan-secrets-staged lint-secret-snippets
 
 lock-inputs:
 	NETWORK=$(NETWORK) LANE=$(LANE) RUN_ID=$(RUN_ID) INPUT_FILE=$(INPUT_FILE) INPUT_KIND=$(INPUT_KIND) PARAMS_SCHEMA=$(PARAMS_SCHEMA) $(ROOT)/ops/tools/lock_inputs.sh
@@ -55,15 +55,18 @@ policy-init-check:
 
 scan-secrets:
 	@if command -v gitleaks >/dev/null 2>&1; then \
-	  if [[ -f ../gitleaks.toml ]]; then \
-	    gitleaks detect --config ../gitleaks.toml; \
+	  if [[ -f $(ROOT)/.gitleaks.toml ]]; then \
+	    gitleaks detect --config $(ROOT)/.gitleaks.toml --source $(ROOT) --redact; \
 	  else \
-	    gitleaks detect; \
+	    gitleaks detect --source $(ROOT) --redact; \
 	  fi; \
 	else \
 	  echo "gitleaks not found. Install it to run secret scans."; \
 	  exit 2; \
 	fi
+
+scan-secrets-staged:
+	$(ROOT)/ops/tools/scan_secrets_staged.sh
 
 lint-secret-snippets:
 	NETWORK=$(NETWORK) $(ROOT)/ops/tools/lint_secret_snippets.sh

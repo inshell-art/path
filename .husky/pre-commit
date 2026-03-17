@@ -1,4 +1,5 @@
 npm run ops:check:public-safe
+npm run ops:scan-secrets:staged
 NETWORK=sepolia npm run ops:lint:secret-snippets
 NETWORK=mainnet npm run ops:lint:secret-snippets
 npm run evm:compile
