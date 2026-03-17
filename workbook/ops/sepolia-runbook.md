@@ -10,6 +10,7 @@ Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionall
 - correct network selected (`sepolia`)
 - constructor params file exists at `~/.opsec/path/params/params.sepolia.deploy.json`
 - `ops/policy/lane.sepolia.json` placeholders resolved (RPC allowlist, signer map, fee policy)
+- run `npm run ops:policy:init:check` on Dev OS when preparing a serious run or after signer/policy changes; it catches missing signer map entries and unresolved policy placeholders before bundle creation
 - if using a new or rotated signer, `signer-enrollment-runbook.md` completed and policy pushed from Dev OS
 - run `npm run ops:scan-secrets` on Dev OS before a serious rehearsal; the hook-scanned staged diff is not a substitute for the manual full-repo/history scan
 - tracked git tree clean before bundle
@@ -44,6 +45,7 @@ $EDITOR ~/.opsec/path/params/params.sepolia.deploy.json
 # }
 chmod 600 ~/.opsec/path/params/params.sepolia.deploy.json
 
+npm run ops:policy:init:check
 npm run ops:scan-secrets
 npm run evm:compile
 npm run evm:test
