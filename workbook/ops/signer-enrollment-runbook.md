@@ -29,7 +29,9 @@ Check current policy initialization state:
 npm run ops:policy:init:check
 ```
 
-Current repo state:
+Treat the checker output as the source of truth.
+
+Current repo state at the time this runbook was written:
 - `sepolia`
   - deploy signer alias is enrolled: `SEPOLIA_DEPLOY_SW_A`
   - missing signer alias map entries for future write lanes:
@@ -108,16 +110,48 @@ ALIAS=SEPOLIA_DEPLOY_SW_A
 ADDRESS=0x...
 ```
 
+Recommended transfer media by stage:
+- stage 1, same account:
+  - manual transcription
+  - copy/paste through a local text note
+- stage 2, separate macOS account on the same machine:
+  - manual transcription
+  - local text note
+  - QR code or screenshot
+- stage 3, real separate machine:
+  - manual transcription
+  - USB text file
+  - QR code or printed note
+
 Acceptable transfer methods:
 - manual transcription
 - copy/paste between local sessions
 - text note
 - QR code or screenshot
+- USB text file
+
+Transfer discipline:
+- transfer only `NETWORK`, `ALIAS`, and `ADDRESS`
+- do not add commentary or extra secret-bearing context
+- do not transfer keystore paths or password-file paths unless you deliberately want those public path conventions on Dev OS too
+- if using USB, store plain text only and remove it after the Dev OS policy update is complete
 
 Do not transfer:
 - keystore JSON
 - password files
 - raw private keys
+
+Sanity check before leaving the Signing OS:
+1. derive the address again from the keystore
+2. confirm the second result matches the first exactly
+3. write the handoff note in the three-line format above
+4. verify the alias name is the one you actually intend to enroll
+
+Sanity check after arriving on Dev OS:
+1. paste or type the handoff note into a temporary scratch note
+2. compare the full address against the Signing OS note
+3. only then update `signer_alias_map`
+4. run `npm run ops:policy:init:check`
 
 ## E) Update policy on Dev OS
 
@@ -156,7 +190,37 @@ git pull --ff-only origin main
 
 Only after that should you start the real lane run.
 
-## G) Clean procedure rule
+## G) Numbered switch sequence
+
+Use this exact OS-switch sequence:
+
+1. On Signing OS:
+- generate or import the encrypted keystore
+- derive the public address
+- derive it a second time and confirm the same result
+- prepare the three-line handoff note
+
+2. Move only the handoff note to Dev OS:
+- `NETWORK`
+- `ALIAS`
+- `ADDRESS`
+
+3. On Dev OS:
+- update `ops/policy/lane.sepolia.json` and/or `ops/policy/lane.mainnet.json`
+- if batching initialization, update all missing aliases in one pass
+- if batching initialization, also set Mainnet deploy fee policy and any new RPC host allowlist entries
+- run `npm run ops:policy:init:check`
+- commit and push
+
+4. Return to Signing OS:
+- `git fetch origin`
+- `git checkout main`
+- `git pull --ff-only origin main`
+- confirm the alias now resolves to the intended address in the pulled policy file
+
+5. Only then start the actual lane run.
+
+## H) Clean procedure rule
 
 The clean procedure is:
 1. Signing OS generates or imports the signer and derives the public address
