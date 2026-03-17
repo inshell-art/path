@@ -23,6 +23,7 @@
     "ops:dispatch-bundle": "./ops/tools/dispatch_ci_bundle.sh",
     "ops:bundle": "make -C ops bundle",
     "ops:fetch-bundle": "./ops/tools/fetch_ci_bundle.sh",
+    "ops:policy:init:check": "./ops/tools/check_policy_initialization.sh",
     "ops:verify": "make -C ops verify",
     "ops:approve": "make -C ops approve",
     "ops:apply": "make -C ops apply",

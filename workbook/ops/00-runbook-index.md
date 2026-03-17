@@ -10,6 +10,9 @@
     - stage 1: separate signer workspace
     - stage 2: separate local macOS account
     - stage 3: real Signing OS machine
+- [Signer Enrollment runbook](signer-enrollment-runbook.md)
+  - one-time signer enrollment and rotation
+  - Signing OS derives public addresses; Dev OS updates policy
 - [Audit runbook](audit-runbook.md)
   - run after `postconditions`
   - required for accepting serious Sepolia rehearsals and mainnet release evidence

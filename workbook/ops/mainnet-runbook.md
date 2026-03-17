@@ -10,6 +10,7 @@ Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionall
 - correct network selected (`mainnet`)
 - mainnet policy file configured and reviewed
 - rehearsal proof available when policy requires it
+- if using a new or rotated signer, `signer-enrollment-runbook.md` completed and policy pushed from Dev OS
 - tracked git tree clean before bundle
 - constructor params file exists at `~/.opsec/path/params/params.mainnet.deploy.json`
 - Signing OS is prepared separately with:

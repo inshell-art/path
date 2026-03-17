@@ -9,6 +9,7 @@ Use it when:
 - signing happens on a separate machine
 - you want Sepolia rehearsal to mirror mainnet shape as closely as possible
 - the Signing OS starts as a cold machine with no repo context loaded
+- you have already completed signer enrollment or rotation as a separate procedure when needed
 
 Target rule:
 - operate the Signing OS from this runbook alone
@@ -170,6 +171,7 @@ Operator rule on the Signing OS:
 - do not improvise alternate commands during an active run
 - do not invent a local workaround on the Signing OS
 - if a step fails, capture the error and return to Dev OS for any fix
+- for a new or rotated signer, complete `signer-enrollment-runbook.md` before the first serious run
 
 ## E) Create local-only Signing OS storage
 

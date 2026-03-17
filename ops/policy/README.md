@@ -7,6 +7,7 @@ Copy example policies from the template repo and edit the copies:
 - `ops/policy/audit.policy.example.json` -> `ops/policy/audit.policy.json`
 
 Keep secrets out of git. Only reference local keystore paths via env vars.
+Before the first serious Sepolia/Mainnet run with a new signer set, complete `workbook/ops/signer-enrollment-runbook.md` and run `npm run ops:policy:init:check`.
 
 Mainnet write lanes default to:
 - `gates.require_rehearsal_proof: true`
