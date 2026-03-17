@@ -1,1 +1,2 @@
+npm run ops:check:public-safe
 npm run evm:test
