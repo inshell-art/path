@@ -6,6 +6,16 @@ See also:
 Use this runbook as the default meaning of "deploy on Sepolia" for this repo.
 Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionally bypassing the repo-managed ops lane.
 
+Stage semantics for serious rehearsal:
+- stage 1: procedure rehearsal only
+  - a temporary EOA treasury/admin is acceptable if the goal is to prove the deploy and audit flow quickly
+- stage 2: authority-shape rehearsal
+  - use the real Sepolia Treasury Safe in deploy params
+  - use the real Sepolia Admin Safe as the handoff target
+- stage 3: production-shape rehearsal
+  - use the final intended Safe and signer topology
+- use `signing-os-runbook.md` as the source of truth for stage pass criteria
+
 ## A) Preflight checklist
 - correct network selected (`sepolia`)
 - constructor params file exists at `~/.opsec/path/params/params.sepolia.deploy.json`

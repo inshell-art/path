@@ -32,21 +32,34 @@ Use this order and do not skip ahead:
 1. Stage 1: dedicated signer workspace on the same macOS account
 - repo example: `~/Projects/SIGNING_OS/path`
 - secrets example: `~/Projects/SIGNING_OS/.opsec`
-- goal: prove the process split with a separate checkout and separate secrets root
+- goal: prove the procedure end to end with a separate checkout and separate secrets root
+- authority realism:
+  - temporary EOA treasury and temporary EOA admin are acceptable if the goal is deploy-speed rehearsal
+  - this stage proves deploy procedure, Signing OS process split, evidence capture, and audit flow
+  - this stage does not prove final Safe custody or final admin handoff shape
 
 2. Stage 2: separate local macOS account on the same machine
 - use a different macOS user account
 - use that account's own `~/Projects/path` and `~/.opsec`
-- goal: prove home-directory and shell-history separation
+- goal: prove authority-shape rehearsal with separate home-directory and shell-history separation
+- authority realism:
+  - treasury in deploy params should be the real Sepolia Treasury Safe
+  - admin handoff target should be the real Sepolia Admin Safe
+  - if hardware has not arrived yet, honest temporary Sepolia-only software owner aliases are acceptable for the second owner set
+  - do not reuse `*_HW_*` names for software stand-ins
 
 3. Stage 3: real Signing OS machine
 - separate machine
 - separate home directory
 - separate local-only secrets storage
-- goal: match mainnet operating shape
+- goal: match final mainnet operating shape
+- authority realism:
+  - treasury is the intended Safe treasury
+  - admin authority is the intended Safe admin target
+  - signer topology should match the intended production signer set, including hardware if hardware is part of the target model
 
 Progression rule:
-- do not move to the next stage until the previous stage completes a full Sepolia deploy run, then a post-run audit pass/signoff, with the current runbook and no ad hoc fixes during execution
+- do not move to the next stage until the previous stage completes a full Sepolia deploy run, then a post-run audit pass/signoff, with the current runbook, the stage-specific authority model above, and no ad hoc fixes during execution
 - do not count agent intervention on the Signing OS as a passing run
 
 ## B) Stage 2: separate local macOS account
@@ -524,11 +537,24 @@ NETWORK=$NETWORK AUDIT_ID=$AUDIT_ID AUDIT_APPROVER=<name> npm run ops:audit:sign
 Use `audit-runbook.md` as the detailed audit procedure.
 
 Stage completion rule:
-- for stage 1 and stage 2 Sepolia rehearsals, do not mark the stage passed until:
+- do not mark any Sepolia stage passed until:
   - `postconditions.json` is `pass`
   - `audit_verify.json` is `pass`
   - `audit_report.json` is `pass`
   - `audit_signoff.json` is written
+- stage-specific acceptance:
+  - stage 1:
+    - separate signer workspace and separate secrets root were used
+    - a temporary EOA treasury/admin is acceptable only if the run is explicitly treated as procedure rehearsal, not final authority-shape proof
+  - stage 2:
+    - separate macOS account was used
+    - treasury in deploy params was the real Sepolia Treasury Safe
+    - Admin Safe target was identified for handoff
+    - any temporary second-owner stand-in remained Sepolia-only and honestly named
+  - stage 3:
+    - real separate Signing OS machine was used
+    - final Safe authority/custody shape was used
+    - final intended signer topology was used, including hardware if part of the target model
 
 For mainnet:
 - treat audit the same way
