@@ -10,9 +10,8 @@ Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionall
 - correct network selected (`mainnet`)
 - mainnet policy file configured and reviewed
 - rehearsal proof available when policy requires it
-- run `npm run ops:policy:init:check` on Dev OS when preparing a serious run or after signer/policy changes; it catches missing signer map entries and unresolved policy placeholders before bundle creation
+- run `CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:devos` on Dev OS before a serious run; it checks toolchain, clean git state, policy readiness, full secret scan, compile/test, params presence, and optional GitHub auth
 - if using a new or rotated signer, `signer-enrollment-runbook.md` completed and policy pushed from Dev OS
-- run `npm run ops:scan-secrets` on Dev OS before a serious release; the hook-scanned staged diff is not a substitute for the manual full-repo/history scan
 - tracked git tree clean before bundle
 - constructor params file exists at `~/.opsec/path/params/params.mainnet.deploy.json`
 - Signing OS is prepared separately with:
@@ -28,10 +27,7 @@ install -d -m 700 ~/.opsec/path/params
 $EDITOR ~/.opsec/path/params/params.mainnet.deploy.json
 chmod 600 ~/.opsec/path/params/params.mainnet.deploy.json
 
-npm run ops:policy:init:check
-npm run ops:scan-secrets
-npm run evm:compile
-npm run evm:test
+CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:devos
 
 RUN_ID=mainnet-deploy-$(date -u +%Y%m%dT%H%M%SZ)
 PARAMS_FILE=~/.opsec/path/params/params.mainnet.deploy.json
@@ -69,6 +65,8 @@ git checkout main
 git pull origin main
 git diff --quiet && git diff --cached --quiet || { echo "tracked tree is dirty"; exit 1; }
 
+CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:signingos
+
 npm run ops:fetch-bundle
 
 BUNDLE_SHA=$(jq -r .git_commit bundles/mainnet/$RUN_ID/run.json)
@@ -86,6 +84,9 @@ SIGNING_OS=1 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:approve
 SIGNING_OS=1 REHEARSAL_PROOF_RUN_ID=<proof_run_id> NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:apply
 SIGNING_OS=1 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
 ```
+
+Stage-1 same-machine note:
+- if Signing OS secrets live under `~/Projects/SIGNING_OS/.opsec`, prepend `OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec` to the preflight command
 
 Manual override (optional):
 ```bash

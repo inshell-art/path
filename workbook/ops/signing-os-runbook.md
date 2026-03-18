@@ -120,6 +120,10 @@ Install required tools using the machine's package manager:
 - `npm`
 - `git`
 - `gh`
+- `jq`
+- `python3`
+- `make`
+- `cast`
 
 Verify they are present:
 
@@ -128,6 +132,10 @@ node --version
 npm --version
 git --version
 gh --version
+jq --version
+python3 --version
+make --version
+cast --version
 ```
 
 Clone the repo.
@@ -314,6 +322,30 @@ Do not carry:
 - mnemonic/seed
 - CI secrets
 - ad hoc calldata or handwritten addresses
+
+Before the first serious fetch for a network/lane, run the integrated Signing OS preflight:
+
+```bash
+CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:signingos
+CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:signingos
+```
+
+Stage-1 same-machine note:
+- if the Signing OS secrets root is `~/Projects/SIGNING_OS/.opsec`, prepend `OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec`
+- example:
+
+```bash
+OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:signingos
+```
+
+This preflight checks:
+- required toolchain
+- clean tracked git state
+- policy initialization for the target network
+- Signing OS env + marker presence
+- deploy keystore/password presence
+- signer binding against the lane policy
+- optional GitHub auth for bundle fetch
 
 ## I) Fetch bundle on Signing OS
 
