@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT=$(git rev-parse --show-toplevel)
 export ROOT
 export NETWORK=${NETWORK:-}
+export LANE=${LANE:-}
 
 python3 - <<'PY'
 import json
@@ -14,6 +15,7 @@ from urllib.parse import urlparse
 
 root = Path(os.environ["ROOT"])
 network_env = os.environ.get("NETWORK", "").strip()
+lane_env = os.environ.get("LANE", "").strip()
 targets = [network_env] if network_env else ["sepolia", "mainnet"]
 
 valid = {"sepolia", "mainnet"}
@@ -21,6 +23,10 @@ for target in targets:
     if target not in valid:
         print(f"Invalid NETWORK: {target}", file=sys.stderr)
         sys.exit(2)
+
+if lane_env and "," in lane_env:
+    print("LANE must be a single lane name when set.", file=sys.stderr)
+    sys.exit(2)
 
 had_problem = False
 
@@ -36,19 +42,25 @@ for network in targets:
     signer_map = policy.get("signer_alias_map") if isinstance(policy.get("signer_alias_map"), dict) else {}
     rpc_hosts = policy.get("rpc_host_allowlist") if isinstance(policy.get("rpc_host_allowlist"), list) else []
 
+    if lane_env:
+        if lane_env not in lanes or not isinstance(lanes.get(lane_env), dict):
+            print(f"[{network}] lane {lane_env!r} not found in {path.relative_to(root)}", file=sys.stderr)
+            had_problem = True
+            continue
+        lane_items = [(lane_env, lanes[lane_env])]
+    else:
+        lane_items = [(lane_name, lane_cfg) for lane_name, lane_cfg in lanes.items() if isinstance(lane_cfg, dict)]
+
     aliases = sorted({
         str(alias).strip()
-        for lane_cfg in lanes.values()
-        if isinstance(lane_cfg, dict)
+        for _, lane_cfg in lane_items
         for alias in (lane_cfg.get("allowed_signers") or [])
         if str(alias).strip()
     })
     missing_aliases = [alias for alias in aliases if not str(signer_map.get(alias, "")).strip()]
 
     fee_placeholders = []
-    for lane_name, lane_cfg in lanes.items():
-        if not isinstance(lane_cfg, dict):
-            continue
+    for lane_name, lane_cfg in lane_items:
         fee_policy = lane_cfg.get("fee_policy")
         if not isinstance(fee_policy, dict):
             continue
@@ -58,6 +70,7 @@ for network in targets:
 
     print(f"[{network}]")
     print(f"  policy: {path.relative_to(root)}")
+    print(f"  lane scope: {lane_env or '(all lanes)'}")
     print(f"  signer aliases referenced: {', '.join(aliases) if aliases else '(none)'}")
     print(f"  rpc host allowlist: {', '.join(rpc_hosts) if rpc_hosts else '(none)'}")
 

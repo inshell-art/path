@@ -31,6 +31,19 @@ npm run ops:policy:init:check
 
 Treat the checker output as the source of truth.
 
+Scope rule:
+- no `LANE` set:
+  - check full network initialization across all lanes
+  - use this for signer enrollment / batching / one-time readiness work
+- `LANE=<lane>` set:
+  - check only the targeted lane's signer and fee requirements
+  - use this for serious-run preflight, for example:
+
+```bash
+NETWORK=sepolia LANE=deploy npm run ops:policy:init:check
+NETWORK=mainnet LANE=deploy npm run ops:policy:init:check
+```
+
 Current repo state at the time this runbook was written:
 - `sepolia`
   - deploy signer alias is enrolled: `SEPOLIA_DEPLOY_SW_A`
