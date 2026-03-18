@@ -71,6 +71,20 @@ Batch recommendation:
 - update all corresponding public addresses in one Dev OS policy commit
 - set mainnet fee policy in the same one-time policy commit if those values are known
 
+Authority model:
+- signer aliases represent human/operator signer identities
+- treasury/admin authority addresses may be Safe addresses or other target identities
+- if a lane targets a Safe-controlled treasury/admin role, keep the Safe address as the authority target and keep signer aliases as the owner keys that can participate in that Safe flow
+- do not treat the Safe contract address as if it were an EOA signer alias
+
+Temporary rehearsal rule before hardware arrives:
+- for Sepolia rehearsals, you may use temporary software-owner aliases if the hardware signer has not arrived yet
+- name them honestly, for example `SEPOLIA_GOV_SW_B_TMP` or `SEPOLIA_TREASURY_SW_B_TMP`
+- do not reuse a `*_HW_*` alias name for a software stand-in
+- keep this workaround Sepolia-only
+- do not carry the temporary alias set into Mainnet policy
+- retire the temporary aliases once the real hardware signer is enrolled
+
 ## B) Generate or import the signer on Signing OS
 
 Example software signer paths:
