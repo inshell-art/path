@@ -1,27 +1,26 @@
 # Sepolia runbook
 
 See also:
-- [Signing OS runbook](signing-os-runbook.md) for the serious split between Dev OS, CI, and Signing OS.
+- [Signing OS runbook](signing-os-runbook.md) for the common serious Signing OS flow
+- [Signing OS Stage 1 runbook](signing-os-stage1-runbook.md)
+- [Signing OS Stage 2 runbook](signing-os-stage2-runbook.md)
+- [Signing OS Stage 3 runbook](signing-os-stage3-runbook.md)
 
 Use this runbook as the default meaning of "deploy on Sepolia" for this repo.
 Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionally bypassing the repo-managed ops lane.
 
 Stage semantics for serious rehearsal:
-- stage 1: procedure rehearsal only
-  - a temporary EOA treasury/admin is acceptable if the goal is to prove the deploy and audit flow quickly
-- stage 2: authority-shape rehearsal
-  - use the real Sepolia Treasury Safe in deploy params
-  - use the real Sepolia Admin Safe as the handoff target
-- stage 3: production-shape rehearsal
-  - use the final intended Safe and signer topology
-- use `signing-os-runbook.md` as the source of truth for stage pass criteria
+- stage 1: use [Signing OS Stage 1 runbook](signing-os-stage1-runbook.md)
+- stage 2: use [Signing OS Stage 2 runbook](signing-os-stage2-runbook.md)
+- stage 3: use [Signing OS Stage 3 runbook](signing-os-stage3-runbook.md)
+- use [Signing OS runbook](signing-os-runbook.md) as the common Signing OS flow after the stage-specific setup is complete
 
 ## A) Preflight checklist
 - correct network selected (`sepolia`)
+- if the deploy signer is new or rotated, complete the selected Signing OS stage runbook and `signer-enrollment-runbook.md` first; push policy from Dev OS before any serious Dev OS preflight or bundle creation
 - constructor params file exists at `~/.opsec/path/params/params.sepolia.deploy.json`
 - `ops/policy/lane.sepolia.json` placeholders resolved (RPC allowlist, signer map, fee policy)
 - run `CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:devos` on Dev OS before a serious run; it checks toolchain, clean git state, policy readiness, full secret scan, compile/test, params presence, and optional GitHub auth
-- if using a new or rotated signer, `signer-enrollment-runbook.md` completed and policy pushed from Dev OS
 - tracked git tree clean before bundle
 - Signing OS is prepared separately with:
   - its own `SEPOLIA_RPC_URL`
@@ -114,7 +113,8 @@ SIGNING_OS=1 NETWORK=sepolia RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
 Stage-1 same-machine note:
-- if Signing OS secrets live under `~/Projects/SIGNING_OS/.opsec`, prepend `OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec` to the preflight command
+- if using Stage 1, use the Stage-1-local paths from `signing-os-stage1-runbook.md` for every `~/.opsec/...` path below
+- prepend `OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec` to the preflight command
 
 Manual override (optional):
 ```bash

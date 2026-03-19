@@ -1,17 +1,20 @@
 # Mainnet runbook
 
 See also:
-- [Signing OS runbook](signing-os-runbook.md) for the serious split between Dev OS, CI, and Signing OS.
+- [Signing OS runbook](signing-os-runbook.md) for the common serious Signing OS flow
+- [Signing OS Stage 1 runbook](signing-os-stage1-runbook.md)
+- [Signing OS Stage 2 runbook](signing-os-stage2-runbook.md)
+- [Signing OS Stage 3 runbook](signing-os-stage3-runbook.md)
 
 Use this runbook as the default meaning of "deploy on Mainnet" for this repo.
 Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionally bypassing the repo-managed ops lane.
 
 ## A) Preflight checklist
 - correct network selected (`mainnet`)
+- if the deploy signer is new or rotated, complete the selected Signing OS stage runbook and `signer-enrollment-runbook.md` first; push policy from Dev OS before any serious Dev OS preflight or bundle creation
 - mainnet policy file configured and reviewed
 - rehearsal proof available when policy requires it
 - run `CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:devos` on Dev OS before a serious run; it checks toolchain, clean git state, policy readiness, full secret scan, compile/test, params presence, and optional GitHub auth
-- if using a new or rotated signer, `signer-enrollment-runbook.md` completed and policy pushed from Dev OS
 - tracked git tree clean before bundle
 - constructor params file exists at `~/.opsec/path/params/params.mainnet.deploy.json`
 - Signing OS is prepared separately with:
@@ -86,7 +89,8 @@ SIGNING_OS=1 NETWORK=mainnet RUN_ID=$RUN_ID npm run ops:postconditions
 ```
 
 Stage-1 same-machine note:
-- if Signing OS secrets live under `~/Projects/SIGNING_OS/.opsec`, prepend `OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec` to the preflight command
+- if using Stage 1, use the Stage-1-local paths from `signing-os-stage1-runbook.md` for every `~/.opsec/...` path below
+- prepend `OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec` to the preflight command
 
 Manual override (optional):
 ```bash

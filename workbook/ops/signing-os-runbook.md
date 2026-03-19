@@ -20,84 +20,30 @@ Target rule:
 - commit and push the fix
 - start a fresh run only after the fix is published
 
-For a same-machine stage-1 rehearsal:
-- use a second checkout, for example `~/Projects/SIGNING_OS/path`
-- use a separate secrets root, for example `~/Projects/SIGNING_OS/.opsec`
-- replace `~/.opsec/...` below with that alternate root
+## A) Stage selector
 
-## A) Rehearsal ladder
-
-Use this order and do not skip ahead:
-
-1. Stage 1: dedicated signer workspace on the same macOS account
-- repo example: `~/Projects/SIGNING_OS/path`
-- secrets example: `~/Projects/SIGNING_OS/.opsec`
-- goal: prove the procedure end to end with a separate checkout and separate secrets root
-- authority realism:
-  - temporary EOA treasury and temporary EOA admin are acceptable if the goal is deploy-speed rehearsal
-  - this stage proves deploy procedure, Signing OS process split, evidence capture, and audit flow
-  - this stage does not prove final Safe custody or final admin handoff shape
-
-2. Stage 2: separate local macOS account on the same machine
-- use a different macOS user account
-- use that account's own `~/Projects/path` and `~/.opsec`
-- goal: prove authority-shape rehearsal with separate home-directory and shell-history separation
-- authority realism:
-  - treasury in deploy params should be the real Sepolia Treasury Safe
-  - admin handoff target should be the real Sepolia Admin Safe
-  - if hardware has not arrived yet, honest temporary Sepolia-only software owner aliases are acceptable for the second owner set
-  - do not reuse `*_HW_*` names for software stand-ins
-
-3. Stage 3: real Signing OS machine
-- separate machine
-- separate home directory
-- separate local-only secrets storage
-- goal: match final mainnet operating shape
-- authority realism:
-  - treasury is the intended Safe treasury
-  - admin authority is the intended Safe admin target
-  - signer topology should match the intended production signer set, including hardware if hardware is part of the target model
+Choose exactly one stage-specific runbook first:
+- [Signing OS Stage 1 runbook](signing-os-stage1-runbook.md)
+  - same macOS account
+  - separate signer workspace and separate secrets root
+  - procedure rehearsal
+- [Signing OS Stage 2 runbook](signing-os-stage2-runbook.md)
+  - separate local macOS account on the same machine
+  - authority-shape rehearsal
+- [Signing OS Stage 3 runbook](signing-os-stage3-runbook.md)
+  - real separate Signing OS machine
+  - production-shape rehearsal
 
 Progression rule:
-- do not move to the next stage until the previous stage completes a full Sepolia deploy run, then a post-run audit pass/signoff, with the current runbook, the stage-specific authority model above, and no ad hoc fixes during execution
+- do not move to the next stage until the previous stage completes a full Sepolia deploy run, then a post-run audit pass/signoff, with the selected stage runbook and no ad hoc fixes during execution
 - do not count agent intervention on the Signing OS as a passing run
 
-## B) Stage 2: separate local macOS account
+Sequencing rule:
+- complete the selected stage runbook first
+- if a deploy signer is new or rotated, complete [Signer Enrollment runbook](signer-enrollment-runbook.md) before any serious Dev OS preflight or bundle creation
+- only after the stage-specific setup and signer binding are in place should Dev OS start a serious Sepolia/Mainnet run
 
-This stage proves the process split with a separate home directory and separate shell history on the same machine.
-
-Recommended account model:
-- create a dedicated local macOS user for Signing OS work
-- prefer a Standard account for routine use
-- use an administrator account only to install tools or change machine settings
-
-Create the account from macOS Settings:
-1. open `System Settings -> Users & Groups`
-2. add a new local user
-3. choose a distinct account name for Signing OS work
-4. do not reuse the normal development account
-
-After creating it:
-1. log out of the development account
-2. log into the new Signing OS account
-3. open a fresh Terminal session
-4. treat that account's home directory as the only valid Signing OS home
-
-Stage-2 filesystem expectations:
-- repo checkout: `~/Projects/path`
-- local secrets root: `~/.opsec`
-- no references back to the development account home directory
-
-Stage-2 first-login checklist:
-- `pwd` starts under the new account home
-- `echo $HOME` is the new account home
-- `ls ~/Projects` does not rely on the old account's checkout
-- `ls ~/.opsec` does not rely on the old account's secrets
-
-Once those checks hold, use the rest of this runbook exactly as written.
-Do not special-case stage 2 after account creation.
-
-## C) Trust boundary
+## B) Trust boundary
 
 Dev OS does:
 - code and policy edits
@@ -126,7 +72,7 @@ Signing OS does:
 Never do serious Sepolia/Mainnet `apply` from the Dev OS.
 Never patch repo code, policy, or runbook content on the Signing OS during an active run.
 
-## D) Cold-start bootstrap on Signing OS
+## C) Common bootstrap on Signing OS
 
 Install required tools using the machine's package manager:
 - `node`
@@ -151,29 +97,8 @@ make --version
 cast --version
 ```
 
-Clone the repo.
-
-For a same-machine stage-1 rehearsal, use the dedicated signer workspace path:
-
-```bash
-mkdir -p ~/Projects/SIGNING_OS
-cd ~/Projects/SIGNING_OS
-git clone git@github.com:inshell-art/path.git path
-cd path
-git checkout main
-git pull --ff-only origin main
-```
-
-For stage 2 or stage 3, use the normal repo location in that account or machine home:
-
-```bash
-mkdir -p ~/Projects
-cd ~/Projects
-git clone git@github.com:inshell-art/path.git path
-cd path
-git checkout main
-git pull --ff-only origin main
-```
+Use the repo checkout path defined by the selected stage runbook.
+If the stage-specific checkout does not exist yet, create it there first.
 
 Authenticate GitHub CLI for bundle download:
 
@@ -194,7 +119,7 @@ Operator rule on the Signing OS:
 - if a step fails, capture the error and return to Dev OS for any fix
 - for a new or rotated signer, complete `signer-enrollment-runbook.md` before the first serious run
 
-## E) Create local-only Signing OS storage
+## D) Create local-only Signing OS storage
 
 Create local-only operator directories:
 
@@ -213,7 +138,10 @@ chmod 600 ~/.opsec/path/signing_os.marker
 These paths are outside the repo and must never be committed.
 The marker file is the local machine-role gate for Sepolia/Mainnet deploy-side ops.
 
-## F) Provision keystore and password with opsec discipline
+Use the local secrets root defined by the selected stage runbook.
+For Stage 1, replace `~/.opsec/...` with `~/Projects/SIGNING_OS/.opsec/...`.
+
+## E) Provision keystore and password with opsec discipline
 
 Preferred rule:
 - transfer or generate only encrypted keystore JSON on the Signing OS
@@ -275,7 +203,7 @@ Why:
 - keeps password files out of the keystore directory by default
 - matches `apply_bundle.sh` explicit password-file mode
 
-## G) Create Signing OS env files
+## F) Create Signing OS env files
 
 Create local-only network env files:
 
@@ -321,7 +249,7 @@ Optional local sanity checks:
 [[ -f "${HOME}/.opsec/path/signing_os.marker" ]] && echo "signing os marker ok"
 ```
 
-## H) What you carry from Dev OS to Signing OS
+## G) What you carry from Dev OS to Signing OS
 
 Carry only these identifiers:
 - `NETWORK`
@@ -343,13 +271,7 @@ CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:signingos
 CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:signingos
 ```
 
-Stage-1 same-machine note:
-- if the Signing OS secrets root is `~/Projects/SIGNING_OS/.opsec`, prepend `OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec`
-- example:
-
-```bash
-OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:signingos
-```
+If the selected stage runbook uses a non-default local secrets root, prepend `OPSEC_ROOT=<that-root>` to the preflight command.
 
 This preflight checks:
 - required toolchain
@@ -360,12 +282,11 @@ This preflight checks:
 - signer binding against the lane policy
 - optional GitHub auth for bundle fetch
 
-## I) Fetch bundle on Signing OS
+## H) Fetch bundle on Signing OS
 
-From the Signing OS repo root:
+From the selected stage's Signing OS repo root:
 
 ```bash
-cd ~/Projects/path
 git fetch origin
 git checkout main
 git pull origin main
@@ -410,7 +331,7 @@ If you want an explicit cross-check:
 find "bundles/$NETWORK" -maxdepth 2 -name run.json | sort
 ```
 
-## J) Checkout the exact pinned commit
+## I) Checkout the exact pinned commit
 
 Do not assume latest `main` is correct.
 
@@ -427,7 +348,7 @@ Why:
 - `ops:verify` requires `run.json.git_commit == HEAD`
 - `ops:apply` refuses dirty tracked state
 
-## K) Load local Signing OS env
+## J) Load local Signing OS env
 
 Sepolia:
 
@@ -460,7 +381,7 @@ gh auth status
 
 Adapt variable names for mainnet as needed.
 
-## L) Local CD on Signing OS
+## K) Local CD on Signing OS
 
 Before `ops:verify`, check:
 - `RUN_ID` matches the intended CI bundle
@@ -518,7 +439,7 @@ Expected final shape:
   - `"mode": "auto"`
   - `"status": "pass"`
 
-## M) Audit after postconditions
+## L) Audit after postconditions
 
 Audit is not part of the authority path for `verify`, `approve`, `apply`, or `postconditions`.
 It is the read-only review layer for accepting the completed run as valid rehearsal or release evidence.
@@ -542,19 +463,7 @@ Stage completion rule:
   - `audit_verify.json` is `pass`
   - `audit_report.json` is `pass`
   - `audit_signoff.json` is written
-- stage-specific acceptance:
-  - stage 1:
-    - separate signer workspace and separate secrets root were used
-    - a temporary EOA treasury/admin is acceptable only if the run is explicitly treated as procedure rehearsal, not final authority-shape proof
-  - stage 2:
-    - separate macOS account was used
-    - treasury in deploy params was the real Sepolia Treasury Safe
-    - Admin Safe target was identified for handoff
-    - any temporary second-owner stand-in remained Sepolia-only and honestly named
-  - stage 3:
-    - real separate Signing OS machine was used
-    - final Safe authority/custody shape was used
-    - final intended signer topology was used, including hardware if part of the target model
+- stage-specific acceptance criteria live in the selected stage runbook
 
 For mainnet:
 - treat audit the same way
@@ -562,17 +471,17 @@ For mainnet:
 - audit does not undo the run
 - audit decides whether the completed run is accepted as valid release evidence
 
-## N) Mainnet-specific gate
+## M) Mainnet-specific gate
 
 Current mainnet deploy policy requires rehearsal proof.
 
 Operational meaning:
 - serious mainnet `apply` needs:
-  - a valid mainnet bundle
-  - local keystore on Signing OS
-  - `REHEARSAL_PROOF_RUN_ID` set to an accepted rehearsal bundle id
+- a valid mainnet bundle
+- local keystore on Signing OS
+- `REHEARSAL_PROOF_RUN_ID` set to an accepted rehearsal bundle id
 
-## O) Failure rules
+## N) Failure rules
 
 If `ops:verify` says commit mismatch:
 - fetch latest refs
@@ -608,20 +517,18 @@ If any Signing OS step reveals a process or documentation gap:
 - fix the repo and push the fix
 - restart from the appropriate earlier boundary with a fresh run when needed
 
-## P) Minimal serious sequence
+## O) Minimal serious sequence
 
 This is the shortest serious operator flow:
 
 1. Dev OS:
+- ensure the selected stage runbook and signer enrollment are already complete if signer binding changed
 - compile/test
 - lock inputs
 - dispatch CI bundle
 
 2. Signing OS:
-- clone repo
-- create local-only `.opsec`
-- place encrypted keystore and local password file
-- create network env file
+- complete the selected stage runbook first
 - fetch CI bundle
 - checkout `run.json.git_commit`
 - verify
@@ -631,7 +538,7 @@ This is the shortest serious operator flow:
 - audit
 - signoff
 
-## Q) Optional Codex assistance
+## P) Optional Codex assistance
 
 This runbook does not require Codex.
 Codex is not part of the target Signing OS process.
@@ -643,14 +550,14 @@ If you do use Codex on the Signing OS:
 - keep it in a guide-and-review role for sensitive steps
 
 Preferred rule:
-- for stage 2 and stage 3, do not use Codex on the Signing OS
+- for stricter non-Stage-1 environments, prefer not to use Codex on the Signing OS
 - if the runbook is insufficient, treat that as a Dev OS documentation/process bug
 - fix it on Dev OS, push, and retry
 
 Good first prompt:
 
 ```text
-Read workbook/ops/signing-os-runbook.md and guide me through the Signing OS half for NETWORK=sepolia and RUN_ID=<bundle-run-id>. Do not print secrets.
+Read workbook/ops/signing-os-runbook.md and the selected workbook/ops/signing-os-stage<N>-runbook.md, then guide me through the Signing OS half for NETWORK=sepolia and RUN_ID=<bundle-run-id>. Do not print secrets.
 ```
 
 Good prompts later:

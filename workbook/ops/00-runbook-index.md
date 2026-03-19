@@ -4,12 +4,18 @@
 - [Sepolia runbook](sepolia-runbook.md)
 - [Mainnet runbook](mainnet-runbook.md)
 - [Signing OS runbook](signing-os-runbook.md)
+  - root/common Signing OS flow after stage-specific setup
   - operator-first
   - target process is runbook-only on Signing OS
-  - includes the rehearsal ladder:
-    - stage 1: separate signer workspace, procedure rehearsal
-    - stage 2: separate local macOS account, authority-shape rehearsal
-    - stage 3: real Signing OS machine, production-shape rehearsal
+- [Signing OS Stage 1 runbook](signing-os-stage1-runbook.md)
+  - separate signer workspace on the same macOS account
+  - procedure rehearsal
+- [Signing OS Stage 2 runbook](signing-os-stage2-runbook.md)
+  - separate local macOS account on the same machine
+  - authority-shape rehearsal
+- [Signing OS Stage 3 runbook](signing-os-stage3-runbook.md)
+  - real separate Signing OS machine
+  - production-shape rehearsal
 - [Signer Enrollment runbook](signer-enrollment-runbook.md)
   - one-time signer enrollment and rotation
   - Signing OS derives public addresses; Dev OS updates policy
