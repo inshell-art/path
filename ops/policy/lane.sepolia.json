@@ -9,7 +9,7 @@
     "ethereum-sepolia-rpc.publicnode.com"
   ],
   "signer_alias_map": {
-    "SEPOLIA_DEPLOY_SW_A": "0x95ce72BE4DC51e1f5aA61b59c036BE1BfEB242Ad"
+    "SEPOLIA_DEPLOY_SW_A": "0x3e4fA9f09d8EDe66561145E1ef3bc127F80ED396"
   },
   "path": {
     "movement_config": {
