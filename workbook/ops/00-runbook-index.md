@@ -19,6 +19,8 @@
 - [Signer Enrollment runbook](signer-enrollment-runbook.md)
   - one-time signer enrollment and rotation
   - Signing OS derives public addresses; Dev OS updates policy
+- [cast verification discipline](cast-verification-discipline.md)
+  - Signing OS bootstrap trust check for the local `cast` binary
 - [Audit runbook](audit-runbook.md)
   - run after `postconditions`
   - required for accepting serious Sepolia rehearsals and mainnet release evidence

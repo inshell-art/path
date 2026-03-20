@@ -104,7 +104,7 @@ cast wallet new ~/.opsec/mainnet/signers/deploy_sw_a keystore.json
 ```
 
 Before using `cast` for the first serious signer on a Signing OS, review and complete:
-- `~/Downloads/cast-verification-discipline.md`
+- [cast-verification-discipline.md](cast-verification-discipline.md)
 
 Or import an existing signer through a trusted flow that still ends with an encrypted keystore on the Signing OS.
 
