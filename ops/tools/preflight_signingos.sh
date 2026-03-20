@@ -217,8 +217,10 @@ else
 fi
 
 ACTUAL_SIGNER_ADDRESS=$(cast "${CAST_ARGS[@]}")
+ACTUAL_SIGNER_ADDRESS_NORM=$(printf '%s' "$ACTUAL_SIGNER_ADDRESS" | tr '[:upper:]' '[:lower:]')
+EXPECTED_SIGNER_ADDRESS_NORM=$(printf '%s' "$EXPECTED_SIGNER_ADDRESS" | tr '[:upper:]' '[:lower:]')
 
-if [[ "${ACTUAL_SIGNER_ADDRESS,,}" != "${EXPECTED_SIGNER_ADDRESS,,}" ]]; then
+if [[ "$ACTUAL_SIGNER_ADDRESS_NORM" != "$EXPECTED_SIGNER_ADDRESS_NORM" ]]; then
   echo "Signer binding mismatch for $NETWORK/$LANE." >&2
   echo "  alias:    $SELECTED_SIGNER_ALIAS" >&2
   echo "  expected: $EXPECTED_SIGNER_ADDRESS" >&2
