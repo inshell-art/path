@@ -74,7 +74,7 @@ set -a
 source "$ENV_FILE"
 set +a
 
-NETWORK_UPPER=${NETWORK^^}
+NETWORK_UPPER=$(printf '%s' "$NETWORK" | tr '[:lower:]' '[:upper:]')
 RAW_KEY_VAR="${NETWORK_UPPER}_PRIVATE_KEY"
 if [[ -n "${!RAW_KEY_VAR:-}" ]]; then
   echo "Refusing raw key env ${RAW_KEY_VAR}; Signing OS preflight expects keystore mode only." >&2
