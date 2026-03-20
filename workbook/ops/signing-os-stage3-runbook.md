@@ -76,6 +76,7 @@ cd path
 git fetch origin
 git checkout main
 git pull --ff-only origin main
+git submodule update --init --recursive
 ```
 
 Authenticate GitHub CLI:
@@ -229,6 +230,7 @@ cd ~/Projects/path
 git fetch origin
 git checkout main
 git pull --ff-only origin main
+git submodule update --init --recursive
 git diff --quiet && git diff --cached --quiet || { echo "tracked tree is dirty"; exit 1; }
 ```
 
@@ -249,6 +251,7 @@ Or with `RUN_DB_ID` if you already have it.
 BUNDLE_SHA=$(jq -r .git_commit "bundles/$NETWORK/$RUN_ID/run.json")
 git fetch origin
 git checkout "$BUNDLE_SHA"
+git submodule update --init --recursive
 git diff --quiet && git diff --cached --quiet || { echo "tracked tree is dirty"; exit 1; }
 ```
 
