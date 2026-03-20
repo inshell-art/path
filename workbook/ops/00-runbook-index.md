@@ -2,20 +2,20 @@
 
 - Devnet runbook: `devnet-runbook.md`
 - [Sepolia runbook](sepolia-runbook.md)
+  - Dev OS and handoff for Sepolia
 - [Mainnet runbook](mainnet-runbook.md)
+  - Dev OS and handoff for Mainnet
 - [Signing OS runbook](signing-os-runbook.md)
-  - root/common Signing OS flow after stage-specific setup
-  - operator-first
-  - target process is runbook-only on Signing OS
+  - Signing OS selector and overview only
 - [Signing OS Stage 1 runbook](signing-os-stage1-runbook.md)
-  - separate signer workspace on the same macOS account
-  - procedure rehearsal
+  - self-contained Signing OS handbook for Stage 1
+  - same macOS account, separate signer workspace, procedure rehearsal
 - [Signing OS Stage 2 runbook](signing-os-stage2-runbook.md)
-  - separate local macOS account on the same machine
-  - authority-shape rehearsal
+  - self-contained Signing OS handbook for Stage 2
+  - separate local macOS account on the same machine, authority-shape rehearsal
 - [Signing OS Stage 3 runbook](signing-os-stage3-runbook.md)
-  - real separate Signing OS machine
-  - production-shape rehearsal
+  - self-contained Signing OS handbook for Stage 3
+  - real separate Signing OS machine, production-shape rehearsal
 - [Signer Enrollment runbook](signer-enrollment-runbook.md)
   - one-time signer enrollment and rotation
   - Signing OS derives public addresses; Dev OS updates policy
