@@ -361,6 +361,8 @@ Optional sanity checks:
 
 ```bash
 gh auth status
+cast chain-id --rpc-url "$SEPOLIA_RPC_URL"   # expect 11155111
+cast chain-id --rpc-url "$MAINNET_RPC_URL"   # expect 1
 [[ -f "${SEPOLIA_DEPLOY_KEYSTORE_JSON/#\~/$HOME}" ]] && echo "keystore ok"
 [[ -f "${SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE/#\~/$HOME}" ]] && echo "password file ok"
 ```

@@ -307,6 +307,13 @@ set +a
 unset MAINNET_PRIVATE_KEY
 ```
 
+Optional chain sanity:
+
+```bash
+cast chain-id --rpc-url "$SEPOLIA_RPC_URL"   # expect 11155111
+cast chain-id --rpc-url "$MAINNET_RPC_URL"   # expect 1
+```
+
 ## L) Execute the Signing OS lane
 
 Before `ops:verify`, check:
