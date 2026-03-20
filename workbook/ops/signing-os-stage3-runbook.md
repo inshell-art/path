@@ -91,6 +91,9 @@ Install repo dependencies:
 npm --prefix evm ci
 ```
 
+Before trusting `cast` with real signer material, review and complete:
+- `~/Downloads/cast-verification-discipline.md`
+
 Create the local-only operator directories:
 
 ```bash
@@ -109,6 +112,8 @@ chmod 600 ~/.opsec/path/signing_os.marker
 
 Generate or import only encrypted keystore material on Signing OS.
 Never paste a raw private key into the shell.
+If this is the first serious use of `cast` on this Signing OS, complete:
+- `~/Downloads/cast-verification-discipline.md`
 
 If generating a fresh signer locally with Foundry:
 

@@ -95,6 +95,9 @@ Install repo dependencies:
 npm --prefix evm ci
 ```
 
+Before trusting `cast` with real signer material, review and complete:
+- `~/Downloads/cast-verification-discipline.md`
+
 ## D) Create local-only Stage-1 storage
 
 ```bash
@@ -115,6 +118,8 @@ These paths are outside the repo and must never be committed.
 
 Generate or import only encrypted keystore material on Signing OS.
 Never paste a raw private key into the shell.
+If this is the first serious use of `cast` on this Signing OS, complete:
+- `~/Downloads/cast-verification-discipline.md`
 
 Example encrypted keystore paths:
 - `~/Projects/SIGNING_OS/.opsec/sepolia/signers/deploy_sw_a/keystore.json`
