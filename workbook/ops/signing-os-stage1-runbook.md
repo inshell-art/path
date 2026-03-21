@@ -28,6 +28,9 @@ Use these paths for Stage 1:
 - env files:
   - `~/Projects/SIGNING_OS/.opsec/path/env/sepolia.env`
   - `~/Projects/SIGNING_OS/.opsec/path/env/mainnet.env`
+- Dev OS private runtime handoff files:
+  - `~/.opsec/path/handoff/signing-runtime.sepolia.env`
+  - `~/.opsec/path/handoff/signing-runtime.mainnet.env`
 
 When a generic doc shows `~/.opsec/...`, replace it with:
 - `~/Projects/SIGNING_OS/.opsec/...`
@@ -143,13 +146,39 @@ chmod 600 ~/Projects/SIGNING_OS/.opsec/sepolia/password-files/deploy_sw_a.passwo
 chmod 600 ~/Projects/SIGNING_OS/.opsec/mainnet/password-files/deploy_sw_a.password.txt
 ```
 
-Create local env files:
+Build local env files from the Dev OS private runtime handoff files.
+Do not open provider dashboards or fetch provider credentials on Signing OS.
+
+Sepolia:
 
 ```bash
-$EDITOR ~/Projects/SIGNING_OS/.opsec/path/env/sepolia.env
-$EDITOR ~/Projects/SIGNING_OS/.opsec/path/env/mainnet.env
+set -a
+source ~/.opsec/path/handoff/signing-runtime.sepolia.env
+set +a
+cat > ~/Projects/SIGNING_OS/.opsec/path/env/sepolia.env <<EOF
+SEPOLIA_RPC_URL=$SEPOLIA_RPC_URL
+SEPOLIA_DEPLOY_KEYSTORE_JSON=~/Projects/SIGNING_OS/.opsec/sepolia/signers/deploy_sw_a/keystore.json
+SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE=~/Projects/SIGNING_OS/.opsec/sepolia/password-files/deploy_sw_a.password.txt
+SIGNING_OS_MARKER_FILE=~/Projects/SIGNING_OS/.opsec/path/signing_os.marker
+EOF
 chmod 600 ~/Projects/SIGNING_OS/.opsec/path/env/sepolia.env
+unset SEPOLIA_RPC_URL
+```
+
+Mainnet:
+
+```bash
+set -a
+source ~/.opsec/path/handoff/signing-runtime.mainnet.env
+set +a
+cat > ~/Projects/SIGNING_OS/.opsec/path/env/mainnet.env <<EOF
+MAINNET_RPC_URL=$MAINNET_RPC_URL
+MAINNET_DEPLOY_KEYSTORE_JSON=~/Projects/SIGNING_OS/.opsec/mainnet/signers/deploy_sw_a/keystore.json
+MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE=~/Projects/SIGNING_OS/.opsec/mainnet/password-files/deploy_sw_a.password.txt
+SIGNING_OS_MARKER_FILE=~/Projects/SIGNING_OS/.opsec/path/signing_os.marker
+EOF
 chmod 600 ~/Projects/SIGNING_OS/.opsec/path/env/mainnet.env
+unset MAINNET_RPC_URL
 ```
 
 Sepolia env shape:
@@ -257,17 +286,29 @@ Do not let Dev OS start a serious bundle flow until the intended deploy signer i
 
 ## G) What you carry from Dev OS to Signing OS
 
-Carry only:
-- `NETWORK`
-- `RUN_ID`
-- optionally `RUN_DB_ID`
-- for Mainnet only, `REHEARSAL_PROOF_RUN_ID` if required
+Carry:
+- public handoff note:
+  - `NETWORK`
+  - `RUN_ID`
+  - optionally `RUN_DB_ID`
+  - for Mainnet only, `REHEARSAL_PROOF_RUN_ID` if required
+- private runtime handoff files from Dev OS:
+  - `~/.opsec/path/handoff/signing-runtime.sepolia.env`
+  - `~/.opsec/path/handoff/signing-runtime.mainnet.env`
 
 Do not carry:
 - private keys
 - mnemonic/seed
 - CI secrets
 - ad hoc calldata or handwritten addresses
+- the RPC URL in the public handoff note
+
+After the local Signing OS env files are created:
+
+```bash
+rm -f ~/.opsec/path/handoff/signing-runtime.sepolia.env
+rm -f ~/.opsec/path/handoff/signing-runtime.mainnet.env
+```
 
 Typical Stage-1 handoff note:
 

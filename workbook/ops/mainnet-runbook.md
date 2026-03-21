@@ -16,20 +16,33 @@ For the Signing OS half, stop here and use the selected stage runbook only.
 - correct network selected (`mainnet`)
 - choose the Signing OS stage first
 - if the deploy signer is new or rotated, complete the selected Signing OS stage runbook setup and `signer-enrollment-runbook.md` first; push policy from Dev OS before any serious Dev OS preflight or bundle creation
+- choose the intended Signing OS Mainnet provider on Dev OS first; if its host is new, add it to `rpc_host_allowlist` before the first serious run
 - mainnet policy file configured and reviewed
 - rehearsal proof available when policy requires it
-- run `CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:devos` on Dev OS before a serious run; it checks toolchain, clean git state, policy readiness, full secret scan, compile/test, params presence, and optional GitHub auth
+- private runtime handoff file prepared on Dev OS at `~/.opsec/path/handoff/signing-runtime.mainnet.env`
+- run `CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:devos` on Dev OS before a serious run; it now also expects the intended Signing OS RPC URL to be loaded so policy sealing is checked
 - tracked git tree clean before bundle
 - constructor params file exists at `~/.opsec/path/params/params.mainnet.deploy.json`
 - Signing OS is prepared separately from the selected stage runbook
-- Dev OS does not need Mainnet signing env for `lock-inputs` or `dispatch-bundle`
+- Dev OS does not need Mainnet signing keystore env for `lock-inputs` or `dispatch-bundle`, but serious preflight now expects the intended Signing OS Mainnet RPC URL in shell env
 
 ## B) Dev OS steps
 ```bash
 install -d -m 700 ~/.opsec/path
 install -d -m 700 ~/.opsec/path/params
+install -d -m 700 ~/.opsec/path/handoff
 $EDITOR ~/.opsec/path/params/params.mainnet.deploy.json
 chmod 600 ~/.opsec/path/params/params.mainnet.deploy.json
+
+$EDITOR ~/.opsec/path/handoff/signing-runtime.mainnet.env
+# Keep this file outside the repo. It is the private runtime handoff file.
+# Contents:
+# MAINNET_RPC_URL=https://<your-mainnet-rpc>
+chmod 600 ~/.opsec/path/handoff/signing-runtime.mainnet.env
+
+set -a
+source ~/.opsec/path/handoff/signing-runtime.mainnet.env
+set +a
 
 CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:devos
 
@@ -38,17 +51,42 @@ PARAMS_FILE=~/.opsec/path/params/params.mainnet.deploy.json
 NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
 NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
 printf 'NETWORK=%s\nRUN_ID=%s\n' mainnet "$RUN_ID"
+unset MAINNET_RPC_URL
 ```
 
 ## C) Handoff note
 
-Carry only:
+Prepare two handoff artifacts.
+
+Public handoff note:
 
 ```text
 NETWORK=mainnet
 RUN_ID=<bundle-run-id>
 REHEARSAL_PROOF_RUN_ID=<accepted-proof-run-id>
 ```
+
+Private runtime handoff file:
+
+```text
+~/.opsec/path/handoff/signing-runtime.mainnet.env
+```
+
+Contents:
+
+```text
+MAINNET_RPC_URL=https://<your-mainnet-rpc>
+```
+
+Transport the private runtime handoff file according to the selected stage:
+- stage 1: keep it at `~/.opsec/path/handoff/signing-runtime.mainnet.env`
+- stage 2: copy it to `/Users/Shared/path-signing-runtime.mainnet.env`
+- stage 3: copy it to removable media as `path-signing-runtime.mainnet.env`
+
+Rules:
+- keep the private runtime handoff file out of the repo
+- do not put the RPC URL in the public handoff note
+- remove the private runtime handoff file from the transport location after the Signing OS env is created
 
 Next step:
 - stop using this Mainnet runbook for execution

@@ -21,6 +21,9 @@ Use a dedicated Signing OS machine with:
 - local secrets root: `~/.opsec`
 - marker file: `~/.opsec/path/signing_os.marker`
 - env files under `~/.opsec/path/env/`
+- private runtime handoff files copied from Dev OS on removable media:
+  - `/Volumes/<USB>/path-signing-runtime.sepolia.env`
+  - `/Volumes/<USB>/path-signing-runtime.mainnet.env`
 
 Keep the machine role narrow:
 - repo checkout
@@ -133,13 +136,39 @@ chmod 600 ~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
 chmod 600 ~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
 ```
 
-Create local env files:
+Build local env files from the Dev OS private runtime handoff files.
+Do not open provider dashboards or fetch provider credentials on the Signing OS machine.
+
+Sepolia:
 
 ```bash
-$EDITOR ~/.opsec/path/env/sepolia.env
-$EDITOR ~/.opsec/path/env/mainnet.env
+set -a
+source /Volumes/<USB>/path-signing-runtime.sepolia.env
+set +a
+cat > ~/.opsec/path/env/sepolia.env <<EOF
+SEPOLIA_RPC_URL=$SEPOLIA_RPC_URL
+SEPOLIA_DEPLOY_KEYSTORE_JSON=~/.opsec/sepolia/signers/deploy_sw_a/keystore.json
+SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
+SIGNING_OS_MARKER_FILE=~/.opsec/path/signing_os.marker
+EOF
 chmod 600 ~/.opsec/path/env/sepolia.env
+unset SEPOLIA_RPC_URL
+```
+
+Mainnet:
+
+```bash
+set -a
+source /Volumes/<USB>/path-signing-runtime.mainnet.env
+set +a
+cat > ~/.opsec/path/env/mainnet.env <<EOF
+MAINNET_RPC_URL=$MAINNET_RPC_URL
+MAINNET_DEPLOY_KEYSTORE_JSON=~/.opsec/mainnet/signers/deploy_sw_a/keystore.json
+MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
+SIGNING_OS_MARKER_FILE=~/.opsec/path/signing_os.marker
+EOF
 chmod 600 ~/.opsec/path/env/mainnet.env
+unset MAINNET_RPC_URL
 ```
 
 Sepolia env shape:
@@ -205,17 +234,30 @@ git pull --ff-only origin main
 
 ## F) What you carry from Dev OS to Signing OS
 
-Carry only:
-- `NETWORK`
-- `RUN_ID`
-- optionally `RUN_DB_ID`
-- for Mainnet only, `REHEARSAL_PROOF_RUN_ID` if required
+Carry:
+- public handoff note:
+  - `NETWORK`
+  - `RUN_ID`
+  - optionally `RUN_DB_ID`
+  - for Mainnet only, `REHEARSAL_PROOF_RUN_ID` if required
+- private runtime handoff files from Dev OS on removable media:
+  - `/Volumes/<USB>/path-signing-runtime.sepolia.env`
+  - `/Volumes/<USB>/path-signing-runtime.mainnet.env`
 
 Do not carry:
 - private keys
 - mnemonic/seed
 - CI secrets
 - ad hoc calldata or handwritten addresses
+- the RPC URL in the public handoff note
+
+After the local Signing OS env files are created:
+
+```bash
+rm -f /Volumes/<USB>/path-signing-runtime.sepolia.env
+rm -f /Volumes/<USB>/path-signing-runtime.mainnet.env
+diskutil eject /Volumes/<USB>
+```
 
 ## G) Integrated Signing OS preflight
 

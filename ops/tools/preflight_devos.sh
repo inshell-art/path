@@ -10,6 +10,7 @@ LANE=${LANE:-deploy}
 CHECK_GH_AUTH=${CHECK_GH_AUTH:-0}
 GH_REPO=${GH_REPO:-inshell-art/path}
 OPSEC_ROOT=${OPSEC_ROOT:-~/.opsec}
+REQUIRE_RUNTIME_RPC=${REQUIRE_RUNTIME_RPC:-1}
 export NETWORK LANE
 
 expand_user_path() {
@@ -77,10 +78,23 @@ if not isinstance(lanes, dict) or lane not in lanes or not isinstance(lanes[lane
 PY
 
 PARAMS_FILE=$(expand_user_path "${PARAMS_FILE:-$OPSEC_ROOT/path/params/params.${NETWORK}.deploy.json}")
+NETWORK_UPPER=$(printf '%s' "$NETWORK" | tr '[:lower:]' '[:upper:]')
+RUNTIME_RPC_VAR="${NETWORK_UPPER}_RPC_URL"
+RUNTIME_RPC_VALUE="${!RUNTIME_RPC_VAR:-}"
 
 echo "[devos] network=$NETWORK lane=$LANE"
 
 check_git_clean "before preflight"
+
+if [[ "$REQUIRE_RUNTIME_RPC" == "1" ]]; then
+  if [[ -z "$RUNTIME_RPC_VALUE" ]]; then
+    echo "Missing ${RUNTIME_RPC_VAR}. Serious Dev OS preflight expects the intended Signing OS RPC URL to be loaded so policy sealing can be checked." >&2
+    exit 1
+  fi
+  echo "[devos] rpc policy input present: $RUNTIME_RPC_VAR"
+else
+  echo "[devos] rpc policy input check skipped (set ${RUNTIME_RPC_VAR} or REQUIRE_RUNTIME_RPC=1 for serious runs)"
+fi
 
 NETWORK="$NETWORK" npm run ops:policy:init:check
 
