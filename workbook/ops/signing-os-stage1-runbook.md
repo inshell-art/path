@@ -28,9 +28,11 @@ Use these paths for Stage 1:
 - env files:
   - `~/Projects/SIGNING_OS/.opsec/path/env/sepolia.env`
   - `~/Projects/SIGNING_OS/.opsec/path/env/mainnet.env`
-- Dev OS private runtime handoff files:
-  - `~/.opsec/path/handoff/signing-runtime.sepolia.env`
-  - `~/.opsec/path/handoff/signing-runtime.mainnet.env`
+- removable media handoff files:
+  - `/Volumes/<USB>/path-handoff.sepolia.public.env`
+  - `/Volumes/<USB>/path-handoff.mainnet.public.env`
+  - `/Volumes/<USB>/signing-runtime.sepolia.env`
+  - `/Volumes/<USB>/signing-runtime.mainnet.env`
 
 When a generic doc shows `~/.opsec/...`, replace it with:
 - `~/Projects/SIGNING_OS/.opsec/...`
@@ -146,14 +148,14 @@ chmod 600 ~/Projects/SIGNING_OS/.opsec/sepolia/password-files/deploy_sw_a.passwo
 chmod 600 ~/Projects/SIGNING_OS/.opsec/mainnet/password-files/deploy_sw_a.password.txt
 ```
 
-Build local env files from the Dev OS private runtime handoff files.
+Build local env files from the Dev OS runtime handoff file on removable media.
 Do not open provider dashboards or fetch provider credentials on Signing OS.
 
 Sepolia:
 
 ```bash
 set -a
-source ~/.opsec/path/handoff/signing-runtime.sepolia.env
+source /Volumes/<USB>/signing-runtime.sepolia.env
 set +a
 cat > ~/Projects/SIGNING_OS/.opsec/path/env/sepolia.env <<EOF
 SEPOLIA_RPC_URL=$SEPOLIA_RPC_URL
@@ -169,7 +171,7 @@ Mainnet:
 
 ```bash
 set -a
-source ~/.opsec/path/handoff/signing-runtime.mainnet.env
+source /Volumes/<USB>/signing-runtime.mainnet.env
 set +a
 cat > ~/Projects/SIGNING_OS/.opsec/path/env/mainnet.env <<EOF
 MAINNET_RPC_URL=$MAINNET_RPC_URL
@@ -287,14 +289,12 @@ Do not let Dev OS start a serious bundle flow until the intended deploy signer i
 ## G) What you carry from Dev OS to Signing OS
 
 Carry:
-- public handoff note:
-  - `NETWORK`
-  - `RUN_ID`
-  - optionally `RUN_DB_ID`
-  - for Mainnet only, `REHEARSAL_PROOF_RUN_ID` if required
-- private runtime handoff files from Dev OS:
-  - `~/.opsec/path/handoff/signing-runtime.sepolia.env`
-  - `~/.opsec/path/handoff/signing-runtime.mainnet.env`
+- public handoff file on removable media:
+  - `/Volumes/<USB>/path-handoff.sepolia.public.env`
+  - `/Volumes/<USB>/path-handoff.mainnet.public.env`
+- private runtime handoff file on removable media:
+  - `/Volumes/<USB>/signing-runtime.sepolia.env`
+  - `/Volumes/<USB>/signing-runtime.mainnet.env`
 
 Do not carry:
 - private keys
@@ -303,14 +303,11 @@ Do not carry:
 - ad hoc calldata or handwritten addresses
 - the RPC URL in the public handoff note
 
-After the local Signing OS env files are created:
+Do not eject the removable media yet.
+You still need the public handoff file for `NETWORK` and `RUN_ID` during bundle fetch.
+Clean up the removable media after those values are loaded into the shell.
 
-```bash
-rm -f ~/.opsec/path/handoff/signing-runtime.sepolia.env
-rm -f ~/.opsec/path/handoff/signing-runtime.mainnet.env
-```
-
-Typical Stage-1 handoff note:
+Typical Stage-1 public handoff file contents:
 
 ```text
 NETWORK=sepolia
@@ -358,8 +355,14 @@ git diff --quiet && git diff --cached --quiet || { echo "tracked tree is dirty";
 Fetch the CI bundle:
 
 ```bash
-NETWORK=<sepolia|mainnet>
-RUN_ID=<bundle-run-id>
+set -a
+source /Volumes/<USB>/path-handoff.<network>.public.env
+set +a
+rm -f /Volumes/<USB>/path-handoff.sepolia.public.env
+rm -f /Volumes/<USB>/path-handoff.mainnet.public.env
+rm -f /Volumes/<USB>/signing-runtime.sepolia.env
+rm -f /Volumes/<USB>/signing-runtime.mainnet.env
+diskutil eject /Volumes/<USB>
 GH_REPO=inshell-art/path
 npm run ops:fetch-bundle
 ```
