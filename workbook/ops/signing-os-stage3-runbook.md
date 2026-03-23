@@ -24,8 +24,8 @@ Use a dedicated Signing OS machine with:
 - removable media handoff files:
   - `/Volumes/<USB>/path-handoff.sepolia.public.env`
   - `/Volumes/<USB>/path-handoff.mainnet.public.env`
-  - `/Volumes/<USB>/signing-runtime.sepolia.env`
-  - `/Volumes/<USB>/signing-runtime.mainnet.env`
+  - `/Volumes/<USB>/path-handoff.signing-runtime.sepolia.env`
+  - `/Volumes/<USB>/path-handoff.signing-runtime.mainnet.env`
 
 Keep the machine role narrow:
 - repo checkout
@@ -145,7 +145,7 @@ Sepolia:
 
 ```bash
 set -a
-source /Volumes/<USB>/signing-runtime.sepolia.env
+source /Volumes/<USB>/path-handoff.signing-runtime.sepolia.env
 set +a
 cat > ~/.opsec/path/env/sepolia.env <<EOF
 SEPOLIA_RPC_URL=$SEPOLIA_RPC_URL
@@ -161,7 +161,7 @@ Mainnet:
 
 ```bash
 set -a
-source /Volumes/<USB>/signing-runtime.mainnet.env
+source /Volumes/<USB>/path-handoff.signing-runtime.mainnet.env
 set +a
 cat > ~/.opsec/path/env/mainnet.env <<EOF
 MAINNET_RPC_URL=$MAINNET_RPC_URL
@@ -241,8 +241,8 @@ Carry:
   - `/Volumes/<USB>/path-handoff.sepolia.public.env`
   - `/Volumes/<USB>/path-handoff.mainnet.public.env`
 - private runtime handoff file on removable media:
-  - `/Volumes/<USB>/signing-runtime.sepolia.env`
-  - `/Volumes/<USB>/signing-runtime.mainnet.env`
+  - `/Volumes/<USB>/path-handoff.signing-runtime.sepolia.env`
+  - `/Volumes/<USB>/path-handoff.signing-runtime.mainnet.env`
 
 Do not carry:
 - private keys
@@ -285,8 +285,8 @@ source /Volumes/<USB>/path-handoff.<network>.public.env
 set +a
 rm -f /Volumes/<USB>/path-handoff.sepolia.public.env
 rm -f /Volumes/<USB>/path-handoff.mainnet.public.env
-rm -f /Volumes/<USB>/signing-runtime.sepolia.env
-rm -f /Volumes/<USB>/signing-runtime.mainnet.env
+rm -f /Volumes/<USB>/path-handoff.signing-runtime.sepolia.env
+rm -f /Volumes/<USB>/path-handoff.signing-runtime.mainnet.env
 diskutil eject /Volumes/<USB>
 GH_REPO=inshell-art/path
 npm run ops:fetch-bundle

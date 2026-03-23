@@ -25,7 +25,7 @@ For the Signing OS half, stop here and use the selected stage runbook only.
 - constructor params file exists at `~/.opsec/path/params/params.sepolia.deploy.json`
 - `ops/policy/lane.sepolia.json` placeholders resolved (RPC allowlist, signer map, fee policy)
 - public handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.sepolia.public.env`
-- private runtime handoff file prepared on Dev OS at `~/.opsec/path/handoff/signing-runtime.sepolia.env`
+- private runtime handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.signing-runtime.sepolia.env`
 - run `CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:devos` on Dev OS before a serious run; it now also expects the intended Signing OS RPC URL to be loaded so policy sealing is checked
 - tracked git tree clean before bundle
 - Signing OS is prepared separately from the selected stage runbook
@@ -57,14 +57,14 @@ $EDITOR ~/.opsec/path/params/params.sepolia.deploy.json
 # }
 chmod 600 ~/.opsec/path/params/params.sepolia.deploy.json
 
-$EDITOR ~/.opsec/path/handoff/signing-runtime.sepolia.env
+$EDITOR ~/.opsec/path/handoff/path-handoff.signing-runtime.sepolia.env
 # Keep this file outside the repo. It is the private runtime handoff file.
 # Contents:
 # SEPOLIA_RPC_URL=https://<your-sepolia-rpc>
-chmod 600 ~/.opsec/path/handoff/signing-runtime.sepolia.env
+chmod 600 ~/.opsec/path/handoff/path-handoff.signing-runtime.sepolia.env
 
 set -a
-source ~/.opsec/path/handoff/signing-runtime.sepolia.env
+source ~/.opsec/path/handoff/path-handoff.signing-runtime.sepolia.env
 set +a
 
 CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:devos
@@ -79,7 +79,7 @@ chmod 600 ~/.opsec/path/handoff/path-handoff.sepolia.public.env
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
 cp ~/.opsec/path/handoff/path-handoff.sepolia.public.env /Volumes/<USB>/
-cp ~/.opsec/path/handoff/signing-runtime.sepolia.env /Volumes/<USB>/
+cp ~/.opsec/path/handoff/path-handoff.signing-runtime.sepolia.env /Volumes/<USB>/
 sync
 unset SEPOLIA_RPC_URL
 ```
@@ -102,7 +102,7 @@ RUN_ID=<bundle-run-id>
 Private runtime handoff file:
 
 ```text
-~/.opsec/path/handoff/signing-runtime.sepolia.env
+~/.opsec/path/handoff/path-handoff.signing-runtime.sepolia.env
 ```
 
 Contents:
@@ -115,7 +115,7 @@ For every stage, copy both handoff files to removable media:
 
 ```text
 /Volumes/<USB>/path-handoff.sepolia.public.env
-/Volumes/<USB>/signing-runtime.sepolia.env
+/Volumes/<USB>/path-handoff.signing-runtime.sepolia.env
 ```
 
 Rules:

@@ -20,7 +20,7 @@ For the Signing OS half, stop here and use the selected stage runbook only.
 - mainnet policy file configured and reviewed
 - rehearsal proof available when policy requires it
 - public handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.mainnet.public.env`
-- private runtime handoff file prepared on Dev OS at `~/.opsec/path/handoff/signing-runtime.mainnet.env`
+- private runtime handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.signing-runtime.mainnet.env`
 - run `CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:devos` on Dev OS before a serious run; it now also expects the intended Signing OS RPC URL to be loaded so policy sealing is checked
 - tracked git tree clean before bundle
 - constructor params file exists at `~/.opsec/path/params/params.mainnet.deploy.json`
@@ -35,14 +35,14 @@ install -d -m 700 ~/.opsec/path/handoff
 $EDITOR ~/.opsec/path/params/params.mainnet.deploy.json
 chmod 600 ~/.opsec/path/params/params.mainnet.deploy.json
 
-$EDITOR ~/.opsec/path/handoff/signing-runtime.mainnet.env
+$EDITOR ~/.opsec/path/handoff/path-handoff.signing-runtime.mainnet.env
 # Keep this file outside the repo. It is the private runtime handoff file.
 # Contents:
 # MAINNET_RPC_URL=https://<your-mainnet-rpc>
-chmod 600 ~/.opsec/path/handoff/signing-runtime.mainnet.env
+chmod 600 ~/.opsec/path/handoff/path-handoff.signing-runtime.mainnet.env
 
 set -a
-source ~/.opsec/path/handoff/signing-runtime.mainnet.env
+source ~/.opsec/path/handoff/path-handoff.signing-runtime.mainnet.env
 set +a
 
 CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:devos
@@ -58,7 +58,7 @@ chmod 600 ~/.opsec/path/handoff/path-handoff.mainnet.public.env
 NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
 NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
 cp ~/.opsec/path/handoff/path-handoff.mainnet.public.env /Volumes/<USB>/
-cp ~/.opsec/path/handoff/signing-runtime.mainnet.env /Volumes/<USB>/
+cp ~/.opsec/path/handoff/path-handoff.signing-runtime.mainnet.env /Volumes/<USB>/
 sync
 unset MAINNET_RPC_URL
 ```
@@ -82,7 +82,7 @@ REHEARSAL_PROOF_RUN_ID=<accepted-proof-run-id>
 Private runtime handoff file:
 
 ```text
-~/.opsec/path/handoff/signing-runtime.mainnet.env
+~/.opsec/path/handoff/path-handoff.signing-runtime.mainnet.env
 ```
 
 Contents:
@@ -95,7 +95,7 @@ For every stage, copy both handoff files to removable media:
 
 ```text
 /Volumes/<USB>/path-handoff.mainnet.public.env
-/Volumes/<USB>/signing-runtime.mainnet.env
+/Volumes/<USB>/path-handoff.signing-runtime.mainnet.env
 ```
 
 Rules:
