@@ -23,6 +23,9 @@ For the Signing OS half, stop here and use the selected stage runbook only.
 - if the deploy signer is new or rotated, complete the selected Signing OS stage runbook setup and `signer-enrollment-runbook.md` first; push policy from Dev OS before any serious Dev OS preflight or bundle creation
 - choose the intended Signing OS Sepolia provider on Dev OS first; if its host is new, add it to `rpc_host_allowlist` before the first serious run
 - constructor params file exists at `~/.opsec/path/params/params.sepolia.deploy.json`
+- treasury in deploy params is the intended Treasury Safe address
+- Admin Safe target is identified for later handoff
+- the Safe owner model is one Ledger owner plus one software-keystore owner per Safe
 - `ops/policy/lane.sepolia.json` placeholders resolved (RPC allowlist, signer map, fee policy)
 - public handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.sepolia.public.env`
 - private runtime handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.signing-runtime.sepolia.env`
@@ -53,7 +56,7 @@ $EDITOR ~/.opsec/path/params/params.sepolia.deploy.json
 #   "epochBase": "1",
 #   "reservedCap": "3",
 #   "paymentToken": "0x0000000000000000000000000000000000000000",
-#   "treasury": "0xYourTreasuryAddress"
+#   "treasury": "0xYourTreasurySafeAddress"
 # }
 chmod 600 ~/.opsec/path/params/params.sepolia.deploy.json
 

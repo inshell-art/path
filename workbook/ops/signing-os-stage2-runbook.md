@@ -10,7 +10,7 @@ Stage 2 means:
 
 Use Stage 2 when:
 - Stage 1 has already passed
-- you want Sepolia to reflect the intended treasury/admin target shape more closely
+- you want Sepolia to keep the real Safe authority model while strengthening account isolation
 - you want the Signing OS boundary to include a separate macOS home and shell history
 
 ## A) Stage-2 path model
@@ -52,6 +52,14 @@ Signing OS does:
 
 Never do serious Sepolia/Mainnet `apply` from Dev OS.
 Never patch repo code, policy, or runbook content on Signing OS during an active run.
+
+Safe authority baseline for this stage:
+- treasury authority must be a Safe address, not an EOA
+- admin authority must be a Safe address or explicit Safe handoff target, not an EOA
+- each Safe should use one Ledger owner and one software-keystore owner
+- if a Safe has exactly those two owners, use threshold `2`
+- the deploy lane still uses the policy-approved deploy keystore alias such as `SEPOLIA_DEPLOY_SW_A` or `MAINNET_DEPLOY_SW_A`
+- do not use temporary software-owner stand-ins now that Ledger is available
 
 ## C) Stage-2 account setup
 
@@ -130,6 +138,8 @@ These paths are outside the repo and must never be committed.
 
 Generate or import only encrypted keystore material on Signing OS.
 Never paste a raw private key into the shell.
+This local keystore is the software side of the Safe owner model and the deploy signer used by the lane.
+The Ledger owner remains separate hardware custody and must be enrolled in policy/Safe setup outside this shell flow.
 If this is the first serious use of `cast` on this Signing OS, complete:
 - [cast-verification-discipline.md](cast-verification-discipline.md)
 
@@ -449,6 +459,7 @@ Stage 2 only counts as passed if:
 - `audit_verify.json` is `pass`
 - `audit_report.json` is `pass`
 - `audit_signoff.json` exists
-- treasury in deploy params was the real Sepolia Treasury Safe
+- treasury in deploy params was the intended Treasury Safe address for the target network
 - Admin Safe target was identified for handoff
-- any temporary second-owner stand-in remained Sepolia-only and honestly named
+- each Safe used one Ledger owner and one software-keystore owner
+- no temporary software-owner stand-ins were used

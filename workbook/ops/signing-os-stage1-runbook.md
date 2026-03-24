@@ -7,17 +7,16 @@ Stage 1 means:
 - same macOS account
 - separate signer workspace
 - separate local-only secrets root
-- procedure rehearsal first, not final authority-shape proof
+- procedure rehearsal under weaker isolation, while still using the real Safe authority shape
 
 Use Stage 1 when:
 - you want to prove the full Dev OS -> CI -> Signing OS -> audit flow quickly
 - you want a separate checkout and separate secrets root before moving to stronger isolation
-- temporary EOA treasury/admin is still acceptable for this rehearsal
+- you already want treasury/admin authority to follow the real Safe owner model
 
 Do not present Stage 1 as proof of:
-- final Safe treasury custody
-- final Admin Safe handoff shape
-- final production signer topology
+- final separate-account isolation
+- final separate-machine isolation
 
 ## A) Stage-1 path model
 
@@ -57,6 +56,14 @@ Signing OS does:
 
 Never do serious Sepolia/Mainnet `apply` from Dev OS.
 Never patch repo code, policy, or runbook content on Signing OS during an active run.
+
+Safe authority baseline for this stage:
+- treasury authority must be a Safe address, not an EOA
+- admin authority must be a Safe address or explicit Safe handoff target, not an EOA
+- each Safe should use one Ledger owner and one software-keystore owner
+- if a Safe has exactly those two owners, use threshold `2`
+- the deploy lane still uses the policy-approved deploy keystore alias such as `SEPOLIA_DEPLOY_SW_A` or `MAINNET_DEPLOY_SW_A`
+- do not use temporary software-owner stand-ins now that Ledger is available
 
 ## C) Cold-start bootstrap on Signing OS
 
@@ -123,6 +130,8 @@ These paths are outside the repo and must never be committed.
 
 Generate or import only encrypted keystore material on Signing OS.
 Never paste a raw private key into the shell.
+This local keystore is the software side of the Safe owner model and the deploy signer used by the lane.
+The Ledger owner remains separate hardware custody and must be enrolled in policy/Safe setup outside this shell flow.
 If this is the first serious use of `cast` on this Signing OS, complete:
 - [cast-verification-discipline.md](cast-verification-discipline.md)
 
@@ -522,7 +531,11 @@ Stage 1 only counts as passed if:
 - `audit_verify.json` is `pass`
 - `audit_report.json` is `pass`
 - `audit_signoff.json` exists
+- treasury in deploy params was the intended Treasury Safe address
+- Admin Safe target was identified for handoff
+- each Safe used one Ledger owner and one software-keystore owner
+- no temporary software-owner stand-ins were used
 
 Stage-1 authority realism:
-- temporary EOA treasury/admin is acceptable only if the run is explicitly treated as procedure rehearsal
-- do not present a Stage-1 EOA treasury/admin run as proof of final Safe authority shape
+- Stage 1 may still use weaker machine isolation
+- Stage 1 does not waive the Safe authority shape

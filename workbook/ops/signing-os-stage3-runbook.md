@@ -11,7 +11,7 @@ Stage 3 means:
 
 Use Stage 3 when:
 - Stage 2 has already passed
-- you want Sepolia to mirror the final Mainnet operating shape as closely as possible
+- you want Sepolia/Mainnet to mirror the final Safe authority shape as closely as possible
 - you are ready to prove the real machine boundary
 
 ## A) Stage-3 machine model
@@ -53,6 +53,14 @@ Signing OS does:
 
 Never do serious Sepolia/Mainnet `apply` from Dev OS.
 Never patch repo code, policy, or runbook content on Signing OS during an active run.
+
+Safe authority baseline for this stage:
+- treasury authority must be a Safe address, not an EOA
+- admin authority must be a Safe address or explicit Safe handoff target, not an EOA
+- each Safe should use one Ledger owner and one software-keystore owner
+- if a Safe has exactly those two owners, use threshold `2`
+- the deploy lane still uses the policy-approved deploy keystore alias such as `SEPOLIA_DEPLOY_SW_A` or `MAINNET_DEPLOY_SW_A`
+- do not use temporary software-owner stand-ins now that Ledger is available
 
 ## C) First-time Stage-3 setup
 
@@ -117,6 +125,8 @@ chmod 600 ~/.opsec/path/signing_os.marker
 
 Generate or import only encrypted keystore material on Signing OS.
 Never paste a raw private key into the shell.
+This local keystore is the software side of the Safe owner model and the deploy signer used by the lane.
+The Ledger owner remains separate hardware custody and must be enrolled in policy/Safe setup outside this shell flow.
 If this is the first serious use of `cast` on this Signing OS, complete:
 - [cast-verification-discipline.md](cast-verification-discipline.md)
 
@@ -418,4 +428,7 @@ Stage 3 only counts as passed if:
 - `audit_report.json` is `pass`
 - `audit_signoff.json` exists
 - final Safe authority/custody shape was used
-- final intended signer topology was used, including hardware if part of the target model
+- treasury in deploy params was the intended Treasury Safe address for the target network
+- Admin Safe target was identified for handoff
+- each Safe used one Ledger owner and one software-keystore owner
+- no temporary software-owner stand-ins were used

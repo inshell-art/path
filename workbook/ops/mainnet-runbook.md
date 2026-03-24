@@ -18,6 +18,9 @@ For the Signing OS half, stop here and use the selected stage runbook only.
 - if the deploy signer is new or rotated, complete the selected Signing OS stage runbook setup and `signer-enrollment-runbook.md` first; push policy from Dev OS before any serious Dev OS preflight or bundle creation
 - choose the intended Signing OS Mainnet provider on Dev OS first; if its host is new, add it to `rpc_host_allowlist` before the first serious run
 - mainnet policy file configured and reviewed
+- treasury in deploy params is the intended Treasury Safe address
+- Admin Safe target is identified for later handoff
+- the Safe owner model is one Ledger owner plus one software-keystore owner per Safe
 - rehearsal proof available when policy requires it
 - public handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.mainnet.public.env`
 - private runtime handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.signing-runtime.mainnet.env`
