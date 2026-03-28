@@ -75,7 +75,7 @@
       "writes": true,
       "allowed_signers": [
         "SEPOLIA_DEPLOY_SW_A",
-        "SEPOLIA_GOV_SW_A",
+        "SEPOLIA_GOV_HW_A",
         "SEPOLIA_GOV_HW_B"
       ],
       "required_checks": [
@@ -92,9 +92,9 @@
     "govern": {
       "writes": true,
       "allowed_signers": [
-        "SEPOLIA_GOV_SW_A",
+        "SEPOLIA_GOV_HW_A",
         "SEPOLIA_GOV_HW_B",
-        "SEPOLIA_TREASURY_SW_A",
+        "SEPOLIA_TREASURY_HW_A",
         "SEPOLIA_TREASURY_HW_B"
       ],
       "required_checks": [
@@ -111,7 +111,7 @@
     "treasury": {
       "writes": true,
       "allowed_signers": [
-        "SEPOLIA_TREASURY_SW_A",
+        "SEPOLIA_TREASURY_HW_A",
         "SEPOLIA_TREASURY_HW_B"
       ],
       "required_checks": [
@@ -128,7 +128,7 @@
     "operate": {
       "writes": true,
       "allowed_signers": [
-        "SEPOLIA_GOV_SW_A"
+        "SEPOLIA_GOV_HW_A"
       ],
       "required_checks": [
         "chain_id",
@@ -143,7 +143,7 @@
     "emergency": {
       "writes": true,
       "allowed_signers": [
-        "SEPOLIA_GOV_SW_A",
+        "SEPOLIA_GOV_HW_A",
         "SEPOLIA_GOV_HW_B"
       ],
       "required_checks": [

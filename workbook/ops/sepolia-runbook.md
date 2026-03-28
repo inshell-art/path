@@ -5,6 +5,8 @@ See also:
 - [Signing OS Stage 2 runbook](signing-os-stage2-runbook.md)
 - [Signing OS Stage 3 runbook](signing-os-stage3-runbook.md)
 - [Signing OS runbook](signing-os-runbook.md) for stage selection only
+- [Signing OS Wi-Fi handbook](signing-os-wifi-handbook.md)
+- [PATH ADMIN / TREASURY custody OPSEC upgrade — v1](path-admin-treasury-custody-opsec-upgrade-v1.md)
 
 Use this runbook as the default meaning of "deploy on Sepolia" for this repo.
 Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionally bypassing the repo-managed ops lane.
@@ -25,7 +27,8 @@ For the Signing OS half, stop here and use the selected stage runbook only.
 - constructor params file exists at `~/.opsec/path/params/params.sepolia.deploy.json`
 - treasury in deploy params is the intended Treasury Safe address
 - Admin Safe target is identified for later handoff
-- the Safe owner model is one Ledger owner plus one software-keystore owner per Safe
+- the ADMIN / TREASURY Safe owner model is two Ledger owners only per Safe (`*_HW_A` + `*_HW_B`)
+- Signing OS network plan follows `signing-os-wifi-handbook.md`: Wi-Fi off by default, online only for exact run tasks
 - `ops/policy/lane.sepolia.json` placeholders resolved (RPC allowlist, signer map, fee policy)
 - public handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.sepolia.public.env`
 - private runtime handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.signing-runtime.sepolia.env`

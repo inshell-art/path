@@ -9,8 +9,9 @@ Use this runbook:
 
 Ownership split:
 - Signing OS:
-  - generate or import the encrypted keystore
+  - for deploy aliases, generate or import the encrypted keystore
   - derive the public address
+  - for ADMIN / TREASURY Safe owner aliases, confirm the Ledger-derived public address
   - hand off only public address data
 - Dev OS:
   - update `ops/policy/lane.<network>.json`
@@ -48,16 +49,16 @@ Current repo state at the time this runbook was written:
 - `sepolia`
   - deploy signer alias is enrolled: `SEPOLIA_DEPLOY_SW_A`
   - missing signer alias map entries for future write lanes:
-    - `SEPOLIA_GOV_SW_A`
+    - `SEPOLIA_GOV_HW_A`
     - `SEPOLIA_GOV_HW_B`
-    - `SEPOLIA_TREASURY_SW_A`
+    - `SEPOLIA_TREASURY_HW_A`
     - `SEPOLIA_TREASURY_HW_B`
 - `mainnet`
   - missing signer alias map entries:
     - `MAINNET_DEPLOY_SW_A`
-    - `MAINNET_GOV_SW_A`
+    - `MAINNET_GOV_HW_A`
     - `MAINNET_GOV_HW_B`
-    - `MAINNET_TREASURY_SW_A`
+    - `MAINNET_TREASURY_HW_A`
     - `MAINNET_TREASURY_HW_B`
   - deploy fee policy placeholders still require one-time policy values:
     - `deploy.max_fee_per_gas_gwei`
@@ -78,16 +79,22 @@ Authority model:
 - do not treat the Safe contract address as if it were an EOA signer alias
 
 Temporary rehearsal rule before hardware arrives:
-- for Sepolia rehearsals, you may use temporary software-owner aliases if the hardware signer has not arrived yet
-- name them honestly, for example `SEPOLIA_GOV_SW_B_TMP` or `SEPOLIA_TREASURY_SW_B_TMP`
-- do not reuse a `*_HW_*` alias name for a software stand-in
-- keep this workaround Sepolia-only
-- do not carry the temporary alias set into Mainnet policy
-- retire the temporary aliases once the real hardware signer is enrolled
+- for PATH ADMIN / TREASURY Safe custody, this workaround is retired
+- final Safe owner aliases are hardware-only: `*_GOV_HW_A`, `*_GOV_HW_B`, `*_TREASURY_HW_A`, `*_TREASURY_HW_B`
+- do not create or keep final ADMIN / TREASURY software-owner aliases in policy
+- the deploy signer may still remain a software-keystore alias such as `*_DEPLOY_SW_A`
 
 ## B) Generate or import the signer on Signing OS
 
-Example software signer paths:
+This section is for software deploy aliases such as `SEPOLIA_DEPLOY_SW_A` and `MAINNET_DEPLOY_SW_A`.
+It is not the enrollment flow for final ADMIN / TREASURY Safe owners.
+
+For final ADMIN / TREASURY Safe owners:
+- derive or confirm the public owner address from the Ledger setup flow
+- hand off only `NETWORK`, `ALIAS`, and `ADDRESS` to Dev OS
+- do not create a Signing OS keystore for those final Safe owners
+
+Example deploy software signer paths:
 
 ```bash
 ~/.opsec/sepolia/signers/deploy_sw_a/keystore.json
@@ -127,6 +134,14 @@ cast wallet address \
 ```
 
 Repeat for every alias you are enrolling in this batch.
+
+For Ledger-only Safe owner aliases, use the Ledger / Safe setup flow to read the public owner address and write the same three-line handoff note:
+
+```text
+NETWORK=sepolia
+ALIAS=SEPOLIA_GOV_HW_A
+ADDRESS=0x...
+```
 
 ## D) Transfer the public address to Dev OS
 

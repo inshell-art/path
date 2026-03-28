@@ -21,6 +21,7 @@ If you are actually running the Signing OS half, choose exactly one stage runboo
 ## B) Core rules
 
 - operate the Signing OS from the selected stage runbook alone
+- PATH `ops/` and `workbook/ops/` are canonical for this repo
 - do not depend on an agent on the Signing OS
 - if the Signing OS run blocks, stop there
 - bring the failure back to Dev OS
@@ -52,7 +53,8 @@ Remote CI does:
 - no password material
 
 Signing OS does:
-- maintain local-only keystore/password material
+- maintain local-only deploy keystore/password material
+- keep ADMIN / TREASURY Safe custody on Ledger owner paths only
 - fetch bundle artifact
 - checkout the exact commit pinned in `run.json`
 - `ops:verify`
@@ -64,6 +66,12 @@ Signing OS does:
 Never do serious Sepolia/Mainnet `apply` from the Dev OS.
 Never patch repo code, policy, or runbook content on the Signing OS during an active run.
 
+Signing OS network rule:
+- Wi-Fi off by default
+- turn Wi-Fi on only for a bounded maintenance session or a bounded serious-run session
+- during a serious run, online use is limited to exact repo/bundle fetch, RPC checks, Safe/RPC execution, and postconditions
+- no browsing, chat, search, cloud storage, package installs, or cloud agents during the run
+
 ## E) Which other runbooks still matter
 
 - [Sepolia runbook](sepolia-runbook.md)
@@ -74,6 +82,10 @@ Never patch repo code, policy, or runbook content on the Signing OS during an ac
   - detailed audit explanation
 - [Signer Enrollment runbook](signer-enrollment-runbook.md)
   - dedicated one-time background/reference for signer enrollment and rotation
+- [Signing OS Wi-Fi handbook](signing-os-wifi-handbook.md)
+  - canonical online/offline rule for Signing OS
+- [PATH ADMIN / TREASURY custody OPSEC upgrade — v1](path-admin-treasury-custody-opsec-upgrade-v1.md)
+  - canonical Safe custody rule for PATH
 
 ## F) Passing rule
 

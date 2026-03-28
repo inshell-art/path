@@ -22,8 +22,10 @@ Expected behavior by script:
 - `audit_signoff.sh` writes `audit_signoff.json` plus the compatibility alias `signoff.json`, and refuses signoff unless verify/report both passed and the frozen evidence set is unchanged.
 - `lint_secret_snippets.sh` enforces no raw private-key snippets in docs/runbooks for `sepolia`/`mainnet` (devnet skipped).
 
-All write operations must use keystore mode only. Do not use accounts-file signing.
+Deploy-side CLI write operations must use keystore mode only. Do not use accounts-file signing.
+For PATH, ADMIN / TREASURY Safe custody is hardware-only: no software-keystore Safe owner on Signing OS.
 For serious Sepolia/Mainnet flow, Dev OS prepares and dispatches bundles only; Signing OS is the only place that should run deploy-side `verify/approve/apply/postconditions`.
+Signing OS network use is bounded-online only: Wi-Fi off by default, on only for trusted maintenance or exact run tasks.
 
 Optional bundle tooling (reference implementations):
 - `bundle.sh`, `verify_bundle.sh`, `approve_bundle.sh`, `apply_bundle.sh`

@@ -1,6 +1,6 @@
 # Policy files
 
-Copy example policies from the template repo and edit the copies:
+Edit the PATH policy files in this repo:
 - `ops/policy/lane.devnet.example.json` -> `ops/policy/lane.devnet.json`
 - `ops/policy/lane.sepolia.example.json` -> `ops/policy/lane.sepolia.json`
 - `ops/policy/lane.mainnet.example.json` -> `ops/policy/lane.mainnet.json`
@@ -12,8 +12,9 @@ Before the first serious Sepolia/Mainnet run with a new signer set, complete `wo
 Signer semantics:
 - `allowed_signers` are signer-owner identities, not treasury/admin destination addresses
 - if treasury or admin authority is a Safe, model the Safe as the target authority/destination and model the Safe owners as signer aliases
+- final ADMIN / TREASURY Safe owner aliases should be hardware-only aliases such as `*_GOV_HW_A`, `*_GOV_HW_B`, `*_TREASURY_HW_A`, `*_TREASURY_HW_B`
+- the deploy alias may still be a software-keystore alias such as `*_DEPLOY_SW_A`
 - do not map a software key to a `*_HW_*` alias name
-- if Sepolia rehearsal must proceed before hardware arrives, use an honestly named temporary software alias for the rehearsal owner and retire it after the real hardware alias is enrolled
 
 Mainnet write lanes default to:
 - `gates.require_rehearsal_proof: true`

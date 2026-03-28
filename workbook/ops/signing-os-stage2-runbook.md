@@ -13,6 +13,10 @@ Use Stage 2 when:
 - you want Sepolia to keep the real Safe authority model while strengthening account isolation
 - you want the Signing OS boundary to include a separate macOS home and shell history
 
+Canonical references for this stage:
+- [Signing OS Wi-Fi handbook](signing-os-wifi-handbook.md)
+- [PATH ADMIN / TREASURY custody OPSEC upgrade — v1](path-admin-treasury-custody-opsec-upgrade-v1.md)
+
 ## A) Stage-2 path model
 
 Use the Signing OS account's own paths:
@@ -41,7 +45,7 @@ Dev OS does:
 - `ops:dispatch-bundle`
 
 Signing OS does:
-- local-only keystore/password handling in the dedicated Signing OS account
+- local-only deploy keystore/password handling in the dedicated Signing OS account
 - bundle fetch
 - pinned checkout
 - `ops:verify`
@@ -56,10 +60,16 @@ Never patch repo code, policy, or runbook content on Signing OS during an active
 Safe authority baseline for this stage:
 - treasury authority must be a Safe address, not an EOA
 - admin authority must be a Safe address or explicit Safe handoff target, not an EOA
-- each Safe should use one Ledger owner and one software-keystore owner
+- each ADMIN / TREASURY Safe should use two Ledger owners only: `*_HW_A` and `*_HW_B`
 - if a Safe has exactly those two owners, use threshold `2`
 - the deploy lane still uses the policy-approved deploy keystore alias such as `SEPOLIA_DEPLOY_SW_A` or `MAINNET_DEPLOY_SW_A`
-- do not use temporary software-owner stand-ins now that Ledger is available
+- the Signing OS deploy keystore is not an ADMIN / TREASURY Safe owner
+
+Bounded-online rule for this stage:
+- Wi-Fi off by default
+- turn Wi-Fi on only for trusted maintenance work or a bounded serious run
+- serious-run online tasks are exact repo/bundle fetch, RPC checks, Safe/RPC execution, and postconditions
+- no browsing, chat, search, cloud storage, package installs, or cloud agents during the run
 
 ## C) Stage-2 account setup
 
@@ -103,7 +113,7 @@ git pull --ff-only origin main
 git submodule update --init --recursive
 ```
 
-Authenticate GitHub CLI:
+Authenticate GitHub CLI in a bounded maintenance or run session:
 
 ```bash
 gh auth status || gh auth login
@@ -138,8 +148,8 @@ These paths are outside the repo and must never be committed.
 
 Generate or import only encrypted keystore material on Signing OS.
 Never paste a raw private key into the shell.
-This local keystore is the software side of the Safe owner model and the deploy signer used by the lane.
-The Ledger owner remains separate hardware custody and must be enrolled in policy/Safe setup outside this shell flow.
+This local keystore is the deploy signer used by the lane. It is not an ADMIN / TREASURY Safe owner.
+ADMIN / TREASURY Safe confirmations come from the two Ledger owner paths outside this shell flow.
 If this is the first serious use of `cast` on this Signing OS, complete:
 - [cast-verification-discipline.md](cast-verification-discipline.md)
 
@@ -461,5 +471,5 @@ Stage 2 only counts as passed if:
 - `audit_signoff.json` exists
 - treasury in deploy params was the intended Treasury Safe address for the target network
 - Admin Safe target was identified for handoff
-- each Safe used one Ledger owner and one software-keystore owner
-- no temporary software-owner stand-ins were used
+- each ADMIN / TREASURY Safe used two Ledger owners only
+- Signing OS online use stayed within the bounded-online rule
