@@ -5,7 +5,9 @@
     "http://localhost:8545"
   ],
   "signer_alias_map": {
-    "DEVNET_DEPLOY_SW_A": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    "DEVNET_DEPLOY_SW_A": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "DEVNET_ADMIN_HW_A": "<SET_DEVNET_ADMIN_LEDGER_ADDRESS>",
+    "DEVNET_TREASURY_HW_A": "<SET_DEVNET_TREASURY_LEDGER_ADDRESS>"
   },
   "path": {
     "movement_config": {
@@ -66,8 +68,7 @@
       "writes": true,
       "allowed_signers": [
         "DEVNET_DEPLOY_SW_A",
-        "DEVNET_GOV_HW_A",
-        "DEVNET_GOV_HW_B"
+        "DEVNET_ADMIN_HW_A"
       ],
       "required_checks": [
         "chain_id",
@@ -83,10 +84,7 @@
     "govern": {
       "writes": true,
       "allowed_signers": [
-        "DEVNET_GOV_HW_A",
-        "DEVNET_GOV_HW_B",
-        "DEVNET_TREASURY_HW_A",
-        "DEVNET_TREASURY_HW_B"
+        "DEVNET_ADMIN_HW_A"
       ],
       "required_checks": [
         "chain_id",
@@ -102,8 +100,7 @@
     "treasury": {
       "writes": true,
       "allowed_signers": [
-        "DEVNET_TREASURY_HW_A",
-        "DEVNET_TREASURY_HW_B"
+        "DEVNET_TREASURY_HW_A"
       ],
       "required_checks": [
         "chain_id",
@@ -119,7 +116,7 @@
     "operate": {
       "writes": true,
       "allowed_signers": [
-        "DEVNET_GOV_HW_A"
+        "DEVNET_ADMIN_HW_A"
       ],
       "required_checks": [
         "chain_id",
@@ -134,8 +131,7 @@
     "emergency": {
       "writes": true,
       "allowed_signers": [
-        "DEVNET_GOV_HW_A",
-        "DEVNET_GOV_HW_B"
+        "DEVNET_ADMIN_HW_A"
       ],
       "required_checks": [
         "chain_id",

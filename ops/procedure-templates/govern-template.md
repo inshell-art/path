@@ -1,9 +1,9 @@
 # Governance procedure template
 
-Purpose: execute governance actions via Safe.
+Purpose: execute contract-admin actions under the final ADMIN authority model.
 
 Prereqs:
-- Governance and treasury Safe wallets are configured.
+- The final ADMIN Ledger path is configured and verified.
 - Govern lane policy is configured for this network.
 
 Steps:

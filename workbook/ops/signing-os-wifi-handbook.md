@@ -1,12 +1,12 @@
-# Signing OS Wi‑Fi Handbook
+# Signing OS Wi-Fi Handbook
 
 ## Purpose
 Use network on the Signing OS as a controlled utility, not as normal internet access.
 
 ## Core rule
-Default state: **Wi‑Fi off**.
+Default state: **Wi-Fi off**.
 
-Turn Wi‑Fi on only for a bounded task. Turn it off immediately after.
+Turn Wi-Fi on only for a bounded task. Turn it off immediately after.
 
 ## Two allowed online modes
 
@@ -22,7 +22,7 @@ Use network only for:
 - fetching the exact pinned repo state
 - fetching the exact bundle/artifact
 - read-only RPC checks
-- Safe/RPC signing and execution
+- Ledger-backed admin execution or deploy-lane execution
 - postconditions
 
 ## Never mix maintenance and a serious run
@@ -36,7 +36,7 @@ Do not install packages, patch tools, or modify the environment mid-run.
 Only:
 - Git/GitHub fetch for the exact pinned commit or bundle
 - RPC provider traffic
-- Safe UI / Safe service, only if the run actually needs it
+- exact vendor pages or wallet tooling pages only if the run explicitly needs them
 
 ## Forbidden network use during a serious run
 No:
@@ -52,20 +52,20 @@ No:
 
 ## Trusted network discipline
 Use only:
-- your own WPA2/WPA3 Wi‑Fi, or
+- your own WPA2/WPA3 Wi-Fi, or
 - your own hotspot
 
 Never use:
-- café Wi‑Fi
-- hotel Wi‑Fi
-- airport Wi‑Fi
-- conference Wi‑Fi
-- coworking Wi‑Fi
+- cafe Wi-Fi
+- hotel Wi-Fi
+- airport Wi-Fi
+- conference Wi-Fi
+- coworking Wi-Fi
 
 ## Better home setup
 Prefer:
 - a dedicated SSID/VLAN for the Signing OS
-- a strong unique Wi‑Fi password
+- a strong unique Wi-Fi password
 - no guest devices on that segment
 
 ## Radios and sharing
@@ -111,8 +111,8 @@ Do:
 That includes:
 - GitHub repo state
 - CI bundles
-- Safe payloads
 - RPC-returned state
+- browser-served wallet or provider pages
 
 Verify locally before approval:
 - commit
@@ -121,13 +121,14 @@ Verify locally before approval:
 - chain ID
 - nonce
 - addresses
-- Safe tx hash / intent binding
+- authority target
+- intent binding
 
 ## Secrets rule
 Secrets never travel over the network as part of the run.
 
 Keep local-only on the Signing OS:
-- keystore
+- deploy keystore used for deploy-only lanes
 - password file or local vault DB
 - mnemonic / recovery material
 - secret `.env`
@@ -136,12 +137,12 @@ Online fetch is for code, bundles, and chain/service state, not privileged secre
 
 ## Keep the network-on window short
 Good serious-run pattern:
-1. Wi‑Fi on
+1. Wi-Fi on
 2. fetch exact repo/bundle
 3. verify
 4. sign/apply
 5. postconditions
-6. Wi‑Fi off
+6. Wi-Fi off
 
 ## Log the online session
 Record:
@@ -178,4 +179,4 @@ Human improvisation is **not** for:
 - browsing to figure things out during apply
 
 ## One-line policy
-Use Wi‑Fi on the Signing OS only in short, trusted, purpose-limited sessions, and never let the Signing OS become a normal online computer.
+Use Wi-Fi on the Signing OS only in short, trusted, purpose-limited sessions, and never let the Signing OS become a normal online computer.

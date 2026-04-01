@@ -20,13 +20,29 @@ Safe to keep in this repo:
 
 Never commit:
 - private keys, mnemonics, recovery keys
-- keystore JSON files
+- passphrases or passphrase hints
+- keystore JSON files used for real deploy signing
 - password files
 - secret `.env` files
 - RPC URLs with embedded credentials
 - signer-to-device mappings tied to real operators
 - private incident contacts or fallback procedures
 - live bundles, evidence, or audit outputs unless deliberately curated and redacted
+
+## Final custody rule
+
+Final PATH custody is hardware-only:
+- `ADMIN` is the Ledger-backed contract authority account
+- `TREASURY` is the Ledger-backed recipient/holding account
+- the live Ledger addresses correspond to attached-passphrase / secondary-PIN wallets
+- base / no-passphrase wallets are intentionally unused
+
+Keep outside git:
+- recovery phrases
+- passphrases
+- metals / physical recovery inventory
+- real signer-to-device mappings
+- operator-specific box/recovery maps
 
 ## Local/private overlay model
 
@@ -40,6 +56,11 @@ Use local paths outside git for real operator state, for example:
   params/
     params.sepolia.deploy.json
     params.mainnet.deploy.json
+  handoff/
+    path-handoff.sepolia.public.env
+    path-handoff.mainnet.public.env
+    path-handoff.signing-runtime.sepolia.env
+    path-handoff.signing-runtime.mainnet.env
   runs/
     sepolia/
     mainnet/
@@ -62,6 +83,14 @@ Use local paths outside git for real operator state, for example:
 ```
 
 The public repo documents this model. It does not store the real materials.
+
+Keystore overlays are not part of final custody.
+They remain valid only for:
+- deploy-only lanes
+- dev-only workflows
+- deliberate migration windows that are clearly labeled temporary
+
+Do not present a keystore JSON or password file as the final ADMIN or TREASURY path.
 
 ## Artifacts vs bundles
 
@@ -89,6 +118,7 @@ They are:
 Serious Sepolia/Mainnet apply remains Signing OS only.
 CI computes deterministic bundles without secrets.
 Dev OS prepares inputs and dispatches bundle jobs.
+Signing OS may hold a deploy-only keystore for the deploy lane, but that does not make it the final custody location for ADMIN or TREASURY.
 
 ## Deliberate publication rule
 

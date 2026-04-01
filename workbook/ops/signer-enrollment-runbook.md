@@ -11,7 +11,7 @@ Ownership split:
 - Signing OS:
   - for deploy aliases, generate or import the encrypted keystore
   - derive the public address
-  - for ADMIN / TREASURY Safe owner aliases, confirm the Ledger-derived public address
+  - for final ADMIN / TREASURY aliases, confirm the Ledger-derived public address
   - hand off only public address data
 - Dev OS:
   - update `ops/policy/lane.<network>.json`
@@ -49,17 +49,13 @@ Current repo state at the time this runbook was written:
 - `sepolia`
   - deploy signer alias is enrolled: `SEPOLIA_DEPLOY_SW_A`
   - missing signer alias map entries for future write lanes:
-    - `SEPOLIA_GOV_HW_A`
-    - `SEPOLIA_GOV_HW_B`
+    - `SEPOLIA_ADMIN_HW_A`
     - `SEPOLIA_TREASURY_HW_A`
-    - `SEPOLIA_TREASURY_HW_B`
 - `mainnet`
   - missing signer alias map entries:
     - `MAINNET_DEPLOY_SW_A`
-    - `MAINNET_GOV_HW_A`
-    - `MAINNET_GOV_HW_B`
+    - `MAINNET_ADMIN_HW_A`
     - `MAINNET_TREASURY_HW_A`
-    - `MAINNET_TREASURY_HW_B`
   - deploy fee policy placeholders still require one-time policy values:
     - `deploy.max_fee_per_gas_gwei`
     - `deploy.max_priority_fee_per_gas_gwei`
@@ -74,25 +70,25 @@ Batch recommendation:
 
 Authority model:
 - signer aliases represent human/operator signer identities
-- treasury/admin authority addresses may be Safe addresses or other target identities
-- if a lane targets a Safe-controlled treasury/admin role, keep the Safe address as the authority target and keep signer aliases as the owner keys that can participate in that Safe flow
-- do not treat the Safe contract address as if it were an EOA signer alias
+- final ADMIN authority is a direct Ledger-backed address, not a Safe owner set
+- final TREASURY authority is a direct Ledger-backed recipient/holding address, not a contract-admin role
+- base / no-passphrase wallets are intentionally unused
+- the live hardware aliases should correspond to attached-passphrase / secondary-PIN Ledger addresses
 
-Temporary rehearsal rule before hardware arrives:
-- for PATH ADMIN / TREASURY Safe custody, this workaround is retired
-- final Safe owner aliases are hardware-only: `*_GOV_HW_A`, `*_GOV_HW_B`, `*_TREASURY_HW_A`, `*_TREASURY_HW_B`
-- do not create or keep final ADMIN / TREASURY software-owner aliases in policy
+Temporary deployment rule:
 - the deploy signer may still remain a software-keystore alias such as `*_DEPLOY_SW_A`
+- do not create or keep final ADMIN / TREASURY software-owner aliases in policy
+- do not map a deploy keystore to a `*_HW_*` alias name
 
 ## B) Generate or import the signer on Signing OS
 
 This section is for software deploy aliases such as `SEPOLIA_DEPLOY_SW_A` and `MAINNET_DEPLOY_SW_A`.
-It is not the enrollment flow for final ADMIN / TREASURY Safe owners.
+It is not the enrollment flow for final ADMIN or TREASURY Ledger identities.
 
-For final ADMIN / TREASURY Safe owners:
-- derive or confirm the public owner address from the Ledger setup flow
+For final ADMIN / TREASURY Ledger aliases:
+- derive or confirm the public address from the Ledger setup flow
 - hand off only `NETWORK`, `ALIAS`, and `ADDRESS` to Dev OS
-- do not create a Signing OS keystore for those final Safe owners
+- do not create a Signing OS keystore for those final Ledger aliases
 
 Example deploy software signer paths:
 
@@ -133,13 +129,13 @@ cast wallet address \
   --password-file ~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
 ```
 
-Repeat for every alias you are enrolling in this batch.
+Repeat for every deploy alias you are enrolling in this batch.
 
-For Ledger-only Safe owner aliases, use the Ledger / Safe setup flow to read the public owner address and write the same three-line handoff note:
+For Ledger-only final aliases, use the Ledger setup flow to read the public address and write the same three-line handoff note:
 
 ```text
 NETWORK=sepolia
-ALIAS=SEPOLIA_GOV_HW_A
+ALIAS=SEPOLIA_ADMIN_HW_A
 ADDRESS=0x...
 ```
 
@@ -160,12 +156,12 @@ Recommended transfer media by stage:
   - manual transcription
   - copy/paste through a local text note
 - stage 2, separate macOS account on the same machine:
+  - removable media
   - manual transcription
-  - local text note
   - QR code or screenshot
 - stage 3, real separate machine:
+  - removable media
   - manual transcription
-  - USB text file
   - QR code or printed note
 
 Acceptable transfer methods:
@@ -187,7 +183,7 @@ Do not transfer:
 - raw private keys
 
 Sanity check before leaving the Signing OS:
-1. derive the address again from the keystore
+1. derive the address again from the keystore or Ledger path
 2. confirm the second result matches the first exactly
 3. write the handoff note in the three-line format above
 4. verify the alias name is the one you actually intend to enroll
@@ -211,7 +207,9 @@ Example:
 
 ```json
 "signer_alias_map": {
-  "SEPOLIA_DEPLOY_SW_A": "0x..."
+  "SEPOLIA_DEPLOY_SW_A": "0x...",
+  "SEPOLIA_ADMIN_HW_A": "0x...",
+  "SEPOLIA_TREASURY_HW_A": "0x..."
 }
 ```
 
@@ -240,7 +238,7 @@ Only after that should you start the real lane run.
 Use this exact OS-switch sequence:
 
 1. On Signing OS:
-- generate or import the encrypted keystore
+- generate or import the encrypted deploy keystore if needed
 - derive the public address
 - derive it a second time and confirm the same result
 - prepare the three-line handoff note
@@ -258,19 +256,5 @@ Use this exact OS-switch sequence:
 - commit and push
 
 4. Return to Signing OS:
-- `git fetch origin`
-- `git checkout main`
-- `git pull --ff-only origin main`
-- confirm the alias now resolves to the intended address in the pulled policy file
-
-5. Only then start the actual lane run.
-
-## H) Clean procedure rule
-
-The clean procedure is:
-1. Signing OS generates or imports the signer and derives the public address
-2. Dev OS updates and pushes policy
-3. Signing OS pulls latest `main`
-4. the actual lane run begins
-
-Treat signer enrollment or rotation as a one-time initialization procedure, not a per-run step.
+- pull latest `main`
+- continue the serious run only after the updated policy is present locally

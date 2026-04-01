@@ -61,8 +61,8 @@
     "handoff": {
       "writes": true,
       "allowed_signers": [
-        "MAINNET_GOV_HW_A",
-        "MAINNET_GOV_HW_B"
+        "MAINNET_DEPLOY_SW_A",
+        "MAINNET_ADMIN_HW_A"
       ],
       "required_checks": [
         "chain_id",
@@ -78,10 +78,7 @@
     "govern": {
       "writes": true,
       "allowed_signers": [
-        "MAINNET_GOV_HW_A",
-        "MAINNET_GOV_HW_B",
-        "MAINNET_TREASURY_HW_A",
-        "MAINNET_TREASURY_HW_B"
+        "MAINNET_ADMIN_HW_A"
       ],
       "required_checks": [
         "chain_id",
@@ -97,8 +94,7 @@
     "treasury": {
       "writes": true,
       "allowed_signers": [
-        "MAINNET_TREASURY_HW_A",
-        "MAINNET_TREASURY_HW_B"
+        "MAINNET_TREASURY_HW_A"
       ],
       "required_checks": [
         "chain_id",
@@ -114,7 +110,7 @@
     "operate": {
       "writes": true,
       "allowed_signers": [
-        "MAINNET_GOV_HW_A"
+        "MAINNET_ADMIN_HW_A"
       ],
       "required_checks": [
         "chain_id",
@@ -129,8 +125,7 @@
     "emergency": {
       "writes": true,
       "allowed_signers": [
-        "MAINNET_GOV_HW_A",
-        "MAINNET_GOV_HW_B"
+        "MAINNET_ADMIN_HW_A"
       ],
       "required_checks": [
         "chain_id",
@@ -142,5 +137,6 @@
         "rehearsal_proof_network": "devnet"
       }
     }
-  }
+  },
+  "signer_alias_map": {}
 }

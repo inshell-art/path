@@ -65,10 +65,15 @@ Public/private boundary:
 - CI computes deterministic bundles without secrets
 - serious `apply` is Signing OS only
 - Signing OS network use is bounded-online only: Wi-Fi off by default, on only for trusted maintenance or exact run tasks
-- ADMIN / TREASURY Safe custody is hardware-only: two Ledger owner paths, no software Safe owner on Signing OS
+- final custody is no-Safe and Ledger-only:
+  - `ADMIN` is the contract authority account
+  - `TREASURY` is the recipient/holding account, not a contract-admin role
+  - one Ledger-backed attached-passphrase wallet per role
+  - base/no-passphrase wallets are unused
+- a deploy keystore may still exist for deploy-only lanes on Signing OS, but it is not final ADMIN or TREASURY custody
 - CI artifacts are not public by default just because CI produced them
 
-See [docs/ops-public-private-boundary.md](docs/ops-public-private-boundary.md).
+See [docs/ops-public-private-boundary.md](docs/ops-public-private-boundary.md) and [docs/custody-no-safe-two-ledgers.md](docs/custody-no-safe-two-ledgers.md).
 
 Quick rehearsal (bundle + verify only):
 
@@ -85,7 +90,7 @@ SIGNING_OS=1 NETWORK=sepolia RUN_ID=<same_run_id> npm run ops:apply
 NETWORK=sepolia RUN_ID=<same_run_id> POSTCONDITIONS_STATUS=pass npm run ops:postconditions
 ```
 
-Local ops env variable examples are in `ops/env.example` (do not commit secrets). Constructor params examples live in `ops/params.constructor.example.json`.
+Local ops env variable examples are in `ops/env.example` (do not commit secrets). Constructor params examples live in `ops/params.constructor.example.json`; the `treasury` field is a recipient address, not a contract-admin role.
 
 Quick local audit (devnet):
 

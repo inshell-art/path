@@ -22,8 +22,8 @@ Expected behavior by script:
 - `audit_signoff.sh` writes `audit_signoff.json` plus the compatibility alias `signoff.json`, and refuses signoff unless verify/report both passed and the frozen evidence set is unchanged.
 - `lint_secret_snippets.sh` enforces no raw private-key snippets in docs/runbooks for `sepolia`/`mainnet` (devnet skipped).
 
-Deploy-side CLI write operations must use keystore mode only. Do not use accounts-file signing.
-For PATH, ADMIN / TREASURY Safe custody is hardware-only: no software-keystore Safe owner on Signing OS.
+Deploy-side CLI write operations must use keystore mode only for the deploy lane. Do not use accounts-file signing.
+For PATH, final ADMIN / TREASURY custody is no-Safe and Ledger-only. The Signing OS may hold a deploy-only keystore for deploy lanes, but it is not a final-custody software signer.
 For serious Sepolia/Mainnet flow, Dev OS prepares and dispatches bundles only; Signing OS is the only place that should run deploy-side `verify/approve/apply/postconditions`.
 Signing OS network use is bounded-online only: Wi-Fi off by default, on only for trusted maintenance or exact run tasks.
 

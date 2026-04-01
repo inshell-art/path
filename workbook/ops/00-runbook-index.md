@@ -21,8 +21,10 @@
   - Signing OS derives public addresses; Dev OS updates policy
 - [Signing OS Wi-Fi handbook](signing-os-wifi-handbook.md)
   - canonical bounded-online rule for Signing OS maintenance and run sessions
-- [PATH ADMIN / TREASURY custody OPSEC upgrade — v1](path-admin-treasury-custody-opsec-upgrade-v1.md)
-  - canonical Safe custody rule: two Ledger owner paths only for ADMIN / TREASURY
+- [No-Safe two-Ledger custody doc](../../docs/custody-no-safe-two-ledgers.md)
+  - canonical final-custody rule for PATH
+- [PATH custody migration note](path-admin-treasury-custody-opsec-upgrade-v1.md)
+  - what changed, what stayed intentionally unchanged, and what still needs separate follow-up
 - [cast verification discipline](cast-verification-discipline.md)
   - Signing OS bootstrap trust check for the local `cast` binary
 - [Audit runbook](audit-runbook.md)

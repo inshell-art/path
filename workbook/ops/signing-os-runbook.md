@@ -53,8 +53,9 @@ Remote CI does:
 - no password material
 
 Signing OS does:
-- maintain local-only deploy keystore/password material
-- keep ADMIN / TREASURY Safe custody on Ledger owner paths only
+- maintain local-only deploy keystore/password material for deploy-only lanes
+- coordinate Ledger-backed ADMIN actions on the dedicated host
+- keep final ADMIN / TREASURY custody off the host itself
 - fetch bundle artifact
 - checkout the exact commit pinned in `run.json`
 - `ops:verify`
@@ -69,7 +70,7 @@ Never patch repo code, policy, or runbook content on the Signing OS during an ac
 Signing OS network rule:
 - Wi-Fi off by default
 - turn Wi-Fi on only for a bounded maintenance session or a bounded serious-run session
-- during a serious run, online use is limited to exact repo/bundle fetch, RPC checks, Safe/RPC execution, and postconditions
+- during a serious run, online use is limited to exact repo/bundle fetch, RPC checks, Ledger/RPC execution, and postconditions
 - no browsing, chat, search, cloud storage, package installs, or cloud agents during the run
 
 ## E) Which other runbooks still matter
@@ -84,8 +85,10 @@ Signing OS network rule:
   - dedicated one-time background/reference for signer enrollment and rotation
 - [Signing OS Wi-Fi handbook](signing-os-wifi-handbook.md)
   - canonical online/offline rule for Signing OS
-- [PATH ADMIN / TREASURY custody OPSEC upgrade — v1](path-admin-treasury-custody-opsec-upgrade-v1.md)
-  - canonical Safe custody rule for PATH
+- [No-Safe two-Ledger custody doc](../../docs/custody-no-safe-two-ledgers.md)
+  - canonical final-custody rule for PATH
+- [PATH custody migration note](path-admin-treasury-custody-opsec-upgrade-v1.md)
+  - what changed and what stayed intentionally unchanged
 
 ## F) Passing rule
 

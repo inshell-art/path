@@ -11,12 +11,12 @@ Stage 3 means:
 
 Use Stage 3 when:
 - Stage 2 has already passed
-- you want Sepolia/Mainnet to mirror the final Safe authority shape as closely as possible
+- you want Sepolia/Mainnet to mirror the final no-Safe custody shape as closely as possible
 - you are ready to prove the real machine boundary
 
 Canonical references for this stage:
 - [Signing OS Wi-Fi handbook](signing-os-wifi-handbook.md)
-- [PATH ADMIN / TREASURY custody OPSEC upgrade — v1](path-admin-treasury-custody-opsec-upgrade-v1.md)
+- [No-Safe two-Ledger custody doc](../../docs/custody-no-safe-two-ledgers.md)
 
 ## A) Stage-3 machine model
 
@@ -58,18 +58,18 @@ Signing OS does:
 Never do serious Sepolia/Mainnet `apply` from Dev OS.
 Never patch repo code, policy, or runbook content on Signing OS during an active run.
 
-Safe authority baseline for this stage:
-- treasury authority must be a Safe address, not an EOA
-- admin authority must be a Safe address or explicit Safe handoff target, not an EOA
-- each ADMIN / TREASURY Safe should use two Ledger owners only: `*_HW_A` and `*_HW_B`
-- if a Safe has exactly those two owners, use threshold `2`
+Final custody baseline for this stage:
+- `ADMIN` must be the intended Ledger-backed contract authority address, not a Safe
+- `TREASURY` must be the intended Ledger-backed recipient address, not a Safe
+- the active Ledger addresses should correspond to attached-passphrase / secondary-PIN wallets
+- base / no-passphrase wallets are intentionally unused
 - the deploy lane still uses the policy-approved deploy keystore alias such as `SEPOLIA_DEPLOY_SW_A` or `MAINNET_DEPLOY_SW_A`
-- the Signing OS deploy keystore is not an ADMIN / TREASURY Safe owner
+- the Signing OS deploy keystore is deploy-only and not final ADMIN or TREASURY custody
 
 Bounded-online rule for this stage:
 - Wi-Fi off by default
 - turn Wi-Fi on only for trusted maintenance work or a bounded serious run
-- serious-run online tasks are exact repo/bundle fetch, RPC checks, Safe/RPC execution, and postconditions
+- serious-run online tasks are exact repo/bundle fetch, RPC checks, Ledger/RPC execution, and postconditions
 - no browsing, chat, search, cloud storage, package installs, or cloud agents during the run
 
 ## C) First-time Stage-3 setup
@@ -135,8 +135,8 @@ chmod 600 ~/.opsec/path/signing_os.marker
 
 Generate or import only encrypted keystore material on Signing OS.
 Never paste a raw private key into the shell.
-This local keystore is the deploy signer used by the lane. It is not an ADMIN / TREASURY Safe owner.
-ADMIN / TREASURY Safe confirmations come from the two Ledger owner paths outside this shell flow.
+This local keystore is the deploy signer used by the lane. It is not final ADMIN or TREASURY custody.
+Final ADMIN / TREASURY actions come from the dedicated Ledger paths outside this shell flow.
 If this is the first serious use of `cast` on this Signing OS, complete:
 - [cast-verification-discipline.md](cast-verification-discipline.md)
 
@@ -437,8 +437,8 @@ Stage 3 only counts as passed if:
 - `audit_verify.json` is `pass`
 - `audit_report.json` is `pass`
 - `audit_signoff.json` exists
-- final Safe authority/custody shape was used
-- treasury in deploy params was the intended Treasury Safe address for the target network
-- Admin Safe target was identified for handoff
-- each ADMIN / TREASURY Safe used two Ledger owners only
+- final no-Safe authority/custody shape was used
+- treasury in deploy params was the intended Treasury recipient address for the target network
+- the intended final ADMIN Ledger address was identified before the run
+- final custody remained no-Safe and Ledger-only
 - Signing OS online use stayed within the bounded-online rule

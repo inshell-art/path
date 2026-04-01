@@ -7,16 +7,16 @@ Stage 1 means:
 - same macOS account
 - separate signer workspace
 - separate local-only secrets root
-- procedure rehearsal under weaker isolation, while still using the real Safe authority shape
+- procedure rehearsal under weaker isolation, while already using the final no-Safe custody split
 
 Use Stage 1 when:
 - you want to prove the full Dev OS -> CI -> Signing OS -> audit flow quickly
 - you want a separate checkout and separate secrets root before moving to stronger isolation
-- you already want treasury/admin authority to follow the real Safe owner model
+- you already want ADMIN / TREASURY authority to follow the final direct-Ledger custody model
 
 Canonical references for this stage:
 - [Signing OS Wi-Fi handbook](signing-os-wifi-handbook.md)
-- [PATH ADMIN / TREASURY custody OPSEC upgrade — v1](path-admin-treasury-custody-opsec-upgrade-v1.md)
+- [No-Safe two-Ledger custody doc](../../docs/custody-no-safe-two-ledgers.md)
 
 Do not present Stage 1 as proof of:
 - final separate-account isolation
@@ -61,18 +61,18 @@ Signing OS does:
 Never do serious Sepolia/Mainnet `apply` from Dev OS.
 Never patch repo code, policy, or runbook content on Signing OS during an active run.
 
-Safe authority baseline for this stage:
-- treasury authority must be a Safe address, not an EOA
-- admin authority must be a Safe address or explicit Safe handoff target, not an EOA
-- each ADMIN / TREASURY Safe should use two Ledger owners only: `*_HW_A` and `*_HW_B`
-- if a Safe has exactly those two owners, use threshold `2`
+Final custody baseline for this stage:
+- `ADMIN` must be the intended Ledger-backed contract authority address, not a Safe
+- `TREASURY` must be the intended Ledger-backed recipient address, not a Safe
+- the active Ledger addresses should correspond to attached-passphrase / secondary-PIN wallets
+- base / no-passphrase wallets are intentionally unused
 - the deploy lane still uses the policy-approved deploy keystore alias such as `SEPOLIA_DEPLOY_SW_A` or `MAINNET_DEPLOY_SW_A`
-- the Signing OS deploy keystore is not an ADMIN / TREASURY Safe owner
+- the Signing OS deploy keystore is deploy-only and not final ADMIN or TREASURY custody
 
 Bounded-online rule for this stage:
 - Wi-Fi off by default
 - turn Wi-Fi on only for trusted maintenance work or a bounded serious run
-- serious-run online tasks are exact repo/bundle fetch, RPC checks, Safe/RPC execution, and postconditions
+- serious-run online tasks are exact repo/bundle fetch, RPC checks, Ledger/RPC execution, and postconditions
 - no browsing, chat, search, cloud storage, package installs, or cloud agents during the run
 
 ## C) Cold-start bootstrap on Signing OS
@@ -140,8 +140,8 @@ These paths are outside the repo and must never be committed.
 
 Generate or import only encrypted keystore material on Signing OS.
 Never paste a raw private key into the shell.
-This local keystore is the deploy signer used by the lane. It is not an ADMIN / TREASURY Safe owner.
-ADMIN / TREASURY Safe confirmations come from the two Ledger owner paths outside this shell flow.
+This local keystore is the deploy signer used by the lane. It is not final ADMIN or TREASURY custody.
+Final ADMIN / TREASURY actions come from the dedicated Ledger paths outside this shell flow.
 If this is the first serious use of `cast` on this Signing OS, complete:
 - [cast-verification-discipline.md](cast-verification-discipline.md)
 
@@ -541,11 +541,11 @@ Stage 1 only counts as passed if:
 - `audit_verify.json` is `pass`
 - `audit_report.json` is `pass`
 - `audit_signoff.json` exists
-- treasury in deploy params was the intended Treasury Safe address
-- Admin Safe target was identified for handoff
-- each ADMIN / TREASURY Safe used two Ledger owners only
+- treasury in deploy params was the intended Treasury recipient address
+- the intended final ADMIN Ledger address was identified before the run
+- final custody remained no-Safe and Ledger-only
 - Signing OS online use stayed within the bounded-online rule
 
 Stage-1 authority realism:
 - Stage 1 may still use weaker machine isolation
-- Stage 1 does not waive the Safe authority shape
+- Stage 1 does not waive the final no-Safe custody shape

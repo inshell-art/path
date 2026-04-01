@@ -6,7 +6,8 @@ See also:
 - [Signing OS Stage 3 runbook](signing-os-stage3-runbook.md)
 - [Signing OS runbook](signing-os-runbook.md) for stage selection only
 - [Signing OS Wi-Fi handbook](signing-os-wifi-handbook.md)
-- [PATH ADMIN / TREASURY custody OPSEC upgrade — v1](path-admin-treasury-custody-opsec-upgrade-v1.md)
+- [No-Safe two-Ledger custody doc](../../docs/custody-no-safe-two-ledgers.md)
+- [PATH custody migration note](path-admin-treasury-custody-opsec-upgrade-v1.md)
 
 Use this runbook as the default meaning of "deploy on Sepolia" for this repo.
 Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionally bypassing the repo-managed ops lane.
@@ -25,9 +26,12 @@ For the Signing OS half, stop here and use the selected stage runbook only.
 - if the deploy signer is new or rotated, complete the selected Signing OS stage runbook setup and `signer-enrollment-runbook.md` first; push policy from Dev OS before any serious Dev OS preflight or bundle creation
 - choose the intended Signing OS Sepolia provider on Dev OS first; if its host is new, add it to `rpc_host_allowlist` before the first serious run
 - constructor params file exists at `~/.opsec/path/params/params.sepolia.deploy.json`
-- treasury in deploy params is the intended Treasury Safe address
-- Admin Safe target is identified for later handoff
-- the ADMIN / TREASURY Safe owner model is two Ledger owners only per Safe (`*_HW_A` + `*_HW_B`)
+- treasury in deploy params is the intended Treasury recipient address
+- if the deploy path still uses a later authority handoff, identify the intended final ADMIN Ledger address before the run
+- final custody model is already chosen:
+  - `ADMIN` is a Ledger-backed contract authority account
+  - `TREASURY` is a Ledger-backed recipient account
+  - base/no-passphrase wallets are unused
 - Signing OS network plan follows `signing-os-wifi-handbook.md`: Wi-Fi off by default, online only for exact run tasks
 - `ops/policy/lane.sepolia.json` placeholders resolved (RPC allowlist, signer map, fee policy)
 - public handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.sepolia.public.env`
@@ -59,7 +63,7 @@ $EDITOR ~/.opsec/path/params/params.sepolia.deploy.json
 #   "epochBase": "1",
 #   "reservedCap": "3",
 #   "paymentToken": "0x0000000000000000000000000000000000000000",
-#   "treasury": "0xYourTreasurySafeAddress"
+#   "treasury": "0xYourTreasuryRecipientAddress"
 # }
 chmod 600 ~/.opsec/path/params/params.sepolia.deploy.json
 
@@ -77,10 +81,10 @@ CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:devos
 
 RUN_ID=sepolia-deploy-$(date -u +%Y%m%dT%H%M%SZ)
 PARAMS_FILE=~/.opsec/path/params/params.sepolia.deploy.json
-cat > ~/.opsec/path/handoff/path-handoff.sepolia.public.env <<EOF
+cat > ~/.opsec/path/handoff/path-handoff.sepolia.public.env <<EOF2
 NETWORK=sepolia
 RUN_ID=$RUN_ID
-EOF
+EOF2
 chmod 600 ~/.opsec/path/handoff/path-handoff.sepolia.public.env
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
 NETWORK=sepolia LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
