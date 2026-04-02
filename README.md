@@ -64,16 +64,19 @@ Public/private boundary:
 - real signer material, real env files, and private operator state live outside git under `~/.opsec/...` or another private overlay
 - CI computes deterministic bundles without secrets
 - serious `apply` is Signing OS only
+- Signing OS is a dedicated operator host, not a final software signer
 - Signing OS network use is bounded-online only: Wi-Fi off by default, on only for trusted maintenance or exact run tasks
 - final custody is no-Safe and Ledger-only:
   - `ADMIN` is the contract authority account
   - `TREASURY` is the recipient/holding account, not a contract-admin role
-  - one Ledger-backed attached-passphrase wallet per role
+  - one Ledger-backed attached-passphrase operational wallet per role
   - base/no-passphrase wallets are unused
+- daily ops secret layer is only the ops-host password/disk unlock plus the Ledger PIN path
+- passphrase master copies remain in the deeper recovery layer only
 - a deploy keystore may still exist for deploy-only lanes on Signing OS, but it is not final ADMIN or TREASURY custody
 - CI artifacts are not public by default just because CI produced them
 
-See [docs/ops-public-private-boundary.md](docs/ops-public-private-boundary.md) and [docs/custody-no-safe-two-ledgers.md](docs/custody-no-safe-two-ledgers.md).
+See [docs/ops-public-private-boundary.md](docs/ops-public-private-boundary.md), [docs/custody-no-safe-two-ledgers.md](docs/custody-no-safe-two-ledgers.md), [docs/map-main-template.md](docs/map-main-template.md), and [docs/ops-checklist-template.md](docs/ops-checklist-template.md).
 
 Quick rehearsal (bundle + verify only):
 

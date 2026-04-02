@@ -17,8 +17,9 @@ Signer semantics:
 - `TREASURY` is a recipient/holding role, not a contract-admin role
 - the deploy alias may still be a software-keystore alias such as `*_DEPLOY_SW_A`, but that alias is deploy-only and not final custody
 - do not map a software key to a `*_HW_*` alias name
-- the live hardware aliases should correspond to attached-passphrase / secondary-PIN Ledger addresses
+- the live hardware aliases should correspond to attached-passphrase / secondary-PIN operational wallet addresses
 - base / no-passphrase wallets are intentionally unused and should not appear as final signer aliases
+- daily ops use the operational PIN path plus ops-host password/disk unlock only; do not model universal passphrase papers as daily ops material
 
 Lane-shape guidance:
 - `deploy` may stay on a deploy-only signer alias such as `*_DEPLOY_SW_A`

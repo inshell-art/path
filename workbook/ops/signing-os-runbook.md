@@ -56,6 +56,8 @@ Signing OS does:
 - maintain local-only deploy keystore/password material for deploy-only lanes
 - coordinate Ledger-backed ADMIN actions on the dedicated host
 - keep final ADMIN / TREASURY custody off the host itself
+- keep the daily ops secret layer narrow: host password/disk unlock plus Ledger PIN path only
+- keep passphrase master copies out of the host and in the recovery layer
 - fetch bundle artifact
 - checkout the exact commit pinned in `run.json`
 - `ops:verify`

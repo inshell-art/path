@@ -15,6 +15,7 @@ Safe to keep in this repo:
 - schemas, examples, and redacted fixtures
 - generic runbooks and architecture docs
 - public contract addresses and release notes when intentionally published
+- non-secret custody/checklist templates such as `MAP-MAIN` and `OPS-CHECKLIST`
 
 ## Private-local material
 
@@ -34,15 +35,21 @@ Never commit:
 Final PATH custody is hardware-only:
 - `ADMIN` is the Ledger-backed contract authority account
 - `TREASURY` is the Ledger-backed recipient/holding account
-- the live Ledger addresses correspond to attached-passphrase / secondary-PIN wallets
+- the live Ledger addresses correspond to attached-passphrase / secondary-PIN operational wallets
 - base / no-passphrase wallets are intentionally unused
 
-Keep outside git:
+Daily ops secret layer is only:
+- Ledger secondary PINs / operational PIN path
+- ops-host password / disk unlock
+
+Keep outside git and outside the daily ops layer:
 - recovery phrases
-- passphrases
+- passphrase master copies
 - metals / physical recovery inventory
 - real signer-to-device mappings
 - operator-specific box/recovery maps
+
+Passphrase master copies remain recovery-layer only.
 
 ## Local/private overlay model
 
@@ -91,6 +98,11 @@ They remain valid only for:
 - deliberate migration windows that are clearly labeled temporary
 
 Do not present a keystore JSON or password file as the final ADMIN or TREASURY path.
+
+## Recovery rule
+
+Recovery without Ledger devices must remain possible through another BIP39-compatible wallet or device using the recorded phrase, passphrase, and derivation path.
+The repo may document that rule and template the mapping, but not the real values.
 
 ## Artifacts vs bundles
 

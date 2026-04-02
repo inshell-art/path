@@ -14,13 +14,14 @@ PATH no longer treats steady-state custody as:
 PATH now documents:
 - `ADMIN` as a direct Ledger-backed contract authority account
 - `TREASURY` as a direct Ledger-backed recipient/holding account
-- one Ledger-backed attached-passphrase wallet per role
+- one Ledger-backed attached-passphrase operational wallet per role
 - base / no-passphrase wallets as unused
 
 ## What stayed intentionally unchanged
 - the contracts still accept a single admin address and a separate treasury recipient address
 - Signing OS still exists as the dedicated serious-run host
 - deploy lanes may still use a deploy-only keystore alias such as `*_DEPLOY_SW_A`
+- daily ops secret layer stays narrow: host password/disk unlock plus Ledger PIN path only
 - this repo refactor does not change already deployed addresses by itself
 - this repo refactor does not convert contract access control patterns
 

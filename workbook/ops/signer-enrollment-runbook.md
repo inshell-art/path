@@ -73,12 +73,13 @@ Authority model:
 - final ADMIN authority is a direct Ledger-backed address, not a Safe owner set
 - final TREASURY authority is a direct Ledger-backed recipient/holding address, not a contract-admin role
 - base / no-passphrase wallets are intentionally unused
-- the live hardware aliases should correspond to attached-passphrase / secondary-PIN Ledger addresses
+- the live hardware aliases should correspond to attached-passphrase / secondary-PIN operational Ledger addresses
 
 Temporary deployment rule:
 - the deploy signer may still remain a software-keystore alias such as `*_DEPLOY_SW_A`
 - do not create or keep final ADMIN / TREASURY software-owner aliases in policy
 - do not map a deploy keystore to a `*_HW_*` alias name
+- daily ops should use the operational PIN path; keep passphrase master copies in the recovery layer
 
 ## B) Generate or import the signer on Signing OS
 

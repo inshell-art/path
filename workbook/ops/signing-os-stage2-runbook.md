@@ -60,10 +60,11 @@ Never patch repo code, policy, or runbook content on Signing OS during an active
 Final custody baseline for this stage:
 - `ADMIN` must be the intended Ledger-backed contract authority address, not a Safe
 - `TREASURY` must be the intended Ledger-backed recipient address, not a Safe
-- the active Ledger addresses should correspond to attached-passphrase / secondary-PIN wallets
+- the operational Ledger addresses should correspond to attached-passphrase / secondary-PIN wallets
 - base / no-passphrase wallets are intentionally unused
 - the deploy lane still uses the policy-approved deploy keystore alias such as `SEPOLIA_DEPLOY_SW_A` or `MAINNET_DEPLOY_SW_A`
 - the Signing OS deploy keystore is deploy-only and not final ADMIN or TREASURY custody
+- daily ops on the host should rely on the host password/disk unlock plus Ledger PIN path, not passphrase master copies
 
 Bounded-online rule for this stage:
 - Wi-Fi off by default
