@@ -15,7 +15,7 @@ Safe to keep in this repo:
 - schemas, examples, and redacted fixtures
 - generic runbooks and architecture docs
 - public contract addresses and release notes when intentionally published
-- non-secret custody/checklist templates such as `MAP-MAIN` and `OPS-CHECKLIST`
+- non-secret custody/checklist templates such as `MAP-MAIN`, `DRILL-LOG`, and `OPS-CHECKLIST`
 
 ## Private-local material
 
@@ -50,6 +50,10 @@ Keep outside git and outside the daily ops layer:
 - operator-specific box/recovery maps
 
 Passphrase master copies remain recovery-layer only.
+
+Document split rule:
+- `MAP-MAIN` is stable and structural
+- `DRILL-LOG` is mutable and recurring
 
 ## Local/private overlay model
 

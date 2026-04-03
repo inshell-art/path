@@ -23,6 +23,10 @@ Its job is to coordinate serious runs and Ledger-backed admin actions.
 It is not a final software signer for ADMIN or TREASURY.
 
 ## Daily ops layer vs recovery layer
+
+Document split:
+- `MAP-MAIN` = stable master map of structural facts
+- `DRILL-LOG` = mutable recurring drill / ops log
 Daily ops secret layer:
 - Ledger PINs / secondary PIN paths
 - ops-host password / disk unlock
@@ -65,7 +69,8 @@ That is a deploy execution detail, not the final custody architecture.
 It must not be described as ADMIN or TREASURY custody.
 
 ## Supporting templates
-- [MAP-MAIN template](map-main-template.md)
+- [MAP-MAIN Master Template](map-main-master-template.md)
+- [DRILL-LOG Template](drill-log-template.md)
 - [OPS-CHECKLIST template](ops-checklist-template.md)
 
 ## What stays unchanged in this refactor

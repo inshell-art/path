@@ -76,7 +76,11 @@ Public/private boundary:
 - a deploy keystore may still exist for deploy-only lanes on Signing OS, but it is not final ADMIN or TREASURY custody
 - CI artifacts are not public by default just because CI produced them
 
-See [docs/ops-public-private-boundary.md](docs/ops-public-private-boundary.md), [docs/custody-no-safe-two-ledgers.md](docs/custody-no-safe-two-ledgers.md), [docs/map-main-template.md](docs/map-main-template.md), and [docs/ops-checklist-template.md](docs/ops-checklist-template.md).
+See [docs/ops-public-private-boundary.md](docs/ops-public-private-boundary.md), [docs/custody-no-safe-two-ledgers.md](docs/custody-no-safe-two-ledgers.md), [docs/map-main-master-template.md](docs/map-main-master-template.md), [docs/drill-log-template.md](docs/drill-log-template.md), and [docs/ops-checklist-template.md](docs/ops-checklist-template.md).
+
+Document model:
+- `MAP-MAIN` = stable master map of structural facts
+- `DRILL-LOG` = mutable recurring drill / ops log
 
 Quick rehearsal (bundle + verify only):
 

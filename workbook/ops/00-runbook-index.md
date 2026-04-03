@@ -23,8 +23,10 @@
   - canonical bounded-online rule for Signing OS maintenance and run sessions
 - [No-Safe two-Ledger custody doc](../../docs/custody-no-safe-two-ledgers.md)
   - canonical final-custody rule for PATH
-- [MAP-MAIN template](../../docs/map-main-template.md)
-  - non-secret custody and recovery mapping template
+- [MAP-MAIN Master Template](../../docs/map-main-master-template.md)
+  - stable non-secret custody and recovery mapping template
+- [DRILL-LOG Template](../../docs/drill-log-template.md)
+  - mutable recurring drill and ops log template
 - [OPS-CHECKLIST template](../../docs/ops-checklist-template.md)
   - exact public-safe operator checklist text
 - [PATH custody migration note](path-admin-treasury-custody-opsec-upgrade-v1.md)
