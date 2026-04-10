@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inshell.art/schemas/path-protocol-release.schema.json",
+  "title": "PATH Protocol Release Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "protocol",
+    "network",
+    "chain_id",
+    "repo_commit",
+    "deploy_run_id",
+    "release_tier",
+    "deployer",
+    "treasury",
+    "payment_token",
+    "contracts",
+    "deploy_txs",
+    "deploy_blocks",
+    "code_hashes",
+    "config",
+    "status",
+    "source_artifacts",
+    "generated_at"
+  ],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "protocol": {"type": "string", "const": "path"},
+    "network": {"type": "string", "enum": ["devnet", "sepolia", "mainnet"]},
+    "chain_id": {"type": "integer", "minimum": 0},
+    "repo_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "deploy_run_id": {"type": "string", "minLength": 1},
+    "release_tier": {"type": "string", "enum": ["temporary", "candidate", "final"]},
+    "deployer": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
+    "treasury": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
+    "payment_token": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_nft", "path_minter", "path_minter_adapter", "pulse_auction"],
+      "properties": {
+        "path_nft": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
+        "path_minter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
+        "path_minter_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
+        "pulse_auction": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"}
+      }
+    },
+    "deploy_txs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_nft", "path_minter", "path_minter_adapter", "pulse_auction"],
+      "properties": {
+        "path_nft": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
+        "path_minter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
+        "path_minter_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
+        "pulse_auction": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"}
+      }
+    },
+    "deploy_blocks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_nft", "path_minter", "path_minter_adapter", "pulse_auction"],
+      "properties": {
+        "path_nft": {"type": "integer", "minimum": 0},
+        "path_minter": {"type": "integer", "minimum": 0},
+        "path_minter_adapter": {"type": "integer", "minimum": 0},
+        "pulse_auction": {"type": "integer", "minimum": 0}
+      }
+    },
+    "code_hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_nft", "path_minter", "path_minter_adapter", "pulse_auction"],
+      "properties": {
+        "path_nft": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
+        "path_minter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
+        "path_minter_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
+        "pulse_auction": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"}
+      }
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "symbol", "open_time", "open_time_iso", "start_delay_sec", "k", "genesis_price", "genesis_floor", "token_base", "epoch_base", "reserved_cap"],
+      "properties": {
+        "name": {"type": "string"},
+        "symbol": {"type": "string"},
+        "base_uri": {"type": "string"},
+        "open_time": {"type": "integer", "minimum": 0},
+        "open_time_iso": {"type": "string"},
+        "start_delay_sec": {"type": "integer", "minimum": 0},
+        "k": {"type": "string"},
+        "genesis_price": {"type": "string"},
+        "genesis_floor": {"type": "string"},
+        "token_base": {"type": "integer", "minimum": 0},
+        "epoch_base": {"type": "integer", "minimum": 0},
+        "reserved_cap": {"type": "integer", "minimum": 0}
+      }
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["postconditions", "audit", "ready_for_fe", "notes"],
+      "properties": {
+        "postconditions": {"type": "string", "enum": ["unknown", "pass", "fail"]},
+        "audit": {"type": "string", "enum": ["none", "pass"]},
+        "audit_id": {"type": ["string", "null"]},
+        "ready_for_fe": {"type": "boolean"},
+        "notes": {"type": "string"}
+      }
+    },
+    "source_artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deployment_relpath", "bundle_relpath"],
+      "properties": {
+        "deployment_relpath": {"type": "string"},
+        "bundle_relpath": {"type": "string"}
+      }
+    },
+    "generated_at": {"type": "string", "format": "date-time"}
+  }
+}
