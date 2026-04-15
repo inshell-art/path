@@ -32,7 +32,8 @@ const CLI_FLAG_MAP = {
   "epoch-base": "epochBase",
   "reserved-cap": "reservedCap",
   "payment-token": "paymentToken",
-  treasury: "treasury"
+  treasury: "treasury",
+  "treasury-signer-ref": "treasurySignerRef"
 };
 
 const ENV_KEY_MAP = {
@@ -50,7 +51,8 @@ const ENV_KEY_MAP = {
   DEPLOY_EPOCH_BASE: "epochBase",
   DEPLOY_RESERVED_CAP: "reservedCap",
   DEPLOY_PAYMENT_TOKEN: "paymentToken",
-  DEPLOY_TREASURY: "treasury"
+  DEPLOY_TREASURY: "treasury",
+  DEPLOY_TREASURY_SIGNER_REF: "treasurySignerRef"
 };
 
 const NPM_CONFIG_KEY_MAP = {
@@ -68,7 +70,8 @@ const NPM_CONFIG_KEY_MAP = {
   npm_config_deploy_epoch_base: "epochBase",
   npm_config_deploy_reserved_cap: "reservedCap",
   npm_config_deploy_payment_token: "paymentToken",
-  npm_config_deploy_treasury: "treasury"
+  npm_config_deploy_treasury: "treasury",
+  npm_config_deploy_treasury_signer_ref: "treasurySignerRef"
 };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -160,7 +163,8 @@ function normalizeFileConfig(raw) {
     epochBase: pickValue(source, ["epochBase", "epoch_base", "epoch-base"]),
     reservedCap: pickValue(source, ["reservedCap", "reserved_cap", "reserved-cap"]),
     paymentToken: pickValue(source, ["paymentToken", "payment_token", "payment-token"]),
-    treasury: pickValue(source, ["treasury"])
+    treasury: pickValue(source, ["treasury"]),
+    treasurySignerRef: pickValue(source, ["treasurySignerRef", "treasury_signer_ref", "treasury-signer-ref"])
   };
 }
 
@@ -273,6 +277,20 @@ function resolveDeployConfig({
   );
   merged.paymentToken = parseAddress(String(paymentTokenInput), "paymentToken", ethers);
   merged.treasury = parseAddress(String(treasuryInput), "treasury", ethers, { allowZero: false });
+  const treasurySignerRefInput = coalesce(
+    cliConfig.treasurySignerRef,
+    npmConfig.treasurySignerRef,
+    envConfig.treasurySignerRef,
+    fileConfig.treasurySignerRef
+  );
+  if (treasurySignerRefInput !== undefined && treasurySignerRefInput !== null) {
+    if (typeof treasurySignerRefInput !== "string" || treasurySignerRefInput.trim().length === 0) {
+      throw new Error("treasurySignerRef must be a non-empty string when provided");
+    }
+    merged.treasurySignerRef = treasurySignerRefInput.trim();
+  } else {
+    merged.treasurySignerRef = null;
+  }
 
   const openTimeRaw = coalesce(cliConfig.openTime, npmConfig.openTime, envConfig.openTime, fileConfig.openTime);
   const startDelayRaw = coalesce(
@@ -491,6 +509,15 @@ async function main() {
     }
   };
 
+  if (cfg.treasurySignerRef) {
+    deployment.references = {
+      treasury: {
+        address: cfg.treasury,
+        SIGNER_REF: cfg.treasurySignerRef
+      }
+    };
+  }
+
   const outFile = process.env.DEPLOY_OUT_FILE
     ? path.resolve(process.env.DEPLOY_OUT_FILE)
     : path.join(path.resolve(here, "../deployments"), `${conn.networkName}-eth.json`);
@@ -498,6 +525,11 @@ async function main() {
   await fs.writeFile(outFile, `${JSON.stringify(deployment, null, 2)}\n`, "utf8");
 
   console.log(`[deploy-local-eth] deployment saved to ${outFile}`);
+  if (cfg.treasurySignerRef) {
+    console.log(
+      `[deploy-local-eth] treasury ref address=${cfg.treasury} SIGNER_REF=${cfg.treasurySignerRef}`
+    );
+  }
   console.log(JSON.stringify(deployment, null, 2));
 
   await conn.close();
