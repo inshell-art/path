@@ -29,8 +29,10 @@ For the Signing OS half, stop here and use the selected stage runbook only.
   - base/no-passphrase wallets are unused
 - Signing OS network plan follows `signing-os-wifi-handbook.md`: Wi-Fi off by default, online only for exact run tasks
 - rehearsal proof available when policy requires it
+- Signing OS operator pack is built/staged from `~/Projects/signing-os-ops`
 - public handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.mainnet.public.env`
 - private runtime handoff file prepared on Dev OS at `~/.opsec/path/handoff/path-handoff.signing-runtime.mainnet.env`
+- bounded maintenance-only SSH/rsync bridge window is prepared for transfer to Signing OS; do not assume USB/removable-media handoff
 - run `CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:devos` on Dev OS before a serious run; it now also expects the intended Signing OS RPC URL to be loaded so policy sealing is checked
 - tracked git tree clean before bundle
 - constructor params file exists at `~/.opsec/path/params/params.mainnet.deploy.json`
@@ -67,9 +69,9 @@ EOF2
 chmod 600 ~/.opsec/path/handoff/path-handoff.mainnet.public.env
 NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID INPUT_FILE=$PARAMS_FILE INPUT_KIND=constructor_params PARAMS_SCHEMA=schemas/path.constructor_params.schema.json npm run ops:lock-inputs
 NETWORK=mainnet LANE=deploy RUN_ID=$RUN_ID npm run ops:dispatch-bundle
-cp ~/.opsec/path/handoff/path-handoff.mainnet.public.env /Volumes/<USB>/
-cp ~/.opsec/path/handoff/path-handoff.signing-runtime.mainnet.env /Volumes/<USB>/
-sync
+cd ~/Projects/signing-os-ops
+python3 scripts/build_signing_os_transfer_pack.py --force
+./scripts/signing-os-bridge-prepare-ssh.sh
 unset MAINNET_RPC_URL
 ```
 
@@ -101,18 +103,21 @@ Contents:
 MAINNET_RPC_URL=https://<your-mainnet-rpc>
 ```
 
-For every stage, copy both handoff files to removable media:
+For every stage, pull both handoff files to Signing OS alongside `~/Downloads/Signing-OS-Transfer-Pack/` during the bounded maintenance-only SSH/rsync bridge window from `~/Projects/signing-os-ops`.
+
+Expected Signing OS paths:
 
 ```text
-/Volumes/<USB>/path-handoff.mainnet.public.env
-/Volumes/<USB>/path-handoff.signing-runtime.mainnet.env
+~/Downloads/path-handoff.mainnet.public.env
+~/Downloads/path-handoff.signing-runtime.mainnet.env
 ```
 
 Rules:
 - keep the public handoff file in `~/.opsec/path/handoff/`, not in the repo
 - keep the private runtime handoff file out of the repo
 - do not put the RPC URL in the public handoff note
-- remove both handoff files from removable media after the Signing OS env is created and the public handoff file has been sourced for the run
+- close the bridge window after the transfer pack and handoff files reach Signing OS
+- remove the downloaded handoff files from `~/Downloads/` after the Signing OS env is created and the public handoff file has been sourced for the run
 
 Next step:
 - stop using this Mainnet runbook for execution

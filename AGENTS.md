@@ -3,6 +3,7 @@
 ## Overview
 - PATH smart contracts with Solidity/EVM.
 - Primary workflows: Hardhat compile/test and local ETH deployment rehearsal.
+- Repo ownership boundary is defined in `docs/repo-boundary.md`.
 
 ## Project layout
 - `evm/`: Solidity contracts, tests, and local deployment scripts.

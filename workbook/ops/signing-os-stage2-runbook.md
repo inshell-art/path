@@ -23,14 +23,15 @@ Use the Signing OS account's own paths:
 - repo checkout: `~/Projects/path`
 - local secrets root: `~/.opsec`
 - marker file: `~/.opsec/path/signing_os.marker`
+- Signing OS transfer pack root: `~/Downloads/Signing-OS-Transfer-Pack`
 - env files:
   - `~/.opsec/path/env/sepolia.env`
   - `~/.opsec/path/env/mainnet.env`
-- removable media handoff files:
-  - `/Volumes/<USB>/path-handoff.sepolia.public.env`
-  - `/Volumes/<USB>/path-handoff.mainnet.public.env`
-  - `/Volumes/<USB>/path-handoff.signing-runtime.sepolia.env`
-  - `/Volumes/<USB>/path-handoff.signing-runtime.mainnet.env`
+- downloaded handoff files pulled during the bounded maintenance-only SSH/rsync bridge window:
+  - `~/Downloads/path-handoff.sepolia.public.env`
+  - `~/Downloads/path-handoff.mainnet.public.env`
+  - `~/Downloads/path-handoff.signing-runtime.sepolia.env`
+  - `~/Downloads/path-handoff.signing-runtime.mainnet.env`
 
 Do not reference:
 - the Dev OS home directory
@@ -172,14 +173,14 @@ chmod 600 ~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
 chmod 600 ~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
 ```
 
-Build local env files from the Dev OS runtime handoff file on removable media.
+Build local env files from the Dev OS runtime handoff file pulled to `~/Downloads/` during the bounded maintenance-only bridge window.
 Do not open provider dashboards or fetch provider credentials in the Signing OS account.
 
 Sepolia:
 
 ```bash
 set -a
-source /Volumes/<USB>/path-handoff.signing-runtime.sepolia.env
+source "$HOME/Downloads/path-handoff.signing-runtime.sepolia.env"
 set +a
 cat > ~/.opsec/path/env/sepolia.env <<EOF
 SEPOLIA_RPC_URL=$SEPOLIA_RPC_URL
@@ -195,7 +196,7 @@ Mainnet:
 
 ```bash
 set -a
-source /Volumes/<USB>/path-handoff.signing-runtime.mainnet.env
+source "$HOME/Downloads/path-handoff.signing-runtime.mainnet.env"
 set +a
 cat > ~/.opsec/path/env/mainnet.env <<EOF
 MAINNET_RPC_URL=$MAINNET_RPC_URL
@@ -280,13 +281,14 @@ git pull --ff-only origin main
 
 ## G) What you carry from Dev OS to Signing OS
 
-Carry:
-- public handoff file on removable media:
-  - `/Volumes/<USB>/path-handoff.sepolia.public.env`
-  - `/Volumes/<USB>/path-handoff.mainnet.public.env`
-- private runtime handoff file on removable media:
-  - `/Volumes/<USB>/path-handoff.signing-runtime.sepolia.env`
-  - `/Volumes/<USB>/path-handoff.signing-runtime.mainnet.env`
+Transfer to Signing OS during the bounded maintenance-only SSH/rsync bridge window from `~/Projects/signing-os-ops`:
+- the full `~/Downloads/Signing-OS-Transfer-Pack/`
+- public handoff files under `~/Downloads/`
+  - `~/Downloads/path-handoff.sepolia.public.env`
+  - `~/Downloads/path-handoff.mainnet.public.env`
+- private runtime handoff files under `~/Downloads/`
+  - `~/Downloads/path-handoff.signing-runtime.sepolia.env`
+  - `~/Downloads/path-handoff.signing-runtime.mainnet.env`
 
 Do not carry:
 - private keys
@@ -295,13 +297,20 @@ Do not carry:
 - ad hoc calldata or handwritten addresses
 - the RPC URL in the public handoff note
 
-Do not eject the removable media yet.
+Do not close the bridge window yet.
 You still need the public handoff file for `NETWORK` and `RUN_ID` during bundle fetch.
-Clean up the removable media after those values are loaded into the shell.
+Clean up the downloaded handoff files from `~/Downloads/` after those values are loaded into the shell, then close the bridge window before the serious run continues.
 
 ## H) Integrated Signing OS preflight
 
-Before the first serious fetch for a network/lane, run:
+Before the first serious fetch for a network/lane, re-establish the Signing OS serious-run baseline from the transfer pack, then run PATH preflight:
+
+```bash
+cd ~/Downloads/Signing-OS-Transfer-Pack
+./tools/signing-os-ops.sh serious-run-preflight
+```
+
+Then run:
 
 ```bash
 CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:signingos
@@ -334,13 +343,13 @@ Fetch the CI bundle:
 
 ```bash
 set -a
-source /Volumes/<USB>/path-handoff.<network>.public.env
+source "$HOME/Downloads/path-handoff.<network>.public.env"
 set +a
-rm -f /Volumes/<USB>/path-handoff.sepolia.public.env
-rm -f /Volumes/<USB>/path-handoff.mainnet.public.env
-rm -f /Volumes/<USB>/path-handoff.signing-runtime.sepolia.env
-rm -f /Volumes/<USB>/path-handoff.signing-runtime.mainnet.env
-diskutil eject /Volumes/<USB>
+rm -f "$HOME/Downloads/path-handoff.sepolia.public.env"
+rm -f "$HOME/Downloads/path-handoff.mainnet.public.env"
+rm -f "$HOME/Downloads/path-handoff.signing-runtime.sepolia.env"
+rm -f "$HOME/Downloads/path-handoff.signing-runtime.mainnet.env"
+# Close the bounded maintenance-only bridge window before continuing.
 GH_REPO=inshell-art/path
 npm run ops:fetch-bundle
 ```
