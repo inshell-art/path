@@ -97,6 +97,15 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.hasRole(roles.DEFAULT_ADMIN_ROLE, deployer.address)).to.equal(true);
   });
 
+  it("constructor rejects zero admin", async function () {
+    const [deployer] = await ethers.getSigners();
+    const Nft = await ethers.getContractFactory("PathNFT", deployer);
+
+    await expect(
+      Nft.deploy(ethers.ZeroAddress, "PATH NFT", "PATH", "")
+    ).to.be.revertedWith("ZERO_ADMIN");
+  });
+
   it("safeMint is MINTER_ROLE-gated", async function () {
     const { deployer, nft, roles } = await deployPathNftEnv(ethers);
     const [, alice] = await ethers.getSigners();
@@ -121,6 +130,14 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.ownerOf(2n)).to.equal(alice.address);
     expect(await nft.getStage(2n)).to.equal(0n);
     expect(await nft.getStageMinted(2n)).to.equal(0n);
+  });
+
+  it("token getters and tokenURI reject nonexistent token ids", async function () {
+    const { nft } = await deployPathNftEnv(ethers);
+
+    await expect(nft.getStage(999n)).to.be.revertedWith("ERC721: invalid token ID");
+    await expect(nft.getStageMinted(999n)).to.be.revertedWith("ERC721: invalid token ID");
+    await expect(nft.tokenURI(999n)).to.be.revertedWith("ERC721: invalid token ID");
   });
 
   it("setMovementConfig validates movement, minter, quota, and admin", async function () {
@@ -241,6 +258,10 @@ describe("PathNFT (Solidity)", function () {
     await expect(
       nft.connect(bob).consumeUnit(21n, movements.THOUGHT, bob.address, 2n ** 255n, "0x")
     ).to.be.revertedWith("ERR_UNAUTHORIZED_MINTER");
+
+    await expect(
+      mover.connect(alice).consume(await nft.getAddress(), 21n, movements.DREAM, alice.address, 2n ** 255n, "0x")
+    ).to.be.revertedWith("BAD_MOVEMENT");
   });
 
   it("consumeUnit enforces signed authorization and owner/approval checks", async function () {
