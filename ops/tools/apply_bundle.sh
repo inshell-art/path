@@ -9,15 +9,18 @@ fi
 NETWORK=${NETWORK:-}
 RUN_ID=${RUN_ID:-}
 BUNDLE_PATH=${BUNDLE_PATH:-}
+PACK_MANIFEST_JSON=${PATH_PACK_MANIFEST_JSON:-}
 
 if [[ "${SIGNING_OS:-}" != "1" ]]; then
   echo "Refusing to run: SIGNING_OS=1 is required." >&2
   exit 2
 fi
 
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  echo "Refusing to run: working tree is dirty." >&2
-  exit 2
+if [[ -z "$PACK_MANIFEST_JSON" ]]; then
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "Refusing to run: working tree is dirty." >&2
+    exit 2
+  fi
 fi
 
 ROOT=$(git rev-parse --show-toplevel)

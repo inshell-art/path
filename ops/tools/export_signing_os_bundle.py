@@ -481,7 +481,9 @@ if [[ -n "${!RAW_KEY_VAR:-}" ]]; then
   exit 1
 fi
 
-check_git_clean "before preflight"
+if [[ -z "$PACK_MANIFEST_JSON" ]]; then
+  check_git_clean "before preflight"
+fi
 
 MARKER_PATH=$(expand_user_path "${SIGNING_OS_MARKER_FILE:-}")
 if [[ -z "$MARKER_PATH" ]]; then
@@ -610,7 +612,9 @@ fi
 echo "[signingos] signer binding ok: $SELECTED_SIGNER_ALIAS -> $ACTUAL_SIGNER_ADDRESS"
 echo "[signingos] marker ok: $MARKER_PATH"
 
-check_git_clean "after preflight"
+if [[ -z "$PACK_MANIFEST_JSON" ]]; then
+  check_git_clean "after preflight"
+fi
 
 echo "[signingos] preflight passed for $NETWORK/$LANE"
 """
@@ -818,6 +822,9 @@ def runbook_text(manifest: dict) -> str:
 
 This bundle is meant to run after the Signing OS host baseline is already green.
 
+Read `ENVIRONMENT.txt` first. That file defines the local secret/bootstrap
+contract for this bundle.
+
 Before using this bundle:
 - finish the host checks from `Signing-OS-Transfer-Pack/`
 - confirm the serious-run baseline is green
@@ -880,6 +887,80 @@ Do not:
 - edit files inside `WORKSPACE/`
 - change signer alias mid-run
 - continue after any fail summary
+"""
+
+
+def environment_contract_text(manifest: dict) -> str:
+    network = manifest["network"]
+    env_file = f"~/Projects/SIGNING_OS/.opsec/path/env/{network}.env"
+    upper = network.upper()
+    rpc_display = manifest.get("rpc_url") or manifest.get("rpc_host", "")
+    return f"""# PATH Signing Environment Contract
+
+This file explains the local secret/bootstrap state required by this
+`PATH-RUN-BUNDLE/`.
+
+## What The Pack Owns
+
+The pack owns:
+- protocol bundle contents
+- operator-facing PATH commands
+- expected signer alias/address
+- expected rpc host/url
+- PATH policy and verify/apply/postconditions semantics
+
+The pack does **not** carry secret-bearing local material.
+
+## What The Signing OS Host Must Own
+
+Local Signing OS secret/bootstrap state must exist at:
+- `{env_file}`
+
+That env file must point at local readable files on the Signing OS host for:
+- `SIGNING_OS_MARKER_FILE`
+- `{upper}_DEPLOY_KEYSTORE_JSON`
+- either `{upper}_DEPLOY_KEYSTORE_PASSWORD_FILE` or `{upper}_DEPLOY_KEYSTORE_PASSWORD`
+
+Required non-secret value:
+- `{upper}_RPC_URL={rpc_display}`
+
+Forbidden for serious deploy lanes:
+- `{upper}_PRIVATE_KEY`
+
+Expected signer binding for this pack:
+- alias: `{manifest['signer_alias']}`
+- address: `{manifest['expected_address']}`
+
+## Operational Meaning
+
+The env file is not a generic shell convenience file. It is the local secret
+bootstrap contract between:
+- `path/` as protocol owner
+- `signing-os-ops/` as operator-kit owner
+- the actual Signing OS host as secret-bearing execution environment
+
+If this file is missing or points at the wrong signer material, PATH preflight
+or verify/apply will fail even when the generic Signing OS baseline is green.
+
+## References
+
+- `env/{network}.env.example`
+- `RUNBOOK.txt`
+"""
+
+
+def environment_example_text(manifest: dict) -> str:
+    network = manifest["network"]
+    upper = network.upper()
+    rpc_display = manifest.get("rpc_url") or manifest.get("rpc_host", "")
+    return f"""# Example only. Replace the paths with real local Signing OS paths.
+export {upper}_RPC_URL="{rpc_display}"
+export SIGNING_OS_MARKER_FILE="$HOME/Projects/SIGNING_OS/.opsec/path/signing_os.marker"
+export {upper}_DEPLOY_KEYSTORE_JSON="$HOME/Projects/SIGNING_OS/.opsec/{network}/signers/deploy_sw_a/keystore.json"
+export {upper}_DEPLOY_KEYSTORE_PASSWORD_FILE="$HOME/Projects/SIGNING_OS/.opsec/{network}/password-files/deploy_sw_a.password.txt"
+
+# Forbidden for serious deploy lanes:
+# export {upper}_PRIVATE_KEY=...
 """
 
 
@@ -1037,6 +1118,8 @@ def export_bundle(bundle_dir: Path, output_dir: Path, signer_alias: str, rpc_url
     }
 
     write_text(output_dir / "RUNBOOK.txt", runbook_text(manifest))
+    write_text(output_dir / "ENVIRONMENT.txt", environment_contract_text(manifest))
+    write_text(output_dir / "env" / f"{network}.env.example", environment_example_text(manifest))
     write_text(output_dir / "MANIFEST.json", json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     write_text(output_dir / "CONTEXT.json", json.dumps(context, indent=2, sort_keys=True) + "\n")
     write_text(output_dir / "SIGNER.json", json.dumps(signer, indent=2, sort_keys=True) + "\n")
