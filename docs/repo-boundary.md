@@ -65,6 +65,83 @@ Those belong in `signing-os-ops/`.
 - PATH bundle fetch/run instructions
 - PATH-specific env shape and lane commands
 
+## Stable Handoff Contract
+
+For the normal Signing OS path, `path/` must ship one pinned
+`PATH-RUN-BUNDLE/` alongside `Signing-OS-Transfer-Pack/`.
+
+Minimum required contents:
+- `RUNBOOK.txt`
+- `MANIFEST.json`
+- `SHA256SUMS.txt`
+- `CONTEXT.json`
+- `SIGNER.json`
+- `EXPECTED.json`
+- `WORKSPACE/`
+- `bin/`
+
+Minimum machine-readable fields that must cross the boundary in that bundle:
+- `MANIFEST.json`
+  - `bundle_id`
+  - `built_at_utc`
+  - `source_repo`
+  - `source_commit`
+  - `source_commit_dirty`
+  - `protocol`
+  - `chain_id`
+  - `rpc_host`
+  - `signer_alias`
+  - `expected_address`
+  - `entrypoints.verify`
+  - `entrypoints.approve`
+  - `entrypoints.apply`
+  - `entrypoints.postconditions`
+- `CONTEXT.json`
+  - `action`
+  - `description`
+  - `chain_id`
+  - `rpc_host`
+  - `contracts`
+  - `params`
+  - `expected_outputs`
+- `SIGNER.json`
+  - `signer_alias`
+  - `expected_address`
+  - `hd_path`
+  - `ledger_label`
+  - `role_description`
+- `EXPECTED.json`
+  - `preconditions`
+  - `postconditions`
+  - `must_match`
+  - `forbidden`
+
+PATH-owned protocol data may include additional fields such as:
+- constructor params
+- `NETWORK`
+- `RUN_ID`
+- audit ids
+- policy allowlists
+- signer alias maps
+- locked inputs
+- PATH contract addresses
+- ABIs
+- release metadata
+
+Those PATH-specific values may travel inside `PATH-RUN-BUNDLE/`, but they do
+not become `signing-os-ops/` source of truth just because they cross the
+artifact boundary.
+
+Execution contract for the bundle:
+- the artifact bridge is artifact-only, not a shared workspace
+- Signing OS does **not** `git pull` in the normal path
+- `bin/verify`, `bin/approve`, `bin/apply`, and `bin/postconditions` are the
+  preferred entrypoints
+- each entrypoint should behave like one operator-facing command
+- each entrypoint should write one top-level run dir
+- each entrypoint should write `SUMMARY.txt`
+- each entrypoint should exit `0` on pass and non-zero on fail
+
 ## Operational Split
 
 Dev OS side in `path/`:
@@ -77,7 +154,7 @@ Dev OS side in `path/`:
 Signing OS side in `path/`:
 - `ops:preflight:signingos`
 - `ops:fetch-bundle`
-- pinned checkout
+- pinned checkout or pinned handoff import
 - `ops:verify`
 - `ops:approve`
 - `ops:apply`

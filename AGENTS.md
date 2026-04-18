@@ -32,6 +32,17 @@
 - No unintended changes in `vendors/`, `output/`, or `workbook/` artifacts.
 - Docs updated when interfaces or behavior change.
 
+## Signing OS Handoff Contract
+- Boundary source of truth is `docs/repo-boundary.md`.
+- For the normal Signing OS path, PATH must ship a pinned `PATH-RUN-BUNDLE/` and must not require live `git pull` on Signing OS.
+- Required bundle contents are `RUNBOOK.txt`, `MANIFEST.json`, `SHA256SUMS.txt`, `CONTEXT.json`, `SIGNER.json`, `EXPECTED.json`, `WORKSPACE/`, and `bin/`.
+- Required boundary fields include the pinned repo state, chain/RPC expectations, signer alias and expected address, protocol intent, entrypoints, and success criteria.
+- PATH may include extra protocol-specific payload such as `NETWORK`, `RUN_ID`, audit ids, allowlists, ABIs, and release metadata, but that does not make `signing-os-ops/` the source of truth for those values.
+- If PATH provides Signing OS entrypoints, prefer `bin/verify`, `bin/approve`, `bin/apply`, and `bin/postconditions`.
+- Each Signing OS entrypoint should act like one operator-facing command, emit one top-level run dir, write `SUMMARY.txt`, and exit `0` on pass / non-zero on fail.
+- Do not move generic host, bridge, reset, or post-boot procedure semantics into this repo.
+- If the PATH/signing-os-ops interface changes, update `docs/repo-boundary.md` in this repo and the matching boundary docs in `signing-os-ops/` in the same change set when feasible.
+
 ## Coding conventions
 - Follow existing Solidity style in `evm/`; use explicit visibility and role checks.
 - Keep movement labels (`THOUGHT`, `WILL`, `AWA`) and constants consistent.
