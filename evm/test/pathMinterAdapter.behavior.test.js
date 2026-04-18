@@ -41,6 +41,28 @@ describe("PathMinterAdapter (Solidity)", function () {
     return { deployer, alice, bob, minter, auction, adapter, tokenBase, epochBase };
   }
 
+  it("constructor permits zero auction for deferred wiring", async function () {
+    const [deployer] = await ethers.getSigners();
+
+    const StubMinter = await ethers.getContractFactory("StubPathMinter", deployer);
+    const minter = await StubMinter.deploy(100n);
+    await minter.waitForDeployment();
+
+    const Adapter = await ethers.getContractFactory("PathMinterAdapter", deployer);
+    const adapter = await Adapter.deploy(
+      deployer.address,
+      ethers.ZeroAddress,
+      await minter.getAddress(),
+      100n,
+      1n
+    );
+    await adapter.waitForDeployment();
+
+    expect(await adapter.getAuthorizedAuction()).to.equal(ethers.ZeroAddress);
+    expect(await adapter.getMinterTarget()).to.equal(await minter.getAddress());
+    expect(await adapter.wiringFrozen()).to.equal(false);
+  });
+
   it("constructor rejects zero owner and invalid contract wiring", async function () {
     const [deployer, alice] = await ethers.getSigners();
 
@@ -110,7 +132,7 @@ describe("PathMinterAdapter (Solidity)", function () {
   });
 
   it("owner-only updates auction/minter, rejects zero, and freezes wiring one-way", async function () {
-    const { deployer, alice, bob, minter, adapter } = await deployFixture();
+    const { deployer, alice, bob, minter, auction, adapter } = await deployFixture();
 
     const StubAuction = await ethers.getContractFactory("StubPulseAuction", deployer);
     const nextAuction = await StubAuction.deploy();
@@ -126,7 +148,9 @@ describe("PathMinterAdapter (Solidity)", function () {
     await expect(adapter.setAuction(ethers.ZeroAddress)).to.be.revertedWith("ZERO_AUCTION");
     await expect(adapter.setAuction(bob.address)).to.be.revertedWith("INVALID_AUCTION");
 
-    await (await adapter.setAuction(await nextAuction.getAddress())).wait();
+    await expect(adapter.setAuction(await nextAuction.getAddress()))
+      .to.emit(adapter, "AuctionSet")
+      .withArgs(await auction.getAddress(), await nextAuction.getAddress());
     expect(await adapter.getAuthorizedAuction()).to.equal(await nextAuction.getAddress());
 
     await expect(adapter.connect(alice).setMinter(bob.address)).to.be.revertedWith(
@@ -135,7 +159,9 @@ describe("PathMinterAdapter (Solidity)", function () {
     await expect(adapter.setMinter(ethers.ZeroAddress)).to.be.revertedWith("ZERO_MINTER");
     await expect(adapter.setMinter(bob.address)).to.be.revertedWith("INVALID_MINTER");
 
-    await (await adapter.setMinter(await nextMinter.getAddress())).wait();
+    await expect(adapter.setMinter(await nextMinter.getAddress()))
+      .to.emit(adapter, "MinterSet")
+      .withArgs(await minter.getAddress(), await nextMinter.getAddress());
 
     const [, minterAddr] = await adapter.getConfig();
     expect(minterAddr).to.equal(await nextMinter.getAddress());
