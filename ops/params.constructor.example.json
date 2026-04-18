@@ -9,7 +9,6 @@
   "pts": "1",
   "firstPublicId": "1",
   "epochBase": "1",
-  "reservedCap": "3",
   "paymentToken": "0x0000000000000000000000000000000000000000",
   "treasury": "0x1111111111111111111111111111111111111111",
   "treasurySignerRef": "NETWORK-TREASURY"

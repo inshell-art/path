@@ -63,7 +63,6 @@ $EDITOR ~/.opsec/path/params/params.sepolia.deploy.json
 #   "pts": "1",
 #   "firstPublicId": "1",
 #   "epochBase": "1",
-#   "reservedCap": "3",
 #   "paymentToken": "0x0000000000000000000000000000000000000000",
 #   "treasury": "0xYourTreasuryRecipientAddress",
 #   "treasurySignerRef": "SEP-TREASURY"

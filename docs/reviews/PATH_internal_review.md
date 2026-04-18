@@ -26,7 +26,7 @@ The codebase is relatively small and uses OpenZeppelin primitives; the main risk
 | Contract | Purpose |
 |---|---|
 | `PathNFT.sol` | ERC‑721 permission token with staged progression (THOUGHT → WILL → AWA → COMPLETE) and on-chain `tokenURI` JSON+SVG. |
-| `PathMinter.sol` | Shared mint proxy with two mint streams: public sequential IDs and reserved “sparker” IDs. |
+| `PathMinter.sol` | Shared mint proxy for public sequential PATH token IDs. |
 | `PathMinterAdapter.sol` | Pulse adapter that enforces epoch→tokenId coupling and mints PATH via `PathMinter`. |
 
 ### External dependency (not pinned in this doc)
@@ -70,11 +70,9 @@ The codebase is relatively small and uses OpenZeppelin primitives; the main risk
 
 ### `PathMinter` roles and the sales caller freeze
 - `DEFAULT_ADMIN_ROLE` (constructor `admin`)
-  - can grant `SALES_ROLE` and `RESERVED_ROLE` **until freeze**
+  - can grant `SALES_ROLE` **until freeze**
 - `SALES_ROLE`
-  - can call `mintPublic` **only until the first successful public mint**
-- `RESERVED_ROLE`
-  - can call `mintSparker`
+  - can call `mintPublic` after explicit freeze to the accepted sales caller
 
 **Sales caller freeze behavior**
 - First successful `mintPublic`:
@@ -97,7 +95,6 @@ The codebase is relatively small and uses OpenZeppelin primitives; the main risk
 - Buyer funds paid to PulseAuction.
 - Correct delivery of PATH NFTs for each epoch.
 - Integrity of the stage progression system (no unauthorized progression).
-- Integrity of reserved (“sparker”) supply allocation.
 
 ### Primary attacker profiles
 - Malicious buyer contract (reentrancy / revert behavior).
@@ -232,8 +229,6 @@ If you keep `tx.origin`, document supported wallet types and the “approve an E
 
 ### Invariants worth asserting (fuzz/invariant tests)
 - `PathMinter.nextId` increases by exactly 1 per successful `mintPublic`.
-- `mintPublic` cannot succeed if `nextId >= SPARK_BASE`.
-- `mintSparker` cannot exceed `reservedCap`.
 - `consumeUnit` can only be called by the configured movement minter.
 - `consumeUnit` cannot exceed quota and advances stage only when quota hits exactly.
 - `PathMinterAdapter.settle` mints exactly `tokenBase + (epoch - epochBase)` and reverts otherwise.
@@ -242,7 +237,6 @@ If you keep `tx.origin`, document supported wallet types and the “approve an E
 - Deploy `PathNFT` (admin = multisig).
 - Deploy `PathMinter` (admin = multisig), verify:
   - `nextId == firstPublicId`
-  - `reservedCap`/`reservedRemaining` set
 - Deploy `PathMinterAdapter` (owner = multisig), set:
   - `tokenBase == firstPublicId`
   - `epochBase == 1` (or chosen base)

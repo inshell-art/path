@@ -4,7 +4,7 @@ This walkthrough is a hands-on rehearsal to learn the Solidity stack:
 
 - `PulseAuction` (pricing + sale flow)
 - `PathMinterAdapter` (auction -> minter bridge)
-- `PathMinter` (public + reserved ID policy)
+- `PathMinter` (public mint proxy)
 - `PathNFT` (ERC-721 + movement progression)
 
 ## 0) Start from a clean localnet
@@ -150,28 +150,13 @@ await mover.connect(buyer).consume(await nft.getAddress(), trainingId, AWA, buye
 // expected revert: BAD_MOVEMENT_ORDER
 ```
 
-## 6) Exercise reserved minting policy
-
-Grant reserved role and mint a sparker:
-
-```js
-const RESERVED_ROLE = await minter.RESERVED_ROLE();
-await (await minter.grantRole(RESERVED_ROLE, deployer.address)).wait();
-
-await (await minter.mintSparker(buyer.address, "0x")).wait();
-await minter.getReservedRemaining();
-```
-
-Reserved IDs are minted from `SPARK_BASE` (`1e15`) upward and are disjoint from public IDs.
-Public minting is bounded to `< SPARK_BASE`.
-
-## 7) Quick failure-mode checks
+## 6) Quick failure-mode checks
 
 ```js
 await adapter.settle(buyer.address, 1, "0x");              // expected revert: ONLY_AUCTION
 await auction.connect(buyer).bid(1n, { value: 1n });       // expected revert: ASK_ABOVE_MAX_PRICE
 ```
 
-## 8) Reset and repeat
+## 7) Reset and repeat
 
 Stop the local node, restart it, then rerun section 1 to rehearse again from genesis state.

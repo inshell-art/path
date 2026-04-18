@@ -75,10 +75,10 @@ Examples:
 
 ```bash
 # Override by env vars
-DEPLOY_FIRST_PUBLIC_ID=7 DEPLOY_EPOCH_BASE=7 DEPLOY_RESERVED_CAP=5 npm run deploy:local:eth
+DEPLOY_FIRST_PUBLIC_ID=7 DEPLOY_EPOCH_BASE=7 npm run deploy:local:eth
 
 # Override by npm args
-npm run deploy:local:eth --deploy-first-public-id=7 --deploy-epoch-base=7 --deploy-reserved-cap=5 --deploy-name="PATH NFT Custom"
+npm run deploy:local:eth --deploy-first-public-id=7 --deploy-epoch-base=7 --deploy-name="PATH NFT Custom"
 
 # Mainnet-style explicit launch time (unix seconds, UTC)
 DEPLOY_OPEN_TIME=1767225600 npm run deploy:local:eth
@@ -91,7 +91,6 @@ cat > /tmp/path.deploy.local.json <<'JSON'
   "openTime": "1767225600",
   "firstPublicId": "1",
   "epochBase": "1",
-  "reservedCap": "3",
   "genesisPrice": "1000",
   "genesisFloor": "900",
   "k": "600",

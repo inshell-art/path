@@ -7,7 +7,6 @@ const GENESIS_FLOOR = 900n;
 const PTS = 1n;
 const FIRST_PUBLIC_ID = 1n;
 const EPOCH_BASE = 1n;
-const RESERVED_CAP = 3n;
 
 const NAME = "PATH NFT";
 const SYMBOL = "PATH";
@@ -149,7 +148,7 @@ async function estimateDeployments(ethers, deployer) {
   const nftGas = await ethers.provider.estimateGas(nftTx);
 
   const Minter = await ethers.getContractFactory("PathMinter", deployer);
-  const minterTx = await Minter.getDeployTransaction(deployer.address, DUMMY_ADDRESS, FIRST_PUBLIC_ID, RESERVED_CAP);
+  const minterTx = await Minter.getDeployTransaction(deployer.address, DUMMY_ADDRESS, FIRST_PUBLIC_ID);
   minterTx.from = deployer.address;
   const minterGas = await ethers.provider.estimateGas(minterTx);
 
@@ -197,7 +196,7 @@ async function estimateWiringGas(ethers, deployer) {
   await nft.waitForDeployment();
 
   const Minter = await ethers.getContractFactory("PathMinter", deployer);
-  const minter = await Minter.deploy(deployer.address, await nft.getAddress(), FIRST_PUBLIC_ID, RESERVED_CAP);
+  const minter = await Minter.deploy(deployer.address, await nft.getAddress(), FIRST_PUBLIC_ID);
   await minter.waitForDeployment();
 
   const Adapter = await ethers.getContractFactory("PathMinterAdapter", deployer);

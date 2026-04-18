@@ -495,7 +495,6 @@ async function main() {
   const nftMinterRole = await nft.MINTER_ROLE();
   const minterDefaultAdminRole = await minter.DEFAULT_ADMIN_ROLE();
   const salesRole = await minter.SALES_ROLE();
-  const reservedRole = await minter.RESERVED_ROLE();
   const frozenSalesAdminRole = await minter.FROZEN_SALES_ADMIN_ROLE();
 
   const roleExpectations = {
@@ -503,7 +502,6 @@ async function main() {
     nftMinterRole: [deployment.contracts.pathMinter],
     minterDefaultAdmin: [deployment.deployer],
     minterSalesRole: [deployment.contracts.pathMinterAdapter],
-    minterReservedRole: [],
     minterFrozenSalesAdminRole: []
   };
   const roleObservations = {
@@ -511,7 +509,6 @@ async function main() {
     nftMinterRole: roleMembers(nftRoleMembers, nftMinterRole),
     minterDefaultAdmin: roleMembers(minterRoleMembers, minterDefaultAdminRole),
     minterSalesRole: roleMembers(minterRoleMembers, salesRole),
-    minterReservedRole: roleMembers(minterRoleMembers, reservedRole),
     minterFrozenSalesAdminRole: roleMembers(minterRoleMembers, frozenSalesAdminRole)
   };
   const roleOwnerHygieneOk =
@@ -520,7 +517,6 @@ async function main() {
     && sameAddressSet(roleObservations.nftMinterRole, roleExpectations.nftMinterRole)
     && sameAddressSet(roleObservations.minterDefaultAdmin, roleExpectations.minterDefaultAdmin)
     && sameAddressSet(roleObservations.minterSalesRole, roleExpectations.minterSalesRole)
-    && sameAddressSet(roleObservations.minterReservedRole, roleExpectations.minterReservedRole)
     && sameAddressSet(roleObservations.minterFrozenSalesAdminRole, roleExpectations.minterFrozenSalesAdminRole);
 
   // Auction config consistency.

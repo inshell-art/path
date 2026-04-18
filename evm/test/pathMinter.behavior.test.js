@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { FIRST_PUBLIC_ID, RESERVED_CAP } from "./helpers/constants.js";
+import { FIRST_PUBLIC_ID } from "./helpers/constants.js";
 import { deployPathMinterEnv } from "./helpers/fixtures.js";
 
 describe("PathMinter (Solidity)", function () {
@@ -25,12 +25,9 @@ describe("PathMinter (Solidity)", function () {
     await conn.close();
   });
 
-  it("constructor initializes reserved cap and remaining", async function () {
+  it("constructor initializes public mint state", async function () {
     const { minter } = await deployPathMinterEnv(ethers);
 
-    expect(await minter.getReservedCap()).to.equal(RESERVED_CAP);
-    expect(await minter.getReservedRemaining()).to.equal(RESERVED_CAP);
-    expect(await minter.SPARK_BASE()).to.equal(1_000_000_000_000_000n);
     expect(await minter.salesCaller()).to.equal(ethers.ZeroAddress);
     expect(await minter.salesCallerFrozen()).to.equal(false);
   });
@@ -40,11 +37,11 @@ describe("PathMinter (Solidity)", function () {
     const Minter = await ethers.getContractFactory("PathMinter", deployer);
 
     await expect(
-      Minter.deploy(ethers.ZeroAddress, deployer.address, FIRST_PUBLIC_ID, RESERVED_CAP)
+      Minter.deploy(ethers.ZeroAddress, deployer.address, FIRST_PUBLIC_ID)
     ).to.be.revertedWith("ZERO_ADMIN");
 
     await expect(
-      Minter.deploy(deployer.address, ethers.ZeroAddress, FIRST_PUBLIC_ID, RESERVED_CAP)
+      Minter.deploy(deployer.address, ethers.ZeroAddress, FIRST_PUBLIC_ID)
     ).to.be.revertedWith("ZERO_PATH_NFT");
   });
 
@@ -150,62 +147,9 @@ describe("PathMinter (Solidity)", function () {
     expect(await minter.nextId()).to.equal(FIRST_PUBLIC_ID);
   });
 
-  it("mintSparker requires RESERVED_ROLE", async function () {
-    const { minter, nft, roles } = await deployPathMinterEnv(ethers);
-    const [, alice] = await ethers.getSigners();
-
-    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
-
-    await expectAnyRevert(minter.connect(alice).mintSparker(alice.address, "0x"));
-  });
-
-  it("mintSparker counts down reserved pool and exhausts", async function () {
-    const { minter, nft, roles } = await deployPathMinterEnv(ethers);
-    const [, alice] = await ethers.getSigners();
-    const sparkBase = await minter.SPARK_BASE();
-
-    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
-    await (await minter.grantRole(roles.RESERVED_ROLE, alice.address)).wait();
-
-    const id0 = await minter.connect(alice).mintSparker.staticCall(alice.address, "0x");
-    await (await minter.connect(alice).mintSparker(alice.address, "0x")).wait();
-    expect(await nft.ownerOf(id0)).to.equal(alice.address);
-    expect(id0).to.equal(sparkBase);
-    expect(await minter.getReservedRemaining()).to.equal(RESERVED_CAP - 1n);
-
-    const id1 = await minter.connect(alice).mintSparker.staticCall(alice.address, "0x");
-    await (await minter.connect(alice).mintSparker(alice.address, "0x")).wait();
-    expect(id1).to.equal(id0 + 1n);
-
-    const id2 = await minter.connect(alice).mintSparker.staticCall(alice.address, "0x");
-    await (await minter.connect(alice).mintSparker(alice.address, "0x")).wait();
-    expect(id2).to.equal(id1 + 1n);
-    expect(await minter.getReservedRemaining()).to.equal(0n);
-
-    await expect(minter.connect(alice).mintSparker(alice.address, "0x")).to.be.revertedWith("NO_RESERVED_LEFT");
-  });
-
-  it("reserved IDs are in high range above public IDs", async function () {
-    const { minter, nft, roles } = await deployPathMinterEnv(ethers);
-    const [, alice] = await ethers.getSigners();
-
-    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
-    await (await minter.grantRole(roles.SALES_ROLE, alice.address)).wait();
-    await (await minter.grantRole(roles.RESERVED_ROLE, alice.address)).wait();
-    await (await minter.freezeSalesCaller(alice.address)).wait();
-
-    const pubId = await minter.connect(alice).mintPublic.staticCall(alice.address, "0x");
-    await (await minter.connect(alice).mintPublic(alice.address, "0x")).wait();
-
-    const resId = await minter.connect(alice).mintSparker.staticCall(alice.address, "0x");
-    await (await minter.connect(alice).mintSparker(alice.address, "0x")).wait();
-
-    expect(resId).to.be.greaterThan(pubId);
-  });
-
-  it("public mint domain stops at SPARK_BASE boundary", async function () {
-    const SPARK_BASE = 1_000_000_000_000_000n;
-    const { minter, nft, roles } = await deployPathMinterEnv(ethers, { firstPublicId: SPARK_BASE - 1n, reservedCap: 1n });
+  it("mintPublic has no legacy domain cap and can continue from a high token id", async function () {
+    const HIGH_START = 1_000_000_000_000_000n;
+    const { minter, nft, roles } = await deployPathMinterEnv(ethers, { firstPublicId: HIGH_START });
     const [, alice] = await ethers.getSigners();
 
     await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
@@ -213,12 +157,7 @@ describe("PathMinter (Solidity)", function () {
     await (await minter.freezeSalesCaller(alice.address)).wait();
 
     await (await minter.connect(alice).mintPublic(alice.address, "0x")).wait();
-    expect(await minter.nextId()).to.equal(SPARK_BASE);
-    expect(await nft.ownerOf(SPARK_BASE - 1n)).to.equal(alice.address);
-
-    await expect(minter.connect(alice).mintPublic(alice.address, "0x")).to.be.revertedWith(
-      "PUBLIC_ID_DOMAIN_EXHAUSTED"
-    );
-    expect(await minter.nextId()).to.equal(SPARK_BASE);
+    expect(await minter.nextId()).to.equal(HIGH_START + 1n);
+    expect(await nft.ownerOf(HIGH_START)).to.equal(alice.address);
   });
 });

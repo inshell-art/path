@@ -25,11 +25,8 @@ Validate that the Solidity PATH stack preserves the critical PATH behavior:
 
 2. `PathMinter` invariants
 
-- `SALES_ROLE` and `RESERVED_ROLE` enforcement.
+- `SALES_ROLE` enforcement.
 - Public IDs increment sequentially.
-- Public ID domain is bounded to `< SPARK_BASE`.
-- Reserved IDs start at `SPARK_BASE` and increment.
-- Reserved pool exhaustion reverts.
 - Downstream NFT mint revert rolls back `nextId`.
 
 3. `PathMinterAdapter` invariants

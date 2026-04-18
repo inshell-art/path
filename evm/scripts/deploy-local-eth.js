@@ -13,7 +13,6 @@ const DEFAULTS = {
   pts: 1n,
   firstPublicId: 1n,
   epochBase: 1n,
-  reservedCap: 3n,
   paymentToken: null
 };
 
@@ -30,7 +29,6 @@ const CLI_FLAG_MAP = {
   pts: "pts",
   "first-public-id": "firstPublicId",
   "epoch-base": "epochBase",
-  "reserved-cap": "reservedCap",
   "payment-token": "paymentToken",
   treasury: "treasury",
   "treasury-signer-ref": "treasurySignerRef"
@@ -49,7 +47,6 @@ const ENV_KEY_MAP = {
   DEPLOY_PTS: "pts",
   DEPLOY_FIRST_PUBLIC_ID: "firstPublicId",
   DEPLOY_EPOCH_BASE: "epochBase",
-  DEPLOY_RESERVED_CAP: "reservedCap",
   DEPLOY_PAYMENT_TOKEN: "paymentToken",
   DEPLOY_TREASURY: "treasury",
   DEPLOY_TREASURY_SIGNER_REF: "treasurySignerRef"
@@ -68,7 +65,6 @@ const NPM_CONFIG_KEY_MAP = {
   npm_config_deploy_pts: "pts",
   npm_config_deploy_first_public_id: "firstPublicId",
   npm_config_deploy_epoch_base: "epochBase",
-  npm_config_deploy_reserved_cap: "reservedCap",
   npm_config_deploy_payment_token: "paymentToken",
   npm_config_deploy_treasury: "treasury",
   npm_config_deploy_treasury_signer_ref: "treasurySignerRef"
@@ -161,7 +157,6 @@ function normalizeFileConfig(raw) {
     pts: pickValue(source, ["pts"]),
     firstPublicId: pickValue(source, ["firstPublicId", "first_public_id", "first-public-id", "tokenBase", "token_base", "token-base"]),
     epochBase: pickValue(source, ["epochBase", "epoch_base", "epoch-base"]),
-    reservedCap: pickValue(source, ["reservedCap", "reserved_cap", "reserved-cap"]),
     paymentToken: pickValue(source, ["paymentToken", "payment_token", "payment-token"]),
     treasury: pickValue(source, ["treasury"]),
     treasurySignerRef: pickValue(source, ["treasurySignerRef", "treasury_signer_ref", "treasury-signer-ref"])
@@ -246,8 +241,7 @@ function resolveDeployConfig({
     genesisFloor: parseUint(coalesce(cliConfig.genesisFloor, npmConfig.genesisFloor, envConfig.genesisFloor, fileConfig.genesisFloor, DEFAULTS.genesisFloor), "genesisFloor"),
     pts: parseUint(coalesce(cliConfig.pts, npmConfig.pts, envConfig.pts, fileConfig.pts, DEFAULTS.pts), "pts"),
     firstPublicId: parseUint(coalesce(cliConfig.firstPublicId, npmConfig.firstPublicId, envConfig.firstPublicId, fileConfig.firstPublicId, DEFAULTS.firstPublicId), "firstPublicId"),
-    epochBase: parseUint(coalesce(cliConfig.epochBase, npmConfig.epochBase, envConfig.epochBase, fileConfig.epochBase, DEFAULTS.epochBase), "epochBase"),
-    reservedCap: parseUint(coalesce(cliConfig.reservedCap, npmConfig.reservedCap, envConfig.reservedCap, fileConfig.reservedCap, DEFAULTS.reservedCap), "reservedCap")
+    epochBase: parseUint(coalesce(cliConfig.epochBase, npmConfig.epochBase, envConfig.epochBase, fileConfig.epochBase, DEFAULTS.epochBase), "epochBase")
   };
 
   if (typeof merged.name !== "string" || merged.name.length === 0) {
@@ -412,8 +406,7 @@ async function main() {
   const minter = await PathMinter.deploy(
     deployer.address,
     await nft.getAddress(),
-    cfg.firstPublicId,
-    cfg.reservedCap
+    cfg.firstPublicId
   );
   await minter.waitForDeployment();
 
@@ -494,8 +487,7 @@ async function main() {
       pts: cfg.pts.toString(),
       firstPublicId: cfg.firstPublicId.toString(),
       tokenBase: cfg.firstPublicId.toString(),
-      epochBase: cfg.epochBase.toString(),
-      reservedCap: cfg.reservedCap.toString()
+      epochBase: cfg.epochBase.toString()
     },
     inputs: {
       paramsFile: fileConfig.paramsFile ?? null,

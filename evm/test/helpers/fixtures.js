@@ -7,7 +7,6 @@ import {
   K,
   NAME,
   PTS,
-  RESERVED_CAP,
   SYMBOL
 } from "./constants.js";
 
@@ -43,7 +42,7 @@ export async function deployPathNftEnv(ethers, { admin } = {}) {
   };
 }
 
-export async function deployPathMinterEnv(ethers, { firstPublicId = FIRST_PUBLIC_ID, reservedCap = RESERVED_CAP } = {}) {
+export async function deployPathMinterEnv(ethers, { firstPublicId = FIRST_PUBLIC_ID } = {}) {
   const [deployer] = await ethers.getSigners();
   const nftEnv = await deployPathNftEnv(ethers, { admin: deployer.address });
 
@@ -51,8 +50,7 @@ export async function deployPathMinterEnv(ethers, { firstPublicId = FIRST_PUBLIC
   const minter = await Minter.deploy(
     deployer.address,
     await nftEnv.nft.getAddress(),
-    firstPublicId,
-    reservedCap
+    firstPublicId
   );
   await minter.waitForDeployment();
 
@@ -61,8 +59,7 @@ export async function deployPathMinterEnv(ethers, { firstPublicId = FIRST_PUBLIC
     minter,
     roles: {
       ...nftEnv.roles,
-      SALES_ROLE: roleId(ethers, "SALES_ROLE"),
-      RESERVED_ROLE: roleId(ethers, "RESERVED_ROLE")
+      SALES_ROLE: roleId(ethers, "SALES_ROLE")
     }
   };
 }
@@ -79,8 +76,7 @@ async function deployPathPulseEnv(
   const minter = await Minter.deploy(
     deployer.address,
     await nftEnv.nft.getAddress(),
-    FIRST_PUBLIC_ID,
-    RESERVED_CAP
+    FIRST_PUBLIC_ID
   );
   await minter.waitForDeployment();
 
@@ -127,8 +123,7 @@ async function deployPathPulseEnv(
     auction,
     roles: {
       ...nftEnv.roles,
-      SALES_ROLE: roleId(ethers, "SALES_ROLE"),
-      RESERVED_ROLE: roleId(ethers, "RESERVED_ROLE")
+      SALES_ROLE: roleId(ethers, "SALES_ROLE")
     }
   };
 }

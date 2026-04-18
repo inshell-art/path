@@ -13,7 +13,6 @@
     "pts",
     "firstPublicId",
     "epochBase",
-    "reservedCap",
     "paymentToken",
     "treasury"
   ],
@@ -51,9 +50,6 @@
       "$ref": "#/$defs/positiveUint"
     },
     "epochBase": {
-      "$ref": "#/$defs/nonNegativeUint"
-    },
-    "reservedCap": {
       "$ref": "#/$defs/nonNegativeUint"
     },
     "paymentToken": {

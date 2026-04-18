@@ -4,7 +4,6 @@ export const BASE_URI = "";
 
 export const FIRST_PUBLIC_ID = 1n;
 export const EPOCH_BASE = 1n;
-export const RESERVED_CAP = 3n;
 
 export const GENESIS_PRICE = 1_000n;
 export const GENESIS_FLOOR = 900n;

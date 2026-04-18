@@ -286,7 +286,6 @@ manifest = {
         "genesis_floor": str(deploy["config"]["genesisFloor"]),
         "token_base": int(deploy["config"]["tokenBase"]),
         "epoch_base": int(deploy["config"]["epochBase"]),
-        "reserved_cap": int(deploy["config"]["reservedCap"]),
     },
     "status": {
         "postconditions": post["status"],
