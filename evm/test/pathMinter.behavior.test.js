@@ -26,8 +26,10 @@ describe("PathMinter (Solidity)", function () {
   });
 
   it("constructor initializes public mint state", async function () {
-    const { minter } = await deployPathMinterEnv(ethers);
+    const { nft, minter } = await deployPathMinterEnv(ethers);
 
+    expect(await minter.pathNft()).to.equal(await nft.getAddress());
+    expect(await minter.nextId()).to.equal(FIRST_PUBLIC_ID);
     expect(await minter.salesCaller()).to.equal(ethers.ZeroAddress);
     expect(await minter.salesCallerFrozen()).to.equal(false);
   });

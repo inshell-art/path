@@ -111,6 +111,18 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.getStageMinted(1n)).to.equal(0n);
   });
 
+  it("safe_mint alias matches safeMint behavior", async function () {
+    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+    const [, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.safe_mint(alice.address, 2n, "0x1234")).wait();
+
+    expect(await nft.ownerOf(2n)).to.equal(alice.address);
+    expect(await nft.getStage(2n)).to.equal(0n);
+    expect(await nft.getStageMinted(2n)).to.equal(0n);
+  });
+
   it("setMovementConfig validates movement, minter, quota, and admin", async function () {
     const { nft, movements } = await deployPathNftEnv(ethers);
     const [, alice, bob] = await ethers.getSigners();
@@ -204,6 +216,10 @@ describe("PathNFT (Solidity)", function () {
     await (await nft.safeMint(alice.address, 6n, "0x")).wait();
 
     expect(await nft.supportsInterface("0x49064906")).to.equal(true);
+    expect(await nft.supportsInterface("0x80ac58cd")).to.equal(true); // ERC721
+    expect(await nft.supportsInterface("0x7965db0b")).to.equal(true); // AccessControl
+    expect(await nft.supportsInterface("0x01ffc9a7")).to.equal(true); // IERC165
+    expect(await nft.supportsInterface("0xffffffff")).to.equal(false);
 
     await expect(
       consumeViaMover(mover, alice, nft, 6n, movements.THOUGHT, alice)
