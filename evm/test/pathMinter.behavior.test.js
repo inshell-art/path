@@ -45,6 +45,10 @@ describe("PathMinter (Solidity)", function () {
     await expect(
       Minter.deploy(deployer.address, ethers.ZeroAddress, FIRST_PUBLIC_ID)
     ).to.be.revertedWith("ZERO_PATH_NFT");
+
+    await expect(
+      Minter.deploy(deployer.address, deployer.address, FIRST_PUBLIC_ID)
+    ).to.be.revertedWith("INVALID_PATH_NFT");
   });
 
   it("mintPublic requires explicit sales caller freeze", async function () {

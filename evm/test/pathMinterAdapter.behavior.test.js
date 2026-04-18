@@ -41,6 +41,60 @@ describe("PathMinterAdapter (Solidity)", function () {
     return { deployer, alice, bob, minter, auction, adapter, tokenBase, epochBase };
   }
 
+  it("constructor rejects zero owner and invalid contract wiring", async function () {
+    const [deployer, alice] = await ethers.getSigners();
+
+    const StubMinter = await ethers.getContractFactory("StubPathMinter", deployer);
+    const minter = await StubMinter.deploy(100n);
+    await minter.waitForDeployment();
+
+    const StubAuction = await ethers.getContractFactory("StubPulseAuction", deployer);
+    const auction = await StubAuction.deploy();
+    await auction.waitForDeployment();
+
+    const Adapter = await ethers.getContractFactory("PathMinterAdapter", deployer);
+
+    await expect(
+      Adapter.deploy(
+        ethers.ZeroAddress,
+        await auction.getAddress(),
+        await minter.getAddress(),
+        100n,
+        1n
+      )
+    ).to.be.revertedWith("ZERO_OWNER");
+
+    await expect(
+      Adapter.deploy(
+        deployer.address,
+        alice.address,
+        await minter.getAddress(),
+        100n,
+        1n
+      )
+    ).to.be.revertedWith("INVALID_AUCTION");
+
+    await expect(
+      Adapter.deploy(
+        deployer.address,
+        await auction.getAddress(),
+        ethers.ZeroAddress,
+        100n,
+        1n
+      )
+    ).to.be.revertedWith("ZERO_MINTER");
+
+    await expect(
+      Adapter.deploy(
+        deployer.address,
+        await auction.getAddress(),
+        alice.address,
+        100n,
+        1n
+      )
+    ).to.be.revertedWith("INVALID_MINTER");
+  });
+
   it("constructor sets config and explicit getters", async function () {
     const { minter, auction, adapter, tokenBase, epochBase } = await deployFixture();
 
@@ -56,32 +110,42 @@ describe("PathMinterAdapter (Solidity)", function () {
   });
 
   it("owner-only updates auction/minter, rejects zero, and freezes wiring one-way", async function () {
-    const { alice, bob, minter, adapter } = await deployFixture();
+    const { deployer, alice, bob, minter, adapter } = await deployFixture();
+
+    const StubAuction = await ethers.getContractFactory("StubPulseAuction", deployer);
+    const nextAuction = await StubAuction.deploy();
+    await nextAuction.waitForDeployment();
+
+    const StubMinter = await ethers.getContractFactory("StubPathMinter", deployer);
+    const nextMinter = await StubMinter.deploy(200n);
+    await nextMinter.waitForDeployment();
 
     await expect(adapter.connect(alice).setAuction(bob.address)).to.be.revertedWith(
       "Ownable: caller is not the owner"
     );
     await expect(adapter.setAuction(ethers.ZeroAddress)).to.be.revertedWith("ZERO_AUCTION");
+    await expect(adapter.setAuction(bob.address)).to.be.revertedWith("INVALID_AUCTION");
 
-    await (await adapter.setAuction(bob.address)).wait();
-    expect(await adapter.getAuthorizedAuction()).to.equal(bob.address);
+    await (await adapter.setAuction(await nextAuction.getAddress())).wait();
+    expect(await adapter.getAuthorizedAuction()).to.equal(await nextAuction.getAddress());
 
     await expect(adapter.connect(alice).setMinter(bob.address)).to.be.revertedWith(
       "Ownable: caller is not the owner"
     );
     await expect(adapter.setMinter(ethers.ZeroAddress)).to.be.revertedWith("ZERO_MINTER");
+    await expect(adapter.setMinter(bob.address)).to.be.revertedWith("INVALID_MINTER");
 
-    await (await adapter.setMinter(await minter.getAddress())).wait();
+    await (await adapter.setMinter(await nextMinter.getAddress())).wait();
 
     const [, minterAddr] = await adapter.getConfig();
-    expect(minterAddr).to.equal(await minter.getAddress());
-    expect(await adapter.getMinterTarget()).to.equal(await minter.getAddress());
+    expect(minterAddr).to.equal(await nextMinter.getAddress());
+    expect(await adapter.getMinterTarget()).to.equal(await nextMinter.getAddress());
 
     await expect(adapter.connect(alice).freezeWiring()).to.be.revertedWith("Ownable: caller is not the owner");
     await expect(adapter.freezeWiring()).to.emit(adapter, "WiringFrozenSet");
     expect(await adapter.wiringFrozen()).to.equal(true);
 
-    await expect(adapter.setAuction(bob.address))
+    await expect(adapter.setAuction(await nextAuction.getAddress()))
       .to.be.revertedWithCustomError(adapter, "WiringFrozen");
     await expect(adapter.setMinter(await minter.getAddress()))
       .to.be.revertedWithCustomError(adapter, "WiringFrozen");

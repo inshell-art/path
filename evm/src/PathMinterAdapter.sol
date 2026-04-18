@@ -29,6 +29,11 @@ contract PathMinterAdapter is Ownable, IPulseAdapter {
 
     constructor(address owner_, address auction_, address minter_, uint256 tokenBase_, uint256 epochBase_) {
         require(owner_ != address(0), "ZERO_OWNER");
+        require(minter_ != address(0), "ZERO_MINTER");
+        require(minter_.code.length > 0, "INVALID_MINTER");
+        if (auction_ != address(0)) {
+            require(auction_.code.length > 0, "INVALID_AUCTION");
+        }
         _transferOwnership(owner_);
         auction = auction_;
         minter = minter_;
@@ -39,6 +44,7 @@ contract PathMinterAdapter is Ownable, IPulseAdapter {
     function setAuction(address auction_) external onlyOwner {
         if (wiringFrozen) revert WiringFrozen();
         require(auction_ != address(0), "ZERO_AUCTION");
+        require(auction_.code.length > 0, "INVALID_AUCTION");
         address old = auction;
         auction = auction_;
         emit AuctionSet(old, auction_);
@@ -47,6 +53,7 @@ contract PathMinterAdapter is Ownable, IPulseAdapter {
     function setMinter(address minter_) external onlyOwner {
         if (wiringFrozen) revert WiringFrozen();
         require(minter_ != address(0), "ZERO_MINTER");
+        require(minter_.code.length > 0, "INVALID_MINTER");
         address old = minter;
         minter = minter_;
         emit MinterSet(old, minter_);

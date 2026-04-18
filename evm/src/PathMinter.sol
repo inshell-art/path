@@ -24,6 +24,7 @@ contract PathMinter is AccessControl, IPathMinter {
     constructor(address admin, address pathNftAddr, uint256 firstTokenId) {
         require(admin != address(0), "ZERO_ADMIN");
         require(pathNftAddr != address(0), "ZERO_PATH_NFT");
+        require(pathNftAddr.code.length > 0, "INVALID_PATH_NFT");
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _setRoleAdmin(FROZEN_SALES_ADMIN_ROLE, FROZEN_SALES_ADMIN_ROLE);

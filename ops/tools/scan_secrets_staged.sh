@@ -17,6 +17,11 @@ trap cleanup EXIT
 
 STAGED_PATHS=()
 while IFS= read -r -d '' path; do
+  mode=$(git ls-files -s -- "$path" | awk 'NR==1 {print $1}')
+  # Skip gitlink entries for submodule pointer updates. They are commit ids, not file blobs.
+  if [[ "$mode" == "160000" ]]; then
+    continue
+  fi
   STAGED_PATHS+=("$path")
 done < <(git diff --cached --name-only --diff-filter=ACMR -z)
 

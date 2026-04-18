@@ -104,17 +104,34 @@ describe("PulseAuction (Solidity)", function () {
         deployer.address
       )
     ).to.be.revertedWith("K_OVER_PTS_OVERFLOW");
+
+    await expect(
+      Auction.deploy(0n, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, ethers.ZeroAddress, ethers.ZeroAddress, deployer.address)
+    ).to.be.revertedWith("ZERO_TREASURY");
+
+    await expect(
+      Auction.deploy(0n, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, deployer.address, deployer.address, deployer.address)
+    ).to.be.revertedWith("INVALID_PAYMENT_TOKEN");
+
+    await expect(
+      Auction.deploy(0n, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, ethers.ZeroAddress, deployer.address, deployer.address)
+    ).to.be.revertedWith("INVALID_ADAPTER");
   });
 
   it("initializeMintAdapter is deployer-only, rejects zero, and is one-shot", async function () {
     const { deployer, auction } = await deployAuction({ mintAdapter: ethers.ZeroAddress });
     const [, alice, bob] = await ethers.getSigners();
 
+    const StubAdapter = await ethers.getContractFactory("StubPulseAdapter", deployer);
+    const stubAdapter = await StubAdapter.deploy(bob.address);
+    await stubAdapter.waitForDeployment();
+
     await expect(auction.connect(alice).initializeMintAdapter(bob.address)).to.be.revertedWith("ONLY_DEPLOYER");
     await expect(auction.initializeMintAdapter(ethers.ZeroAddress)).to.be.revertedWith("INVALID_ADAPTER");
+    await expect(auction.initializeMintAdapter(bob.address)).to.be.revertedWith("INVALID_ADAPTER");
 
-    await (await auction.initializeMintAdapter(bob.address)).wait();
-    expect(await auction.mintAdapter()).to.equal(bob.address);
+    await (await auction.initializeMintAdapter(await stubAdapter.getAddress())).wait();
+    expect(await auction.mintAdapter()).to.equal(await stubAdapter.getAddress());
 
     await expect(auction.initializeMintAdapter(deployer.address)).to.be.revertedWith("ADAPTER_ALREADY_SET");
   });

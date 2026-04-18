@@ -18,6 +18,9 @@ describe("PulseAuction openTime constructor", function () {
   it("stores openTime as deployment timestamp plus startDelaySec", async function () {
     const [deployer] = await ethers.getSigners();
     const startDelaySec = 300n;
+    const StubAdapter = await ethers.getContractFactory("StubPulseAdapter", deployer);
+    const adapter = await StubAdapter.deploy(deployer.address);
+    await adapter.waitForDeployment();
 
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
     const auction = await Auction.deploy(
@@ -28,7 +31,7 @@ describe("PulseAuction openTime constructor", function () {
       PTS,
       ethers.ZeroAddress,
       deployer.address,
-      deployer.address
+      await adapter.getAddress()
     );
     await auction.waitForDeployment();
 
@@ -40,6 +43,9 @@ describe("PulseAuction openTime constructor", function () {
 
   it("supports zero start delay", async function () {
     const [deployer] = await ethers.getSigners();
+    const StubAdapter = await ethers.getContractFactory("StubPulseAdapter", deployer);
+    const adapter = await StubAdapter.deploy(deployer.address);
+    await adapter.waitForDeployment();
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
 
     const auction = await Auction.deploy(
@@ -50,7 +56,7 @@ describe("PulseAuction openTime constructor", function () {
       PTS,
       ethers.ZeroAddress,
       deployer.address,
-      deployer.address
+      await adapter.getAddress()
     );
     await auction.waitForDeployment();
 
