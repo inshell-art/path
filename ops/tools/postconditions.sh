@@ -51,6 +51,7 @@ PATH_POSTCHECK_OK="skip"
 PATH_POSTCHECK_EXIT="0"
 PATH_POSTCHECK_LOG=""
 PATH_POSTCHECK_FILE=""
+PATH_POSTCHECK_DEPLOY_FILE=""
 
 if [[ "$POSTCONDITIONS_MODE" == "manual" ]]; then
   if [[ "$POSTCONDITIONS_STATUS" != "pending" && "$POSTCONDITIONS_STATUS" != "pass" && "$POSTCONDITIONS_STATUS" != "fail" ]]; then
@@ -90,7 +91,18 @@ PY
   if [[ "$RUN_LANE" == "deploy" ]]; then
     PATH_POSTCHECK_FILE="$BUNDLE_DIR/checks.path.post.json"
     PATH_POSTCHECK_LOG="$BUNDLE_DIR/postconditions.pathcheck.log"
-    if NETWORK="$NETWORK" LANE="$RUN_LANE" OUT_FILE="$PATH_POSTCHECK_FILE" "$ROOT/ops/tools/generate_path_checks.sh" >"$PATH_POSTCHECK_LOG" 2>&1; then
+    case "$NETWORK" in
+      devnet)
+        PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/localhost-eth.json"
+        ;;
+      sepolia)
+        PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
+        ;;
+      mainnet)
+        PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/mainnet-eth.json"
+        ;;
+    esac
+    if DEPLOY_FILE="$PATH_POSTCHECK_DEPLOY_FILE" NETWORK="$NETWORK" LANE="$RUN_LANE" OUT_FILE="$PATH_POSTCHECK_FILE" "$ROOT/ops/tools/generate_path_checks.sh" >"$PATH_POSTCHECK_LOG" 2>&1; then
       PATH_POSTCHECK_OK="true"
       PATH_POSTCHECK_EXIT="0"
     else
@@ -103,7 +115,7 @@ fi
 
 VERIFIED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-export BUNDLE_DIR NETWORK RUN_ID TXS_PRESENT POSTCONDITIONS_MODE POSTCONDITIONS_STATUS POSTCONDITIONS_NOTE VERIFIED_AT VERIFY_OK VERIFY_EXIT VERIFY_LOG ROOT PATH_POSTCHECK_OK PATH_POSTCHECK_EXIT PATH_POSTCHECK_LOG PATH_POSTCHECK_FILE
+export BUNDLE_DIR NETWORK RUN_ID TXS_PRESENT POSTCONDITIONS_MODE POSTCONDITIONS_STATUS POSTCONDITIONS_NOTE VERIFIED_AT VERIFY_OK VERIFY_EXIT VERIFY_LOG ROOT PATH_POSTCHECK_OK PATH_POSTCHECK_EXIT PATH_POSTCHECK_LOG PATH_POSTCHECK_FILE PATH_POSTCHECK_DEPLOY_FILE
 
 python3 - <<'PY'
 import json
@@ -124,6 +136,7 @@ path_postcheck_ok = os.environ.get("PATH_POSTCHECK_OK", "skip")
 path_postcheck_exit = int(os.environ.get("PATH_POSTCHECK_EXIT", "0"))
 path_postcheck_log = os.environ.get("PATH_POSTCHECK_LOG", "")
 path_postcheck_file = os.environ.get("PATH_POSTCHECK_FILE", "")
+path_postcheck_deploy_file = os.environ.get("PATH_POSTCHECK_DEPLOY_FILE", "")
 root = Path(os.environ["ROOT"])
 
 run_payload = {}
@@ -282,7 +295,8 @@ if notes:
     payload["notes"] = notes
 if mode == "auto":
     payload["auto"] = {
-        "verify_log": verify_log or None
+        "verify_log": verify_log or None,
+        "path_postcheck_deploy_file": path_postcheck_deploy_file or None,
     }
 
 (bundle_dir / "postconditions.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")

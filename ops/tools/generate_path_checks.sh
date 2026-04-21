@@ -35,17 +35,17 @@ case "$NETWORK" in
     ;;
 esac
 
-	case "$OUT_FILE" in
-	  "$ROOT"/bundles/"$NETWORK"/*)
-	    BUNDLE_DIR="$(dirname "$OUT_FILE")"
-	    case "$NETWORK" in
-	      devnet)
-	        DEFAULT_DEPLOY_FILE="$BUNDLE_DIR/deployments/localhost-eth.json"
-	        ;;
-	      sepolia)
-	        DEFAULT_DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
-	        ;;
-	      mainnet)
+case "$OUT_FILE" in
+  */bundles/"$NETWORK"/*)
+    BUNDLE_DIR="$(dirname "$OUT_FILE")"
+    case "$NETWORK" in
+      devnet)
+        DEFAULT_DEPLOY_FILE="$BUNDLE_DIR/deployments/localhost-eth.json"
+        ;;
+      sepolia)
+        DEFAULT_DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
+        ;;
+      mainnet)
         DEFAULT_DEPLOY_FILE="$BUNDLE_DIR/deployments/mainnet-eth.json"
         ;;
     esac
