@@ -10,9 +10,15 @@ NETWORK=${NETWORK:-}
 RUN_ID=${RUN_ID:-}
 BUNDLE_PATH=${BUNDLE_PATH:-}
 PACK_MANIFEST_JSON=${PATH_PACK_MANIFEST_JSON:-}
+APPLY_MODE=${APPLY_MODE:-execute}
 
 if [[ "${SIGNING_OS:-}" != "1" ]]; then
   echo "Refusing to run: SIGNING_OS=1 is required." >&2
+  exit 2
+fi
+
+if [[ "$APPLY_MODE" != "execute" && "$APPLY_MODE" != "plan" ]]; then
+  echo "Invalid APPLY_MODE: $APPLY_MODE (expected execute or plan)" >&2
   exit 2
 fi
 
@@ -355,6 +361,7 @@ DEPLOY_COMMAND=""
 SIGNER_INPUT_SOURCE=""
 SIGNER_ADDRESS_USED=""
 RESOLVED_DEPLOY_PRIVATE_KEY=""
+PLAN_FILE=""
 
 if [[ "$LANE_FROM_RUN" == "deploy" ]]; then
   mkdir -p "$BUNDLE_DIR/deployments"
@@ -426,7 +433,7 @@ if [[ "$LANE_FROM_RUN" == "deploy" ]]; then
     fi
 
     IFS=$'\t' read -r RESOLVED_DEPLOY_PRIVATE_KEY SIGNER_ADDRESS_USED KEYSTORE_SOURCE_KIND <<EOF_KEY
-$(KEYSTORE_SOURCE="$KEYSTORE_SOURCE" KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD_VALUE" EXPECTED_ADDRESS="$EXPECTED_DEPLOYER_ADDRESS" npm --prefix "$ROOT/evm" exec -- node "$ROOT/evm/scripts/decrypt-keystore-private-key.js")
+$(KEYSTORE_SOURCE="$KEYSTORE_SOURCE" KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD_VALUE" EXPECTED_ADDRESS="$EXPECTED_DEPLOYER_ADDRESS" node "$ROOT/evm/scripts/decrypt-keystore-private-key.js")
 EOF_KEY
     if [[ -z "$RESOLVED_DEPLOY_PRIVATE_KEY" || -z "$SIGNER_ADDRESS_USED" ]]; then
       echo "Failed to resolve deploy signer from keystore input ${KEYSTORE_JSON_VAR}." >&2
@@ -437,7 +444,6 @@ EOF_KEY
 
   if [[ "${#DEPLOY_CMD[@]}" -gt 0 ]]; then
     DEPLOY_COMMAND="${DEPLOY_CMD[*]}"
-    echo "Executing deploy lane command: ${DEPLOY_COMMAND}"
     DEPLOY_ENV=(DEPLOY_OUT_FILE="$DEPLOY_FILE")
     if [[ -n "$DEPLOY_PARAMS_FILE_USED" ]]; then
       DEPLOY_ENV+=(DEPLOY_PARAMS_FILE="$DEPLOY_PARAMS_FILE_USED")
@@ -454,13 +460,20 @@ EOF_KEY
         fi
         ;;
     esac
-    env "${DEPLOY_ENV[@]}" "${DEPLOY_CMD[@]}" | tee "$DEPLOY_LOG"
+    if [[ "$APPLY_MODE" == "plan" ]]; then
+      PLAN_FILE="$BUNDLE_DIR/apply.plan.json"
+      APPLY_EXECUTION_MODE="plan"
+      echo "Prepared deploy lane command (plan mode): ${DEPLOY_COMMAND}"
+    else
+      echo "Executing deploy lane command: ${DEPLOY_COMMAND}"
+      env "${DEPLOY_ENV[@]}" "${DEPLOY_CMD[@]}" | tee "$DEPLOY_LOG"
+      APPLY_EXECUTION_MODE="deployed"
+    fi
     RESOLVED_DEPLOY_PRIVATE_KEY=""
-    APPLY_EXECUTION_MODE="deployed"
   fi
 fi
 
-export APPLIED_AT TXS_PATH SNAP_DIR INPUTS_FILE_USED INPUTS_SHA256_USED APPLY_EXECUTION_MODE DEPLOY_FILE DEPLOY_LOG DEPLOY_COMMAND NETWORK_FROM_RUN LANE_FROM_RUN DEPLOY_PARAMS_FILE_USED SIGNER_INPUT_SOURCE SIGNER_ADDRESS_USED EXPECTED_DEPLOYER_ADDRESS PROOF_RUN_ID REHEARSAL_NETWORK
+export APPLIED_AT TXS_PATH SNAP_DIR INPUTS_FILE_USED INPUTS_SHA256_USED APPLY_EXECUTION_MODE DEPLOY_FILE DEPLOY_LOG DEPLOY_COMMAND NETWORK_FROM_RUN LANE_FROM_RUN DEPLOY_PARAMS_FILE_USED SIGNER_INPUT_SOURCE SIGNER_ADDRESS_USED EXPECTED_DEPLOYER_ADDRESS PROOF_RUN_ID REHEARSAL_NETWORK PLAN_FILE APPLY_MODE
 python3 - <<'PY'
 import json
 import os
@@ -471,6 +484,7 @@ execution_mode = os.environ.get("APPLY_EXECUTION_MODE", "stub")
 deployment_file = os.environ.get("DEPLOY_FILE", "")
 deploy_log = os.environ.get("DEPLOY_LOG", "")
 deploy_command = os.environ.get("DEPLOY_COMMAND", "")
+requested_mode = os.environ.get("APPLY_MODE", "execute")
 network = os.environ.get("NETWORK_FROM_RUN", "")
 lane = os.environ.get("LANE_FROM_RUN", "")
 deploy_params_file = os.environ.get("DEPLOY_PARAMS_FILE_USED", "").strip()
@@ -479,6 +493,7 @@ signer_address_used = os.environ.get("SIGNER_ADDRESS_USED", "").strip()
 expected_deployer_address = os.environ.get("EXPECTED_DEPLOYER_ADDRESS", "").strip()
 rehearsal_proof_run_id = os.environ.get("PROOF_RUN_ID", "").strip()
 rehearsal_proof_network = os.environ.get("REHEARSAL_NETWORK", "").strip()
+plan_file = os.environ.get("PLAN_FILE", "").strip()
 
 inputs_file = os.environ.get("INPUTS_FILE_USED", "").strip()
 inputs_hash = os.environ.get("INPUTS_SHA256_USED", "").strip()
@@ -508,74 +523,79 @@ if execution_mode == "deployed":
     for _, tx_hash in deploy_txs.items():
         if isinstance(tx_hash, str) and tx_hash.startswith("0x") and len(tx_hash) > 2:
             txs.append(tx_hash)
-else:
+elif execution_mode == "stub":
     txs = ["0xSTUB_TX"]
 
-txs_payload = {
-    "applied_at": applied_at,
-    "network": network,
-    "lane": lane,
-    "execution_mode": execution_mode,
-    "txs": txs,
-    "notes": "Deploy lane executes configured deploy command and records deployment tx hashes when available." if execution_mode == "deployed" else "Scaffold stub. Replace with real tx hashes."
-}
+common_fields = {}
 if deployment_file:
-    txs_payload["deployment_file"] = deployment_file
+    common_fields["deployment_file"] = deployment_file
 if deploy_log:
-    txs_payload["deploy_log"] = deploy_log
+    common_fields["deploy_log"] = deploy_log
 if deploy_command:
-    txs_payload["deploy_command"] = deploy_command
+    common_fields["deploy_command"] = deploy_command
 if inputs_file:
-    txs_payload["inputs_file"] = inputs_file
+    common_fields["inputs_file"] = inputs_file
 if inputs_hash:
-    txs_payload["inputs_sha256"] = inputs_hash
+    common_fields["inputs_sha256"] = inputs_hash
 if deploy_params_file:
-    txs_payload["deploy_params_file"] = deploy_params_file
+    common_fields["deploy_params_file"] = deploy_params_file
 if signer_input_source:
-    txs_payload["signer_input_source"] = signer_input_source
+    common_fields["signer_input_source"] = signer_input_source
 if signer_address_used:
-    txs_payload["signer_address_used"] = signer_address_used
+    common_fields["signer_address_used"] = signer_address_used
 if expected_deployer_address:
-    txs_payload["expected_deployer_address"] = expected_deployer_address
+    common_fields["expected_deployer_address"] = expected_deployer_address
 if rehearsal_proof_run_id:
-    txs_payload["rehearsal_proof_run_id"] = rehearsal_proof_run_id
+    common_fields["rehearsal_proof_run_id"] = rehearsal_proof_run_id
 if rehearsal_proof_network:
-    txs_payload["rehearsal_proof_network"] = rehearsal_proof_network
+    common_fields["rehearsal_proof_network"] = rehearsal_proof_network
 
-Path(os.environ["TXS_PATH"]).write_text(json.dumps(txs_payload, indent=2, sort_keys=True) + "\n")
-
-snapshot_payload = {
-    "applied_at": applied_at,
-    "network": network,
-    "lane": lane,
-    "execution_mode": execution_mode,
-    "notes": "Contains post-apply deployment snapshot."
-}
-if inputs_file:
-    snapshot_payload["inputs_file"] = inputs_file
-if inputs_hash:
-    snapshot_payload["inputs_sha256"] = inputs_hash
-if deploy_params_file:
-    snapshot_payload["deploy_params_file"] = deploy_params_file
-if signer_input_source:
-    snapshot_payload["signer_input_source"] = signer_input_source
-if signer_address_used:
-    snapshot_payload["signer_address_used"] = signer_address_used
-if expected_deployer_address:
-    snapshot_payload["expected_deployer_address"] = expected_deployer_address
-if rehearsal_proof_run_id:
-    snapshot_payload["rehearsal_proof_run_id"] = rehearsal_proof_run_id
-if rehearsal_proof_network:
-    snapshot_payload["rehearsal_proof_network"] = rehearsal_proof_network
-if deployment:
-    snapshot_payload["deployment"] = {
-        "network": deployment.get("network"),
-        "chainId": deployment.get("chainId"),
-        "deployer": deployment.get("deployer"),
-        "contracts": deployment.get("contracts", {})
+if execution_mode == "plan":
+    if not plan_file:
+        raise SystemExit("plan mode requires PLAN_FILE")
+    plan_payload = {
+        "planned_at": applied_at,
+        "network": network,
+        "lane": lane,
+        "execution_mode": execution_mode,
+        "requested_mode": requested_mode,
+        "notes": "Plan mode validated pre-chain apply requirements and prepared the deploy command without executing chain writes.",
+        **common_fields,
     }
+    Path(plan_file).write_text(json.dumps(plan_payload, indent=2, sort_keys=True) + "\n")
+else:
+    txs_payload = {
+        "applied_at": applied_at,
+        "network": network,
+        "lane": lane,
+        "execution_mode": execution_mode,
+        "txs": txs,
+        "notes": "Deploy lane executes configured deploy command and records deployment tx hashes when available." if execution_mode == "deployed" else "Scaffold stub. Replace with real tx hashes.",
+        **common_fields,
+    }
+    Path(os.environ["TXS_PATH"]).write_text(json.dumps(txs_payload, indent=2, sort_keys=True) + "\n")
 
-(Path(os.environ["SNAP_DIR"]) / "post_state.json").write_text(json.dumps(snapshot_payload, indent=2, sort_keys=True) + "\n")
+    snapshot_payload = {
+        "applied_at": applied_at,
+        "network": network,
+        "lane": lane,
+        "execution_mode": execution_mode,
+        "notes": "Contains post-apply deployment snapshot.",
+        **common_fields,
+    }
+    if deployment:
+        snapshot_payload["deployment"] = {
+            "network": deployment.get("network"),
+            "chainId": deployment.get("chainId"),
+            "deployer": deployment.get("deployer"),
+            "contracts": deployment.get("contracts", {})
+        }
+
+    (Path(os.environ["SNAP_DIR"]) / "post_state.json").write_text(json.dumps(snapshot_payload, indent=2, sort_keys=True) + "\n")
 PY
 
-echo "Apply complete. Wrote txs.json and snapshots/ in $BUNDLE_DIR"
+if [[ "$APPLY_EXECUTION_MODE" == "plan" ]]; then
+  echo "Apply plan complete. Wrote apply.plan.json and inputs.params.json in $BUNDLE_DIR"
+else
+  echo "Apply complete. Wrote txs.json and snapshots/ in $BUNDLE_DIR"
+fi

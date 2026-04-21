@@ -29,9 +29,18 @@ SPARSE_PATHS = [
 ]
 
 PORTABLE_TOOL_OVERRIDES = [
+    "ops/tools/approve_bundle.sh",
+    "ops/tools/apply_bundle.sh",
+    "ops/tools/postconditions.sh",
     "ops/tools/verify_bundle.sh",
     "ops/tools/generate_path_checks.sh",
     "ops/tools/require_signing_os_context.sh",
+]
+
+PORTABLE_FILE_OVERRIDES = [
+    "schemas/path.protocol_release.schema.json",
+    "ops/params.constructor.example.json",
+    "ops/tools/export_fe_release.sh",
 ]
 
 PORTABLE_DIR_OVERRIDES = [
@@ -220,6 +229,14 @@ def overlay_portable_tool_overrides(source_repo_root: Path, workspace_root: Path
         shutil.copy2(src, dst)
         dst.chmod(0o755)
 
+    for rel in PORTABLE_FILE_OVERRIDES:
+        src = source_repo_root / rel
+        dst = workspace_root / rel
+        if not src.is_file():
+            raise SystemExit(f"Missing portable file override source: {src}")
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+
     for rel in PORTABLE_DIR_OVERRIDES:
         src = source_repo_root / rel
         dst = workspace_root / rel
@@ -316,7 +333,7 @@ Usage:
 Runs the PATH Signing OS phase in order.
 
 Each step auto-loads:
-  ~/Projects/SIGNING_OS/.opsec/path/env/<network>.env
+  ~/.opsec/path/env/<network>.env
 
 Override the env path with:
   PATH_SIGNING_ENV_FILE=/path/to/<network>.env ./bin/run-all
@@ -397,7 +414,7 @@ NETWORK=${NETWORK:-}
 LANE=${LANE:-deploy}
 CHECK_GH_AUTH=${CHECK_GH_AUTH:-0}
 GH_REPO=${GH_REPO:-inshell-art/path}
-OPSEC_ROOT=${OPSEC_ROOT:-~/Projects/SIGNING_OS/.opsec}
+OPSEC_ROOT=${OPSEC_ROOT:-~/.opsec}
 PACK_MANIFEST_JSON=${PATH_PACK_MANIFEST_JSON:-}
 ENV_FILE=${ENV_FILE:-}
 SIGNER_ALIAS=${SIGNER_ALIAS:-}
@@ -662,7 +679,7 @@ if [[ ! -d "$BUNDLE_DIR" ]]; then
   exit 2
 fi
 
-DEFAULT_ENV_FILE="$HOME/Projects/SIGNING_OS/.opsec/path/env/$NETWORK.env"
+DEFAULT_ENV_FILE="$HOME/.opsec/path/env/$NETWORK.env"
 ENV_FILE="${PATH_SIGNING_ENV_FILE:-$DEFAULT_ENV_FILE}"
 export PATH="$HOME/.foundry/bin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:/opt/homebrew/bin:$PATH"
 BUNDLED_NODE_ROOT="$PACK_ROOT/runtime/nodejs"
@@ -760,6 +777,7 @@ case "$STEP_NAME" in
     ;;
   apply)
     copy_if_exists "$BUNDLE_DIR/txs.json" "$ARTIFACT_ROOT/txs.json"
+    copy_if_exists "$BUNDLE_DIR/apply.plan.json" "$ARTIFACT_ROOT/apply.plan.json"
     copy_if_exists "$BUNDLE_DIR/deploy.deploy.log" "$ARTIFACT_ROOT/deploy.deploy.log"
     copy_if_exists "$BUNDLE_DIR/deployments" "$ARTIFACT_ROOT/deployments"
     copy_if_exists "$BUNDLE_DIR/snapshots" "$ARTIFACT_ROOT/snapshots"
@@ -817,7 +835,7 @@ exit "$STEP_EXIT"
 
 def runbook_text(manifest: dict) -> str:
     rpc_display = manifest.get("rpc_url") or manifest.get("rpc_host", "")
-    env_file = f"~/Projects/SIGNING_OS/.opsec/path/env/{manifest['network']}.env"
+    env_file = f"~/.opsec/path/env/{manifest['network']}.env"
     return f"""# PATH Signing Runbook
 
 This bundle is meant to run after the Signing OS host baseline is already green.
@@ -892,7 +910,7 @@ Do not:
 
 def environment_contract_text(manifest: dict) -> str:
     network = manifest["network"]
-    env_file = f"~/Projects/SIGNING_OS/.opsec/path/env/{network}.env"
+    env_file = f"~/.opsec/path/env/{network}.env"
     upper = network.upper()
     rpc_display = manifest.get("rpc_url") or manifest.get("rpc_host", "")
     return f"""# PATH Signing Environment Contract
@@ -955,9 +973,9 @@ def environment_example_text(manifest: dict) -> str:
     rpc_display = manifest.get("rpc_url") or manifest.get("rpc_host", "")
     return f"""# Example only. Replace the paths with real local Signing OS paths.
 export {upper}_RPC_URL="{rpc_display}"
-export SIGNING_OS_MARKER_FILE="$HOME/Projects/SIGNING_OS/.opsec/path/signing_os.marker"
-export {upper}_DEPLOY_KEYSTORE_JSON="$HOME/Projects/SIGNING_OS/.opsec/{network}/signers/deploy_sw_a/keystore.json"
-export {upper}_DEPLOY_KEYSTORE_PASSWORD_FILE="$HOME/Projects/SIGNING_OS/.opsec/{network}/password-files/deploy_sw_a.password.txt"
+export SIGNING_OS_MARKER_FILE="$HOME/.opsec/path/signing_os.marker"
+export {upper}_DEPLOY_KEYSTORE_JSON="$HOME/.opsec/{network}/signers/deploy_sw_a/keystore.json"
+export {upper}_DEPLOY_KEYSTORE_PASSWORD_FILE="$HOME/.opsec/{network}/password-files/deploy_sw_a.password.txt"
 
 # Forbidden for serious deploy lanes:
 # export {upper}_PRIVATE_KEY=...

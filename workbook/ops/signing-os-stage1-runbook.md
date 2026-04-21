@@ -26,12 +26,12 @@ Do not present Stage 1 as proof of:
 
 Use these paths for Stage 1:
 - repo checkout: `~/Projects/SIGNING_OS/path`
-- local secrets root: `~/Projects/SIGNING_OS/.opsec`
-- marker file: `~/Projects/SIGNING_OS/.opsec/path/signing_os.marker`
+- local secrets root: `~/.opsec`
+- marker file: `~/.opsec/path/signing_os.marker`
 - Signing OS transfer pack root: `~/Downloads/Signing-OS-Transfer-Pack`
 - env files:
-  - `~/Projects/SIGNING_OS/.opsec/path/env/sepolia.env`
-  - `~/Projects/SIGNING_OS/.opsec/path/env/mainnet.env`
+  - `~/.opsec/path/env/sepolia.env`
+  - `~/.opsec/path/env/mainnet.env`
 - downloaded handoff files pulled during the bounded maintenance-only SSH/rsync bridge window:
   - `~/Downloads/path-handoff.sepolia.public.env`
   - `~/Downloads/path-handoff.mainnet.public.env`
@@ -39,7 +39,7 @@ Use these paths for Stage 1:
   - `~/Downloads/path-handoff.signing-runtime.mainnet.env`
 
 When a generic doc shows `~/.opsec/...`, replace it with:
-- `~/Projects/SIGNING_OS/.opsec/...`
+- `~/.opsec/...`
 
 ## B) Trust boundary
 
@@ -125,15 +125,15 @@ Before trusting `cast` with real signer material, review and complete:
 ## D) Create local-only Stage-1 storage
 
 ```bash
-install -d -m 700 ~/Projects/SIGNING_OS/.opsec/path
-install -d -m 700 ~/Projects/SIGNING_OS/.opsec/path/env
-install -d -m 700 ~/Projects/SIGNING_OS/.opsec/path/params
-install -d -m 700 ~/Projects/SIGNING_OS/.opsec/sepolia/signers/deploy_sw_a
-install -d -m 700 ~/Projects/SIGNING_OS/.opsec/sepolia/password-files
-install -d -m 700 ~/Projects/SIGNING_OS/.opsec/mainnet/signers/deploy_sw_a
-install -d -m 700 ~/Projects/SIGNING_OS/.opsec/mainnet/password-files
-touch ~/Projects/SIGNING_OS/.opsec/path/signing_os.marker
-chmod 600 ~/Projects/SIGNING_OS/.opsec/path/signing_os.marker
+install -d -m 700 ~/.opsec/path
+install -d -m 700 ~/.opsec/path/env
+install -d -m 700 ~/.opsec/path/params
+install -d -m 700 ~/.opsec/sepolia/signers/deploy_sw_a
+install -d -m 700 ~/.opsec/sepolia/password-files
+install -d -m 700 ~/.opsec/mainnet/signers/deploy_sw_a
+install -d -m 700 ~/.opsec/mainnet/password-files
+touch ~/.opsec/path/signing_os.marker
+chmod 600 ~/.opsec/path/signing_os.marker
 ```
 
 These paths are outside the repo and must never be committed.
@@ -148,25 +148,25 @@ If this is the first serious use of `cast` on this Signing OS, complete:
 - [cast-verification-discipline.md](cast-verification-discipline.md)
 
 Example encrypted keystore paths:
-- `~/Projects/SIGNING_OS/.opsec/sepolia/signers/deploy_sw_a/keystore.json`
-- `~/Projects/SIGNING_OS/.opsec/mainnet/signers/deploy_sw_a/keystore.json`
+- `~/.opsec/sepolia/signers/deploy_sw_a/keystore.json`
+- `~/.opsec/mainnet/signers/deploy_sw_a/keystore.json`
 
 If generating a fresh signer locally with Foundry:
 
 ```bash
-cast wallet new ~/Projects/SIGNING_OS/.opsec/sepolia/signers/deploy_sw_a keystore.json
-cast wallet new ~/Projects/SIGNING_OS/.opsec/mainnet/signers/deploy_sw_a keystore.json
-chmod 600 ~/Projects/SIGNING_OS/.opsec/sepolia/signers/deploy_sw_a/keystore.json
-chmod 600 ~/Projects/SIGNING_OS/.opsec/mainnet/signers/deploy_sw_a/keystore.json
+cast wallet new ~/.opsec/sepolia/signers/deploy_sw_a keystore.json
+cast wallet new ~/.opsec/mainnet/signers/deploy_sw_a keystore.json
+chmod 600 ~/.opsec/sepolia/signers/deploy_sw_a/keystore.json
+chmod 600 ~/.opsec/mainnet/signers/deploy_sw_a/keystore.json
 ```
 
 Create local password files with an editor, not a shell literal:
 
 ```bash
-$EDITOR ~/Projects/SIGNING_OS/.opsec/sepolia/password-files/deploy_sw_a.password.txt
-$EDITOR ~/Projects/SIGNING_OS/.opsec/mainnet/password-files/deploy_sw_a.password.txt
-chmod 600 ~/Projects/SIGNING_OS/.opsec/sepolia/password-files/deploy_sw_a.password.txt
-chmod 600 ~/Projects/SIGNING_OS/.opsec/mainnet/password-files/deploy_sw_a.password.txt
+$EDITOR ~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
+$EDITOR ~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
+chmod 600 ~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
+chmod 600 ~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
 ```
 
 Build local env files from the Dev OS runtime handoff file pulled to `~/Downloads/` during the bounded maintenance-only bridge window.
@@ -178,13 +178,13 @@ Sepolia:
 set -a
 source "$HOME/Downloads/path-handoff.signing-runtime.sepolia.env"
 set +a
-cat > ~/Projects/SIGNING_OS/.opsec/path/env/sepolia.env <<EOF
+cat > ~/.opsec/path/env/sepolia.env <<EOF
 SEPOLIA_RPC_URL=$SEPOLIA_RPC_URL
-SEPOLIA_DEPLOY_KEYSTORE_JSON=~/Projects/SIGNING_OS/.opsec/sepolia/signers/deploy_sw_a/keystore.json
-SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE=~/Projects/SIGNING_OS/.opsec/sepolia/password-files/deploy_sw_a.password.txt
-SIGNING_OS_MARKER_FILE=~/Projects/SIGNING_OS/.opsec/path/signing_os.marker
+SEPOLIA_DEPLOY_KEYSTORE_JSON=~/.opsec/sepolia/signers/deploy_sw_a/keystore.json
+SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
+SIGNING_OS_MARKER_FILE=~/.opsec/path/signing_os.marker
 EOF
-chmod 600 ~/Projects/SIGNING_OS/.opsec/path/env/sepolia.env
+chmod 600 ~/.opsec/path/env/sepolia.env
 unset SEPOLIA_RPC_URL
 ```
 
@@ -194,13 +194,13 @@ Mainnet:
 set -a
 source "$HOME/Downloads/path-handoff.signing-runtime.mainnet.env"
 set +a
-cat > ~/Projects/SIGNING_OS/.opsec/path/env/mainnet.env <<EOF
+cat > ~/.opsec/path/env/mainnet.env <<EOF
 MAINNET_RPC_URL=$MAINNET_RPC_URL
-MAINNET_DEPLOY_KEYSTORE_JSON=~/Projects/SIGNING_OS/.opsec/mainnet/signers/deploy_sw_a/keystore.json
-MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE=~/Projects/SIGNING_OS/.opsec/mainnet/password-files/deploy_sw_a.password.txt
-SIGNING_OS_MARKER_FILE=~/Projects/SIGNING_OS/.opsec/path/signing_os.marker
+MAINNET_DEPLOY_KEYSTORE_JSON=~/.opsec/mainnet/signers/deploy_sw_a/keystore.json
+MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
+SIGNING_OS_MARKER_FILE=~/.opsec/path/signing_os.marker
 EOF
-chmod 600 ~/Projects/SIGNING_OS/.opsec/path/env/mainnet.env
+chmod 600 ~/.opsec/path/env/mainnet.env
 unset MAINNET_RPC_URL
 ```
 
@@ -208,18 +208,18 @@ Sepolia env shape:
 
 ```bash
 SEPOLIA_RPC_URL=https://<your-sepolia-rpc>
-SEPOLIA_DEPLOY_KEYSTORE_JSON=~/Projects/SIGNING_OS/.opsec/sepolia/signers/deploy_sw_a/keystore.json
-SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE=~/Projects/SIGNING_OS/.opsec/sepolia/password-files/deploy_sw_a.password.txt
-SIGNING_OS_MARKER_FILE=~/Projects/SIGNING_OS/.opsec/path/signing_os.marker
+SEPOLIA_DEPLOY_KEYSTORE_JSON=~/.opsec/sepolia/signers/deploy_sw_a/keystore.json
+SEPOLIA_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
+SIGNING_OS_MARKER_FILE=~/.opsec/path/signing_os.marker
 ```
 
 Mainnet env shape:
 
 ```bash
 MAINNET_RPC_URL=https://<your-mainnet-rpc>
-MAINNET_DEPLOY_KEYSTORE_JSON=~/Projects/SIGNING_OS/.opsec/mainnet/signers/deploy_sw_a/keystore.json
-MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE=~/Projects/SIGNING_OS/.opsec/mainnet/password-files/deploy_sw_a.password.txt
-SIGNING_OS_MARKER_FILE=~/Projects/SIGNING_OS/.opsec/path/signing_os.marker
+MAINNET_DEPLOY_KEYSTORE_JSON=~/.opsec/mainnet/signers/deploy_sw_a/keystore.json
+MAINNET_DEPLOY_KEYSTORE_PASSWORD_FILE=~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
+SIGNING_OS_MARKER_FILE=~/.opsec/path/signing_os.marker
 ```
 
 Rules:
@@ -230,10 +230,10 @@ Rules:
 Optional sanity checks:
 
 ```bash
-[[ -f "$HOME/Projects/SIGNING_OS/.opsec/sepolia/signers/deploy_sw_a/keystore.json" ]] && echo "sepolia keystore ok"
-[[ -f "$HOME/Projects/SIGNING_OS/.opsec/sepolia/password-files/deploy_sw_a.password.txt" ]] && echo "sepolia password file ok"
-[[ -f "$HOME/Projects/SIGNING_OS/.opsec/path/env/sepolia.env" ]] && echo "sepolia env ok"
-[[ -f "$HOME/Projects/SIGNING_OS/.opsec/path/signing_os.marker" ]] && echo "signing os marker ok"
+[[ -f "$HOME/.opsec/sepolia/signers/deploy_sw_a/keystore.json" ]] && echo "sepolia keystore ok"
+[[ -f "$HOME/.opsec/sepolia/password-files/deploy_sw_a.password.txt" ]] && echo "sepolia password file ok"
+[[ -f "$HOME/.opsec/path/env/sepolia.env" ]] && echo "sepolia env ok"
+[[ -f "$HOME/.opsec/path/signing_os.marker" ]] && echo "signing os marker ok"
 ```
 
 ## F) If the deploy signer is new or rotated
@@ -260,16 +260,16 @@ Sepolia:
 
 ```bash
 cast wallet address \
-  --keystore ~/Projects/SIGNING_OS/.opsec/sepolia/signers/deploy_sw_a/keystore.json \
-  --password-file ~/Projects/SIGNING_OS/.opsec/sepolia/password-files/deploy_sw_a.password.txt
+  --keystore ~/.opsec/sepolia/signers/deploy_sw_a/keystore.json \
+  --password-file ~/.opsec/sepolia/password-files/deploy_sw_a.password.txt
 ```
 
 Mainnet:
 
 ```bash
 cast wallet address \
-  --keystore ~/Projects/SIGNING_OS/.opsec/mainnet/signers/deploy_sw_a/keystore.json \
-  --password-file ~/Projects/SIGNING_OS/.opsec/mainnet/password-files/deploy_sw_a.password.txt
+  --keystore ~/.opsec/mainnet/signers/deploy_sw_a/keystore.json \
+  --password-file ~/.opsec/mainnet/password-files/deploy_sw_a.password.txt
 ```
 
 3. Derive it a second time and confirm the same result.
@@ -350,13 +350,13 @@ Then run:
 Sepolia:
 
 ```bash
-OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:signingos
+OPSEC_ROOT=~/.opsec CHECK_GH_AUTH=1 NETWORK=sepolia LANE=deploy npm run ops:preflight:signingos
 ```
 
 Mainnet:
 
 ```bash
-OPSEC_ROOT=~/Projects/SIGNING_OS/.opsec CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:signingos
+OPSEC_ROOT=~/.opsec CHECK_GH_AUTH=1 NETWORK=mainnet LANE=deploy npm run ops:preflight:signingos
 ```
 
 This preflight checks:
@@ -421,7 +421,7 @@ Sepolia:
 
 ```bash
 set -a
-source ~/Projects/SIGNING_OS/.opsec/path/env/sepolia.env
+source ~/.opsec/path/env/sepolia.env
 set +a
 unset SEPOLIA_PRIVATE_KEY
 ```
@@ -430,7 +430,7 @@ Mainnet:
 
 ```bash
 set -a
-source ~/Projects/SIGNING_OS/.opsec/path/env/mainnet.env
+source ~/.opsec/path/env/mainnet.env
 set +a
 unset MAINNET_PRIVATE_KEY
 ```
