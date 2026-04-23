@@ -26,8 +26,8 @@ For the Signing OS half, stop here and use the selected stage runbook only.
 - if the deploy signer is new or rotated, complete the selected Signing OS stage runbook setup and `signer-enrollment-runbook.md` first; push policy from Dev OS before any serious Dev OS preflight or bundle creation
 - choose the intended Signing OS Sepolia provider on Dev OS first; if its host is new, add it to `rpc_host_allowlist` before the first serious run
 - constructor params file exists at `~/.opsec/path/params/params.sepolia.deploy.json`
+- admin in deploy params is the intended final ADMIN Ledger-backed contract authority address
 - treasury in deploy params is the intended Treasury recipient address
-- if the deploy path still uses a later authority handoff, identify the intended final ADMIN Ledger address before the run
 - final custody model is already chosen:
   - `ADMIN` is a Ledger-backed contract authority account
   - `TREASURY` is a Ledger-backed recipient account
@@ -57,6 +57,8 @@ $EDITOR ~/.opsec/path/params/params.sepolia.deploy.json
 #   "baseUri": "",
 #   # Set exactly one of openTime or startDelaySec.
 #   "startDelaySec": "600",
+#   "admin": "0xYourFinalAdminLedgerAddress",
+#   "adminSignerRef": "SEP-ADMIN",
 #   "k": "600",
 #   "genesisPrice": "1000",
 #   "genesisFloor": "900",

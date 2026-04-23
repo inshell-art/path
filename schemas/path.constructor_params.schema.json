@@ -7,6 +7,7 @@
     "name",
     "symbol",
     "baseUri",
+    "admin",
     "k",
     "genesisPrice",
     "genesisFloor",
@@ -27,6 +28,13 @@
     },
     "baseUri": {
       "type": "string"
+    },
+    "admin": {
+      "$ref": "#/$defs/nonZeroAddress"
+    },
+    "adminSignerRef": {
+      "type": "string",
+      "minLength": 1
     },
     "openTime": {
       "$ref": "#/$defs/nonNegativeUint"

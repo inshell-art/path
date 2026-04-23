@@ -1,6 +1,7 @@
 # Handoff and lockdown procedure template
 
 Purpose: transfer authority away from a temporary deploy/admin path and revoke deployer privileges.
+For new deploys, prefer deploy-integrated authority finalization; use this lane for older deploys or corrective changes.
 
 Prereqs:
 - The final ADMIN Ledger address is known and verified.

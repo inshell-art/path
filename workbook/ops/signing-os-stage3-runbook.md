@@ -449,6 +449,6 @@ Stage 3 only counts as passed if:
 - `audit_signoff.json` exists
 - final no-Safe authority/custody shape was used
 - treasury in deploy params was the intended Treasury recipient address for the target network
-- the intended final ADMIN Ledger address was identified before the run
+- admin in deploy params was the intended final ADMIN Ledger-backed contract authority address for the target network
 - final custody remained no-Safe and Ledger-only
 - Signing OS online use stayed within the bounded-online rule

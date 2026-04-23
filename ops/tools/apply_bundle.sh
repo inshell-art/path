@@ -519,10 +519,13 @@ if not signer_address_used:
 
 txs = []
 if execution_mode == "deployed":
-    deploy_txs = deployment.get("deployTxs", {})
-    for _, tx_hash in deploy_txs.items():
-        if isinstance(tx_hash, str) and tx_hash.startswith("0x") and len(tx_hash) > 2:
-            txs.append(tx_hash)
+    for tx_group_key in ("deployTxs", "wiringTxs", "authorityTxs"):
+        tx_group = deployment.get(tx_group_key, {})
+        if not isinstance(tx_group, dict):
+            continue
+        for _, tx_hash in tx_group.items():
+            if isinstance(tx_hash, str) and tx_hash.startswith("0x") and len(tx_hash) > 2:
+                txs.append(tx_hash)
 elif execution_mode == "stub":
     txs = ["0xSTUB_TX"]
 

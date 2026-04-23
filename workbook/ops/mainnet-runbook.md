@@ -21,8 +21,8 @@ For the Signing OS half, stop here and use the selected stage runbook only.
 - if the deploy signer is new or rotated, complete the selected Signing OS stage runbook setup and `signer-enrollment-runbook.md` first; push policy from Dev OS before any serious Dev OS preflight or bundle creation
 - choose the intended Signing OS Mainnet provider on Dev OS first; if its host is new, add it to `rpc_host_allowlist` before the first serious run
 - mainnet policy file configured and reviewed
+- admin in deploy params is the intended final ADMIN Ledger-backed contract authority address
 - treasury in deploy params is the intended Treasury recipient address
-- if the deploy path still uses a later authority handoff, identify the intended final ADMIN Ledger address before the run
 - final custody model is already chosen:
   - `ADMIN` is a Ledger-backed contract authority account
   - `TREASURY` is a Ledger-backed recipient account
@@ -45,6 +45,11 @@ install -d -m 700 ~/.opsec/path
 install -d -m 700 ~/.opsec/path/params
 install -d -m 700 ~/.opsec/path/handoff
 $EDITOR ~/.opsec/path/params/params.mainnet.deploy.json
+# Required constructor params include:
+# - admin: final ADMIN Ledger-backed contract authority address
+# - adminSignerRef: MAINNET-ADMIN
+# - treasury: final TREASURY recipient address
+# - treasurySignerRef: MAINNET-TREASURY
 chmod 600 ~/.opsec/path/params/params.mainnet.deploy.json
 
 $EDITOR ~/.opsec/path/handoff/path-handoff.signing-runtime.mainnet.env

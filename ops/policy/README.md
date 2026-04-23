@@ -23,8 +23,9 @@ Signer semantics:
 - `MAP-MAIN` should hold structural signer/custody facts; `DRILL-LOG` should hold recurring checks and timestamps
 
 Lane-shape guidance:
-- `deploy` may stay on a deploy-only signer alias such as `*_DEPLOY_SW_A`
-- `handoff` is transitional only; use it when moving authority away from a temporary deploy signer or old admin path
+- `deploy` may stay on a deploy-only signer alias such as `*_DEPLOY_SW_A`, but constructor params must carry the final `ADMIN` address
+- `deploy` should finish with final ADMIN authority already assigned and the deployer removed from steady-state admin/owner roles
+- `handoff` is transitional only; use it for older deploys, emergency correction, or moving authority away from a temporary deploy signer or old admin path
 - `govern`, `operate`, and `emergency` should resolve to final `ADMIN` signer identities
 - `treasury` should resolve to final `TREASURY` signer identities
 

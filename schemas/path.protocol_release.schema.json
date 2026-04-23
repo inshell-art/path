@@ -13,6 +13,7 @@
     "deploy_run_id",
     "release_tier",
     "deployer",
+    "admin",
     "treasury",
     "payment_token",
     "contracts",
@@ -25,7 +26,7 @@
     "generated_at"
   ],
   "properties": {
-    "schema_version": {"type": "integer", "const": 1},
+    "schema_version": {"type": "integer", "const": 2},
     "protocol": {"type": "string", "const": "path"},
     "network": {"type": "string", "enum": ["devnet", "sepolia", "mainnet"]},
     "chain_id": {"type": "integer", "minimum": 0},
@@ -33,6 +34,7 @@
     "deploy_run_id": {"type": "string", "minLength": 1},
     "release_tier": {"type": "string", "enum": ["temporary", "candidate", "final"]},
     "deployer": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
+    "admin": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
     "treasury": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
     "payment_token": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
     "contracts": {

@@ -11,6 +11,7 @@ const REPO_ROOT = path.resolve(here, "../..");
 const EIP1967_IMPLEMENTATION_SLOT = "0x360894A13BA1A3210667C828492DB98DCA3E2076CC3735A920A3CA505D382BBC";
 const MOVEMENT_LABELS = ["THOUGHT", "WILL", "AWA"];
 const MOVEMENT_MINTER_SYMBOLS = {
+  "@admin": "admin",
   "@deployer": "deployer",
   "@pathNft": "pathNft",
   "@pathMinter": "pathMinter",
@@ -195,6 +196,7 @@ function contractAddressBySymbol(symbol, deployment, ethers) {
   const key = MOVEMENT_MINTER_SYMBOLS[symbol];
   if (key === null) return ethers.ZeroAddress;
   if (!key) return null;
+  if (key === "admin") return deployment.admin ?? deployment.authority?.admin ?? deployment.deployer;
   if (key === "deployer") return deployment.deployer;
   return deployment.contracts?.[key] ?? null;
 }
@@ -496,11 +498,12 @@ async function main() {
   const minterDefaultAdminRole = await minter.DEFAULT_ADMIN_ROLE();
   const salesRole = await minter.SALES_ROLE();
   const frozenSalesAdminRole = await minter.FROZEN_SALES_ADMIN_ROLE();
+  const expectedAdmin = deployment.admin ?? deployment.authority?.admin ?? deployment.deployer;
 
   const roleExpectations = {
-    nftDefaultAdmin: [deployment.deployer],
+    nftDefaultAdmin: [expectedAdmin],
     nftMinterRole: [deployment.contracts.pathMinter],
-    minterDefaultAdmin: [deployment.deployer],
+    minterDefaultAdmin: [expectedAdmin],
     minterSalesRole: [deployment.contracts.pathMinterAdapter],
     minterFrozenSalesAdminRole: []
   };
@@ -512,7 +515,7 @@ async function main() {
     minterFrozenSalesAdminRole: roleMembers(minterRoleMembers, frozenSalesAdminRole)
   };
   const roleOwnerHygieneOk =
-    lower(adapterOwner) === lower(deployment.deployer)
+    lower(adapterOwner) === lower(expectedAdmin)
     && sameAddressSet(roleObservations.nftDefaultAdmin, roleExpectations.nftDefaultAdmin)
     && sameAddressSet(roleObservations.nftMinterRole, roleExpectations.nftMinterRole)
     && sameAddressSet(roleObservations.minterDefaultAdmin, roleExpectations.minterDefaultAdmin)
@@ -710,6 +713,7 @@ async function main() {
         allowedSignerAliases,
         signerAliasMap,
         deploymentDeployer: deployment.deployer,
+        deploymentAdmin: expectedAdmin,
         mappedSignerAddresses,
         signerAddressForChecks,
         configuredSigner,
@@ -738,7 +742,7 @@ async function main() {
       },
       roleOwnerHygiene: {
         adapterOwner,
-        expectedAdapterOwner: deployment.deployer,
+        expectedAdapterOwner: expectedAdmin,
         expected: roleExpectations,
         observed: roleObservations
       },

@@ -3,6 +3,8 @@
   "symbol": "PATH",
   "baseUri": "",
   "startDelaySec": "600",
+  "admin": "0x2222222222222222222222222222222222222222",
+  "adminSignerRef": "NETWORK-ADMIN",
   "k": "600",
   "genesisPrice": "1000",
   "genesisFloor": "900",

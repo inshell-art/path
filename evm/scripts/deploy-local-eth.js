@@ -23,6 +23,8 @@ const CLI_FLAG_MAP = {
   "base-uri": "baseUri",
   "open-time": "openTime",
   "start-delay-sec": "startDelaySec",
+  admin: "admin",
+  "admin-signer-ref": "adminSignerRef",
   k: "k",
   "genesis-price": "genesisPrice",
   "genesis-floor": "genesisFloor",
@@ -41,6 +43,8 @@ const ENV_KEY_MAP = {
   DEPLOY_BASE_URI: "baseUri",
   DEPLOY_OPEN_TIME: "openTime",
   DEPLOY_START_DELAY_SEC: "startDelaySec",
+  DEPLOY_ADMIN: "admin",
+  DEPLOY_ADMIN_SIGNER_REF: "adminSignerRef",
   DEPLOY_K: "k",
   DEPLOY_GENESIS_PRICE: "genesisPrice",
   DEPLOY_GENESIS_FLOOR: "genesisFloor",
@@ -59,6 +63,8 @@ const NPM_CONFIG_KEY_MAP = {
   npm_config_deploy_base_uri: "baseUri",
   npm_config_deploy_open_time: "openTime",
   npm_config_deploy_start_delay_sec: "startDelaySec",
+  npm_config_deploy_admin: "admin",
+  npm_config_deploy_admin_signer_ref: "adminSignerRef",
   npm_config_deploy_k: "k",
   npm_config_deploy_genesis_price: "genesisPrice",
   npm_config_deploy_genesis_floor: "genesisFloor",
@@ -151,6 +157,8 @@ function normalizeFileConfig(raw) {
     baseUri: pickValue(source, ["baseUri", "base_uri", "base-uri"]),
     openTime: pickValue(source, ["openTime", "open_time", "open-time"]),
     startDelaySec: pickValue(source, ["startDelaySec", "start_delay_sec", "start-delay-sec"]),
+    admin: pickValue(source, ["admin", "adminAddress", "admin_address", "admin-address"]),
+    adminSignerRef: pickValue(source, ["adminSignerRef", "admin_signer_ref", "admin-signer-ref"]),
     k: pickValue(source, ["k"]),
     genesisPrice: pickValue(source, ["genesisPrice", "genesis_price", "genesis-price"]),
     genesisFloor: pickValue(source, ["genesisFloor", "genesis_floor", "genesis-floor"]),
@@ -229,6 +237,7 @@ function resolveDeployConfig({
   fileConfig,
   ethers,
   fallbackTreasury,
+  fallbackAdmin,
   networkName,
   chainId
 }) {
@@ -271,6 +280,35 @@ function resolveDeployConfig({
   );
   merged.paymentToken = parseAddress(String(paymentTokenInput), "paymentToken", ethers);
   merged.treasury = parseAddress(String(treasuryInput), "treasury", ethers, { allowZero: false });
+
+  const adminFallback = isLocalLikeNetwork(networkName, chainId) ? fallbackAdmin : undefined;
+  const adminInput = coalesce(
+    cliConfig.admin,
+    npmConfig.admin,
+    envConfig.admin,
+    fileConfig.admin,
+    adminFallback
+  );
+  if (adminInput === undefined || adminInput === null || String(adminInput).trim() === "") {
+    throw new Error("ADMIN_REQUIRED: provide admin for contract authority");
+  }
+  merged.admin = parseAddress(String(adminInput), "admin", ethers, { allowZero: false });
+
+  const adminSignerRefInput = coalesce(
+    cliConfig.adminSignerRef,
+    npmConfig.adminSignerRef,
+    envConfig.adminSignerRef,
+    fileConfig.adminSignerRef
+  );
+  if (adminSignerRefInput !== undefined && adminSignerRefInput !== null) {
+    if (typeof adminSignerRefInput !== "string" || adminSignerRefInput.trim().length === 0) {
+      throw new Error("adminSignerRef must be a non-empty string when provided");
+    }
+    merged.adminSignerRef = adminSignerRefInput.trim();
+  } else {
+    merged.adminSignerRef = null;
+  }
+
   const treasurySignerRefInput = coalesce(
     cliConfig.treasurySignerRef,
     npmConfig.treasurySignerRef,
@@ -389,9 +427,15 @@ async function main() {
     fileConfig,
     ethers,
     fallbackTreasury: defaultTreasurySigner?.address ?? deployer.address,
+    fallbackAdmin: deployer.address,
     networkName: conn.networkName,
     chainId: networkInfo.chainId
   });
+
+  const localLikeNetwork = isLocalLikeNetwork(conn.networkName, networkInfo.chainId);
+  if (!localLikeNetwork && cfg.admin.toLowerCase() === deployer.address.toLowerCase()) {
+    throw new Error("ADMIN_MUST_DIFFER_FROM_DEPLOYER for serious deploy lanes");
+  }
 
   const PathNFT = await ethers.getContractFactory("PathNFT", deployer);
   const nft = await PathNFT.deploy(
@@ -438,11 +482,53 @@ async function main() {
   );
   await auction.waitForDeployment();
 
-  await (await adapter.setAuction(await auction.getAddress())).wait();
-  await (await adapter.freezeWiring()).wait();
-  await (await nft.grantRole(minterRole, await minter.getAddress())).wait();
-  await (await minter.grantRole(salesRole, await adapter.getAddress())).wait();
-  await (await minter.freezeSalesCaller(await adapter.getAddress())).wait();
+  const wiringTxs = {};
+  const authorityTxs = {};
+
+  const setAuctionTx = await adapter.setAuction(await auction.getAddress());
+  await setAuctionTx.wait();
+  wiringTxs.adapterSetAuction = setAuctionTx.hash;
+
+  const freezeWiringTx = await adapter.freezeWiring();
+  await freezeWiringTx.wait();
+  wiringTxs.adapterFreezeWiring = freezeWiringTx.hash;
+
+  const grantNftMinterTx = await nft.grantRole(minterRole, await minter.getAddress());
+  await grantNftMinterTx.wait();
+  wiringTxs.nftGrantMinterRole = grantNftMinterTx.hash;
+
+  const grantMinterSalesTx = await minter.grantRole(salesRole, await adapter.getAddress());
+  await grantMinterSalesTx.wait();
+  wiringTxs.minterGrantSalesRole = grantMinterSalesTx.hash;
+
+  const freezeSalesCallerTx = await minter.freezeSalesCaller(await adapter.getAddress());
+  await freezeSalesCallerTx.wait();
+  wiringTxs.minterFreezeSalesCaller = freezeSalesCallerTx.hash;
+
+  const deployerIsFinalAdmin = cfg.admin.toLowerCase() === deployer.address.toLowerCase();
+  const defaultAdminRole = await nft.DEFAULT_ADMIN_ROLE();
+  const minterDefaultAdminRole = await minter.DEFAULT_ADMIN_ROLE();
+  if (!deployerIsFinalAdmin) {
+    const grantNftAdminTx = await nft.grantRole(defaultAdminRole, cfg.admin);
+    await grantNftAdminTx.wait();
+    authorityTxs.nftGrantDefaultAdmin = grantNftAdminTx.hash;
+
+    const renounceNftAdminTx = await nft.renounceRole(defaultAdminRole, deployer.address);
+    await renounceNftAdminTx.wait();
+    authorityTxs.nftRenounceDeployerDefaultAdmin = renounceNftAdminTx.hash;
+
+    const grantMinterAdminTx = await minter.grantRole(minterDefaultAdminRole, cfg.admin);
+    await grantMinterAdminTx.wait();
+    authorityTxs.minterGrantDefaultAdmin = grantMinterAdminTx.hash;
+
+    const renounceMinterAdminTx = await minter.renounceRole(minterDefaultAdminRole, deployer.address);
+    await renounceMinterAdminTx.wait();
+    authorityTxs.minterRenounceDeployerDefaultAdmin = renounceMinterAdminTx.hash;
+
+    const transferAdapterOwnerTx = await adapter.transferOwnership(cfg.admin);
+    await transferAdapterOwnerTx.wait();
+    authorityTxs.adapterTransferOwnership = transferAdapterOwnerTx.hash;
+  }
 
   const contractAddresses = {
     pathNft: await nft.getAddress(),
@@ -467,11 +553,21 @@ async function main() {
     chainId: Number(networkInfo.chainId),
     launchResolutionBlockTimestamp: resolvedLaunch.latestBlockTimestamp.toString(),
     deployer: deployer.address,
+    admin: cfg.admin,
     treasury: cfg.treasury,
     paymentToken: cfg.paymentToken,
     contracts: contractAddresses,
     deployTxs,
+    wiringTxs,
+    authorityTxs,
     codeHashes,
+    authority: {
+      model: deployerIsFinalAdmin ? "deployer-is-final-admin" : "deployer-wired-then-final-admin",
+      deployer: deployer.address,
+      admin: cfg.admin,
+      deployerIsFinalAdmin,
+      finalizedAtDeploy: true
+    },
     config: {
       name: cfg.name,
       symbol: cfg.symbol,
@@ -496,18 +592,27 @@ async function main() {
       env: Object.fromEntries(Object.keys(envConfig).map((key) => [key, envConfig[key]]))
     },
     roles: {
+      defaultAdminRole,
       minterRole,
       salesRole
     }
   };
 
-  if (cfg.treasurySignerRef) {
-    deployment.references = {
-      treasury: {
-        address: cfg.treasury,
-        SIGNER_REF: cfg.treasurySignerRef
-      }
+  const references = {};
+  if (cfg.adminSignerRef) {
+    references.admin = {
+      address: cfg.admin,
+      SIGNER_REF: cfg.adminSignerRef
     };
+  }
+  if (cfg.treasurySignerRef) {
+    references.treasury = {
+      address: cfg.treasury,
+      SIGNER_REF: cfg.treasurySignerRef
+    };
+  }
+  if (Object.keys(references).length > 0) {
+    deployment.references = references;
   }
 
   const outFile = process.env.DEPLOY_OUT_FILE
@@ -517,6 +622,11 @@ async function main() {
   await fs.writeFile(outFile, `${JSON.stringify(deployment, null, 2)}\n`, "utf8");
 
   console.log(`[deploy-local-eth] deployment saved to ${outFile}`);
+  if (cfg.adminSignerRef) {
+    console.log(
+      `[deploy-local-eth] admin ref address=${cfg.admin} SIGNER_REF=${cfg.adminSignerRef}`
+    );
+  }
   if (cfg.treasurySignerRef) {
     console.log(
       `[deploy-local-eth] treasury ref address=${cfg.treasury} SIGNER_REF=${cfg.treasurySignerRef}`

@@ -228,6 +228,7 @@ contracts = {
     "path_minter_adapter": deploy["contracts"]["pathMinterAdapter"],
     "pulse_auction": deploy["contracts"]["pulseAuction"],
 }
+admin = deploy.get("admin") or deploy.get("authority", {}).get("admin") or deploy["deployer"]
 
 addresses = {
     **contracts,
@@ -238,6 +239,8 @@ addresses = {
 for key, value in addresses.items():
     if not addr_re.match(value):
         raise SystemExit(f"invalid address for {key}: {value}")
+if not addr_re.match(admin):
+    raise SystemExit(f"invalid address for admin: {admin}")
 
 code_hashes = {
     "path_nft": deploy["codeHashes"]["pathNft"],
@@ -250,7 +253,7 @@ for key, value in code_hashes.items():
         raise SystemExit(f"invalid code hash for {key}: {value}")
 
 manifest = {
-    "schema_version": 1,
+    "schema_version": 2,
     "protocol": "path",
     "network": network,
     "chain_id": int(deploy["chainId"]),
@@ -258,6 +261,7 @@ manifest = {
     "deploy_run_id": run_id,
     "release_tier": release_tier,
     "deployer": deploy["deployer"],
+    "admin": admin,
     "treasury": deploy["treasury"],
     "payment_token": deploy["paymentToken"],
     "contracts": contracts,
@@ -349,7 +353,7 @@ for value in addresses.values():
     if not addr_re.match(value):
         raise SystemExit(f"invalid exported address: {value}")
 
-if manifest.get("schema_version") != 1:
+if manifest.get("schema_version") != 2:
     raise SystemExit("invalid schema_version")
 if manifest.get("protocol") != "path":
     raise SystemExit("invalid protocol")
@@ -357,6 +361,10 @@ if manifest.get("network") not in {"devnet", "sepolia", "mainnet"}:
     raise SystemExit("invalid network")
 if not hash40_re.match(manifest.get("repo_commit", "")):
     raise SystemExit("invalid repo_commit")
+if not addr_re.match(manifest.get("deployer", "")):
+    raise SystemExit("invalid deployer")
+if not addr_re.match(manifest.get("admin", "")):
+    raise SystemExit("invalid admin")
 contracts = manifest.get("contracts", {})
 required_contracts = {"path_nft", "path_minter", "path_minter_adapter", "pulse_auction"}
 if set(contracts.keys()) != required_contracts:

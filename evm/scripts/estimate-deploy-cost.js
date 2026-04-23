@@ -12,8 +12,6 @@ const NAME = "PATH NFT";
 const SYMBOL = "PATH";
 const BASE_URI = "";
 
-const DUMMY_ADDRESS = "0x000000000000000000000000000000000000dEaD";
-
 async function resolveOpenTime(provider) {
   const latestBlock = await provider.getBlock("latest");
   if (!latestBlock) {
@@ -139,32 +137,50 @@ function printRow(label, gasUsed, gasPriceGwei, ethUsd) {
   );
 }
 
+async function deploymentGas(contract) {
+  const tx = contract.deploymentTransaction();
+  if (!tx) {
+    throw new Error("missing deployment transaction");
+  }
+  const receipt = await tx.wait();
+  if (!receipt) {
+    throw new Error("missing deployment receipt");
+  }
+  return receipt.gasUsed;
+}
+
+async function txGas(txPromise) {
+  const tx = await txPromise;
+  const receipt = await tx.wait();
+  if (!receipt) {
+    throw new Error("missing transaction receipt");
+  }
+  return receipt.gasUsed;
+}
+
 async function estimateDeployments(ethers, deployer) {
   const openTime = await resolveOpenTime(ethers.provider);
 
   const Nft = await ethers.getContractFactory("PathNFT", deployer);
-  const nftTx = await Nft.getDeployTransaction(deployer.address, NAME, SYMBOL, BASE_URI);
-  nftTx.from = deployer.address;
-  const nftGas = await ethers.provider.estimateGas(nftTx);
+  const nft = await Nft.deploy(deployer.address, NAME, SYMBOL, BASE_URI);
+  const nftGas = await deploymentGas(nft);
 
   const Minter = await ethers.getContractFactory("PathMinter", deployer);
-  const minterTx = await Minter.getDeployTransaction(deployer.address, DUMMY_ADDRESS, FIRST_PUBLIC_ID);
-  minterTx.from = deployer.address;
-  const minterGas = await ethers.provider.estimateGas(minterTx);
+  const minter = await Minter.deploy(deployer.address, await nft.getAddress(), FIRST_PUBLIC_ID);
+  const minterGas = await deploymentGas(minter);
 
   const Adapter = await ethers.getContractFactory("PathMinterAdapter", deployer);
-  const adapterTx = await Adapter.getDeployTransaction(
+  const adapter = await Adapter.deploy(
     deployer.address,
-    DUMMY_ADDRESS,
-    DUMMY_ADDRESS,
+    ethers.ZeroAddress,
+    await minter.getAddress(),
     FIRST_PUBLIC_ID,
     EPOCH_BASE
   );
-  adapterTx.from = deployer.address;
-  const adapterGas = await ethers.provider.estimateGas(adapterTx);
+  const adapterGas = await deploymentGas(adapter);
 
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);
-  const auctionTx = await Auction.getDeployTransaction(
+  const auction = await Auction.deploy(
     openTime,
     K,
     GENESIS_PRICE,
@@ -172,10 +188,9 @@ async function estimateDeployments(ethers, deployer) {
     PTS,
     ethers.ZeroAddress,
     deployer.address,
-    DUMMY_ADDRESS
+    await adapter.getAddress()
   );
-  auctionTx.from = deployer.address;
-  const auctionGas = await ethers.provider.estimateGas(auctionTx);
+  const auctionGas = await deploymentGas(auction);
 
   const totalGas = nftGas + minterGas + adapterGas + auctionGas;
 
@@ -188,7 +203,7 @@ async function estimateDeployments(ethers, deployer) {
   };
 }
 
-async function estimateWiringGas(ethers, deployer) {
+async function estimateWiringAndAuthorityGas(ethers, deployer, finalAdmin) {
   const openTime = await resolveOpenTime(ethers.provider);
 
   const Nft = await ethers.getContractFactory("PathNFT", deployer);
@@ -224,15 +239,28 @@ async function estimateWiringGas(ethers, deployer) {
 
   const minterRole = ethers.id("MINTER_ROLE");
   const salesRole = ethers.id("SALES_ROLE");
+  const defaultAdminRole = await nft.DEFAULT_ADMIN_ROLE();
+  const minterDefaultAdminRole = await minter.DEFAULT_ADMIN_ROLE();
 
-  const setAuctionGas = await adapter.setAuction.estimateGas(await auction.getAddress());
-  const freezeWiringGas = await adapter.freezeWiring.estimateGas();
-  const grantMinterRoleGas = await nft.grantRole.estimateGas(minterRole, await minter.getAddress());
-  const grantSalesRoleGas = await minter.grantRole.estimateGas(salesRole, await adapter.getAddress());
-  const freezeSalesCallerGas = await minter.freezeSalesCaller.estimateGas(await adapter.getAddress());
+  const setAuctionGas = await txGas(adapter.setAuction(await auction.getAddress()));
+  const freezeWiringGas = await txGas(adapter.freezeWiring());
+  const grantMinterRoleGas = await txGas(nft.grantRole(minterRole, await minter.getAddress()));
+  const grantSalesRoleGas = await txGas(minter.grantRole(salesRole, await adapter.getAddress()));
+  const freezeSalesCallerGas = await txGas(minter.freezeSalesCaller(await adapter.getAddress()));
+  const grantNftAdminGas = await txGas(nft.grantRole(defaultAdminRole, finalAdmin.address));
+  const renounceNftAdminGas = await txGas(nft.renounceRole(defaultAdminRole, deployer.address));
+  const grantMinterAdminGas = await txGas(minter.grantRole(minterDefaultAdminRole, finalAdmin.address));
+  const renounceMinterAdminGas = await txGas(minter.renounceRole(minterDefaultAdminRole, deployer.address));
+  const transferAdapterOwnerGas = await txGas(adapter.transferOwnership(finalAdmin.address));
 
-  const totalGas =
+  const wiringTotalGas =
     setAuctionGas + freezeWiringGas + grantMinterRoleGas + grantSalesRoleGas + freezeSalesCallerGas;
+  const authorityTotalGas =
+    grantNftAdminGas
+    + renounceNftAdminGas
+    + grantMinterAdminGas
+    + renounceMinterAdminGas
+    + transferAdapterOwnerGas;
 
   return {
     setAuctionGas,
@@ -240,17 +268,31 @@ async function estimateWiringGas(ethers, deployer) {
     grantMinterRoleGas,
     grantSalesRoleGas,
     freezeSalesCallerGas,
-    totalGas
+    wiringTotalGas,
+    grantNftAdminGas,
+    renounceNftAdminGas,
+    grantMinterAdminGas,
+    renounceMinterAdminGas,
+    transferAdapterOwnerGas,
+    authorityTotalGas,
+    totalGas: wiringTotalGas + authorityTotalGas
   };
 }
 
 async function main() {
   const conn = await hre.network.connect();
   const { ethers } = conn;
-  const [deployer] = await ethers.getSigners();
+  const allowedLiveEstimateNetworks = new Set(["default", "hardhat", "localhost"]);
+  if (!allowedLiveEstimateNetworks.has(conn.networkName)) {
+    await conn.close();
+    throw new Error(
+      `estimate-deploy-cost sends live deploy/wiring/authority transactions and is only allowed on hardhat(default)/localhost. Refusing network: ${conn.networkName}`
+    );
+  }
+  const [deployer, finalAdmin] = await ethers.getSigners();
 
   const deployments = await estimateDeployments(ethers, deployer);
-  const wiring = await estimateWiringGas(ethers, deployer);
+  const wiring = await estimateWiringAndAuthorityGas(ethers, deployer, finalAdmin);
   const combinedGas = deployments.totalGas + wiring.totalGas;
 
   const gasPrice = await resolveGasPriceGwei(ethers.provider);
@@ -284,7 +326,16 @@ async function main() {
   printRow("nft.grantRole", wiring.grantMinterRoleGas, gasPrice.gwei, ethUsd.usd);
   printRow("minter.grantRole", wiring.grantSalesRoleGas, gasPrice.gwei, ethUsd.usd);
   printRow("minter.freezeSales", wiring.freezeSalesCallerGas, gasPrice.gwei, ethUsd.usd);
-  printRow("WIRING TOTAL", wiring.totalGas, gasPrice.gwei, ethUsd.usd);
+  printRow("WIRING TOTAL", wiring.wiringTotalGas, gasPrice.gwei, ethUsd.usd);
+
+  console.log("");
+  console.log("Estimated authority-finalization gas:");
+  printRow("nft.grantAdmin", wiring.grantNftAdminGas, gasPrice.gwei, ethUsd.usd);
+  printRow("nft.renounceAdmin", wiring.renounceNftAdminGas, gasPrice.gwei, ethUsd.usd);
+  printRow("minter.grantAdmin", wiring.grantMinterAdminGas, gasPrice.gwei, ethUsd.usd);
+  printRow("minter.renounceAdmin", wiring.renounceMinterAdminGas, gasPrice.gwei, ethUsd.usd);
+  printRow("adapter.transferOwner", wiring.transferAdapterOwnerGas, gasPrice.gwei, ethUsd.usd);
+  printRow("AUTHORITY TOTAL", wiring.authorityTotalGas, gasPrice.gwei, ethUsd.usd);
 
   console.log("");
   printRow("ALL-IN TOTAL", combinedGas, gasPrice.gwei, ethUsd.usd);

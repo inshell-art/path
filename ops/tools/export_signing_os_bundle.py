@@ -1022,13 +1022,25 @@ def render_expected(manifest: dict, run_payload: dict, intent_payload: dict) -> 
     if intent_payload.get("inputs_sha256"):
         forbidden.append("using constructor params that do not match inputs.json")
 
+    params = {}
+    bundle_dir = Path(run_payload["_bundle_dir"])
+    inputs_path = bundle_dir / "inputs.json"
+    if inputs_path.exists():
+        inputs_payload = json.loads(inputs_path.read_text())
+        if isinstance(inputs_payload.get("params"), dict):
+            params = inputs_payload["params"]
+
+    preconditions = [
+        "Signing-OS-Transfer-Pack baseline passed",
+        f"signer alias is {manifest['signer_alias']}",
+        f"signer address matches {manifest['expected_address']}",
+        f"bundle source commit is {manifest['source_commit']}",
+    ]
+    if params.get("admin"):
+        preconditions.append(f"constructor admin is final ADMIN address {params['admin']}")
+
     return {
-        "preconditions": [
-            "Signing-OS-Transfer-Pack baseline passed",
-            f"signer alias is {manifest['signer_alias']}",
-            f"signer address matches {manifest['expected_address']}",
-            f"bundle source commit is {manifest['source_commit']}",
-        ],
+        "preconditions": preconditions,
         "postconditions": [
             "postconditions.json status=pass",
             "the latest result directory has OVERALL_STATUS=PASS",

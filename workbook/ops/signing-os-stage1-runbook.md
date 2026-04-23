@@ -552,7 +552,7 @@ Stage 1 only counts as passed if:
 - `audit_report.json` is `pass`
 - `audit_signoff.json` exists
 - treasury in deploy params was the intended Treasury recipient address
-- the intended final ADMIN Ledger address was identified before the run
+- admin in deploy params was the intended final ADMIN Ledger-backed contract authority address
 - final custody remained no-Safe and Ledger-only
 - Signing OS online use stayed within the bounded-online rule
 
