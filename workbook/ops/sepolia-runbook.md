@@ -4,6 +4,7 @@ See also:
 - [Signing OS Stage 1 runbook](signing-os-stage1-runbook.md)
 - [Signing OS Stage 2 runbook](signing-os-stage2-runbook.md)
 - [Signing OS Stage 3 runbook](signing-os-stage3-runbook.md)
+- [Sepolia postdeploy smoke](sepolia-postdeploy-smoke.md)
 - [Signing OS runbook](signing-os-runbook.md) for stage selection only
 - [Signing OS Wi-Fi handbook](signing-os-wifi-handbook.md)
 - [No-Safe two-Ledger custody doc](../../docs/custody-no-safe-two-ledgers.md)
@@ -17,7 +18,7 @@ Stage semantics for serious rehearsal:
 - stage 2: use [Signing OS Stage 2 runbook](signing-os-stage2-runbook.md)
 - stage 3: use [Signing OS Stage 3 runbook](signing-os-stage3-runbook.md)
 
-This file is the Dev OS and handoff runbook for Sepolia.
+This file is the Dev OS preparation and bridge-transfer runbook for Sepolia.
 For the Signing OS half, stop here and use the selected stage runbook only.
 
 ## A) Preflight checklist
@@ -98,9 +99,9 @@ python3 scripts/build_signing_os_transfer_pack.py --force
 unset SEPOLIA_RPC_URL
 ```
 
-## C) Handoff note
+## C) Bridge transfer note
 
-Prepare two handoff files under `~/.opsec/path/handoff`.
+Prepare two bridge-transfer files under `~/.opsec/path/handoff`.
 
 Public handoff file:
 

@@ -12,7 +12,7 @@ See also:
 Use this runbook as the default meaning of "deploy on Mainnet" for this repo.
 Do not switch to a direct ad hoc Hardhat deploy path unless you are intentionally bypassing the repo-managed ops lane.
 
-This file is the Dev OS and handoff runbook for Mainnet.
+This file is the Dev OS preparation and bridge-transfer runbook for Mainnet.
 For the Signing OS half, stop here and use the selected stage runbook only.
 
 ## A) Preflight checklist

@@ -2,9 +2,9 @@
 
 - Devnet runbook: `devnet-runbook.md`
 - [Sepolia runbook](sepolia-runbook.md)
-  - Dev OS and handoff for Sepolia
+  - Dev OS preparation and bridge transfer for Sepolia
 - [Mainnet runbook](mainnet-runbook.md)
-  - Dev OS and handoff for Mainnet
+  - Dev OS preparation and bridge transfer for Mainnet
 - [Signing OS runbook](signing-os-runbook.md)
   - Signing OS selector and overview only
 - [Signing OS Stage 1 runbook](signing-os-stage1-runbook.md)
