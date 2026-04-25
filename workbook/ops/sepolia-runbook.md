@@ -159,6 +159,11 @@ The selected stage runbook contains:
 - audit
 - stage-specific pass criteria
 
+Optional Dev OS postdeploy confidence step after a qualified deploy:
+- use [Sepolia postdeploy smoke](sepolia-postdeploy-smoke.md)
+- keep it separate from Signing OS and audit
+- promote smoke evidence under the canonical history folder only after it passes
+
 ## D) Acceptance rule
 
 For a serious stage-1, stage-2, or stage-3 Sepolia rehearsal, the selected stage runbook only counts as passed if:

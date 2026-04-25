@@ -97,13 +97,17 @@ and record that token path separately.
 ## D) Live buyer smoke
 
 Recommended path:
-- use the intended integration surface if it already exists
-- otherwise use a disposable Sepolia wallet and submit one minimal bid directly
+- use the repo-managed Rabby/browser-wallet helper below
+- use the intended integration surface only if you intentionally want to test that
+  surface instead of the contract-level buyer flow
 
 Rules:
 - only one minimal bid
 - do not use `ADMIN`, `TREASURY`, or deployer wallets
 - do not use Signing OS for this
+- do not hand-copy calldata into a wallet
+- the wallet page must ABI-encode `bid(uint256)` at runtime, simulate before
+  sending, and verify the mined transaction input after sending
 
 Target behavior:
 - buyer submits one bid at the current ask
@@ -118,6 +122,26 @@ Record at minimum:
 - exact ask used
 - expected token id (`NEXT_ID_BEFORE`)
 
+Official Rabby/browser-wallet helper:
+
+```bash
+RUN_ID=<run-id>
+BUYER=<disposable-buyer-address>
+npm run ops:postdeploy:smoke -- serve --network sepolia --run-id "$RUN_ID" --buyer "$BUYER"
+```
+
+Open the printed local URL, then:
+- click `Discover Wallets`
+- click `Connect Rabby`
+- confirm the connected account is the disposable buyer
+- click `Refresh Ask + Simulate`
+- approve the wallet transaction only after the page says simulation passed
+
+The page refuses the wrong buyer, wrong chain, wrong selector, wrong calldata
+length, and a failed pre-send `eth_call` simulation. After send, it fetches the
+mined transaction and compares on-chain `input` with the intended `bid(uint256)`
+calldata. If that comparison fails, stop and keep the failure evidence.
+
 ## E) Post-smoke verification
 
 After the live bid confirms, verify:
@@ -126,26 +150,18 @@ After the live bid confirms, verify:
 TX_HASH=<smoke-tx-hash>
 BUYER=<disposable-buyer-address>
 TOKEN_ID="$NEXT_ID_BEFORE"
+RUN_ID=<run-id>
 
-cast receipt "$TX_HASH" --rpc-url "$SEPOLIA_RPC_URL" \
-  > "output/smoke/sepolia/$RUN_ID/receipt.txt"
-
-OWNER_AFTER=$(cast call "$NFT" "ownerOf(uint256)(address)" "$TOKEN_ID" --rpc-url "$SEPOLIA_RPC_URL")
-EPOCH_AFTER=$(cast call "$AUCTION" "epochIndex()(uint256)" --rpc-url "$SEPOLIA_RPC_URL")
-TREASURY_AFTER=$(cast balance "$TREASURY" --rpc-url "$SEPOLIA_RPC_URL")
-
-printf '%s\n' \
-  "buyer=$BUYER" \
-  "tx_hash=$TX_HASH" \
-  "token_id=$TOKEN_ID" \
-  "owner_after=$OWNER_AFTER" \
-  "epoch_after=$EPOCH_AFTER" \
-  "treasury_after=$TREASURY_AFTER" \
-  > "output/smoke/sepolia/$RUN_ID/post.env"
+npm run ops:postdeploy:smoke -- verify \
+  --network sepolia \
+  --run-id "$RUN_ID" \
+  --buyer "$BUYER" \
+  --tx-hash "$TX_HASH"
 ```
 
 Pass conditions:
 - receipt status is success
+- transaction input starts with `0x454a2ab3` (`bid(uint256)`)
 - `owner_after == buyer`
 - `epoch_after == epoch_before + 1`
 - `treasury_after > treasury_before`
@@ -181,9 +197,24 @@ Notes:
 - any UI-specific observations
 ```
 
+After a passing smoke, promote the smoke folder into the canonical deploy
+history as optional postdeploy evidence:
+
+```bash
+RUN_ID=<run-id>
+HISTORY_DIR="$HOME/Private/signing-os-history/sepolia/deploy/$RUN_ID"
+mkdir -p "$HISTORY_DIR/smoke/postdeploy"
+rsync -a "output/smoke/sepolia/$RUN_ID/" "$HISTORY_DIR/smoke/postdeploy/"
+(cd "$HISTORY_DIR/smoke/postdeploy" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256 > SHA256SUMS.txt)
+```
+
+This does not change deploy qualification. It records postdeploy confidence
+evidence beside, not inside, the Signing OS deploy ceremony.
+
 ## G) Stop conditions
 - current ask cannot be determined
 - buyer tx reverts
+- wallet/provider submits calldata that differs from the page preview
 - minted token owner is not the buyer
 - treasury balance does not move as expected
 - any privileged/admin action is needed just to complete the buyer flow

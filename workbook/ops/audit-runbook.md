@@ -3,6 +3,7 @@
 Purpose: audit is the read-only evidence layer over completed runs. It is not part of the authority path for `bundle`, `verify`, `approve`, `apply`, or `postconditions`.
 Run it after `postconditions`.
 For serious Sepolia rehearsals and mainnet runs, use audit before accepting the completed run as valid evidence.
+Postdeploy smoke is separate optional confidence evidence. If smoke evidence is produced after audit signoff, record it under the canonical history folder's `smoke/postdeploy/` section or run a separate follow-up audit scope; do not silently mutate a signed audit evidence set.
 
 Prereqs:
 - Audit policy is configured in `ops/policy/audit.policy.json`.

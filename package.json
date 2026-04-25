@@ -31,6 +31,7 @@
     "ops:approve": "make -C ops approve",
     "ops:apply": "make -C ops apply",
     "ops:postconditions": "make -C ops postconditions",
+    "ops:postdeploy:smoke": "python3 ops/tools/postdeploy_smoke.py",
     "ops:audit:plan": "make -C ops audit-plan",
     "ops:audit:collect": "make -C ops audit-collect",
     "ops:audit:verify": "make -C ops audit-verify",

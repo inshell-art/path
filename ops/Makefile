@@ -13,7 +13,7 @@ PARAMS_SCHEMA ?=
 LOCKED_INPUTS_FILE ?=
 INPUTS_TEMPLATE ?=
 
-.PHONY: lock-inputs bundle verify approve apply postconditions audit-plan audit-collect audit-verify audit-report audit-signoff audit-all policy-init-check scan-secrets scan-secrets-staged lint-secret-snippets
+.PHONY: lock-inputs bundle verify approve apply postconditions postdeploy-smoke-serve postdeploy-smoke-verify audit-plan audit-collect audit-verify audit-report audit-signoff audit-all policy-init-check scan-secrets scan-secrets-staged lint-secret-snippets
 
 lock-inputs:
 	NETWORK=$(NETWORK) LANE=$(LANE) RUN_ID=$(RUN_ID) INPUT_FILE=$(INPUT_FILE) INPUT_KIND=$(INPUT_KIND) PARAMS_SCHEMA=$(PARAMS_SCHEMA) $(ROOT)/ops/tools/lock_inputs.sh
@@ -32,6 +32,12 @@ apply:
 
 postconditions:
 	NETWORK=$(NETWORK) RUN_ID=$(RUN_ID) BUNDLE_PATH=$(BUNDLE_PATH) $(ROOT)/ops/tools/postconditions.sh
+
+postdeploy-smoke-serve:
+	NETWORK=$(NETWORK) RUN_ID=$(RUN_ID) BUYER=$(BUYER) $(ROOT)/ops/tools/postdeploy_smoke.py serve
+
+postdeploy-smoke-verify:
+	NETWORK=$(NETWORK) RUN_ID=$(RUN_ID) BUYER=$(BUYER) TX_HASH=$(TX_HASH) TOKEN_ID=$(TOKEN_ID) $(ROOT)/ops/tools/postdeploy_smoke.py verify
 
 audit-plan:
 	NETWORK=$(NETWORK) AUDIT_ID=$(AUDIT_ID) AUDIT_PATH=$(AUDIT_PATH) $(ROOT)/ops/tools/audit_plan.sh
