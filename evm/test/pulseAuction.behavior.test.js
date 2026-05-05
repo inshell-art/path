@@ -20,6 +20,7 @@ describe("PulseAuction (Solidity)", function () {
   });
 
   async function deployAuction({
+    openTime,
     startDelaySec = 0n,
     k = K,
     genesisPrice = GENESIS_PRICE,
@@ -30,9 +31,10 @@ describe("PulseAuction (Solidity)", function () {
     mintAdapter = ethers.ZeroAddress
   } = {}) {
     const [deployer] = await ethers.getSigners();
+    const resolvedOpenTime = openTime ?? await resolveOpenTime(startDelaySec);
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
     const auction = await Auction.deploy(
-      startDelaySec,
+      resolvedOpenTime,
       k,
       genesisPrice,
       genesisFloor,
@@ -43,6 +45,13 @@ describe("PulseAuction (Solidity)", function () {
     );
     await auction.waitForDeployment();
     return { deployer, auction };
+  }
+
+  async function resolveOpenTime(startDelaySec = 0n) {
+    const latest = await ethers.provider.getBlock("latest");
+    const latestTs = BigInt(latest.timestamp);
+    const requested = latestTs + BigInt(startDelaySec);
+    return requested > latestTs ? requested : latestTs + 1n;
   }
 
   async function quoteAskAt(auction, saleTime) {
@@ -62,26 +71,27 @@ describe("PulseAuction (Solidity)", function () {
   it("constructor rejects invalid pricing params", async function () {
     const [deployer] = await ethers.getSigners();
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
+    const openTime = await resolveOpenTime(60n);
 
     await expect(
-      Auction.deploy(0n, 0n, GENESIS_PRICE, GENESIS_FLOOR, PTS, ethers.ZeroAddress, deployer.address, deployer.address)
+      Auction.deploy(openTime, 0n, GENESIS_PRICE, GENESIS_FLOOR, PTS, ethers.ZeroAddress, deployer.address, deployer.address)
     ).to.be.revertedWith("K_ZERO_OR_NEGATIVE");
 
     await expect(
-      Auction.deploy(0n, K, GENESIS_FLOOR, GENESIS_FLOOR, PTS, ethers.ZeroAddress, deployer.address, deployer.address)
+      Auction.deploy(openTime, K, GENESIS_FLOOR, GENESIS_FLOOR, PTS, ethers.ZeroAddress, deployer.address, deployer.address)
     ).to.be.revertedWith("GAP_ZERO_OR_NEGATIVE");
 
     await expect(
-      Auction.deploy(0n, 50n, 1_000n, 900n, PTS, ethers.ZeroAddress, deployer.address, deployer.address)
+      Auction.deploy(openTime, 50n, 1_000n, 900n, PTS, ethers.ZeroAddress, deployer.address, deployer.address)
     ).to.be.revertedWith("START_GAP_ABOVE_K");
 
     await expect(
-      Auction.deploy(0n, K, GENESIS_PRICE, GENESIS_FLOOR, 0n, ethers.ZeroAddress, deployer.address, deployer.address)
+      Auction.deploy(openTime, K, GENESIS_PRICE, GENESIS_FLOOR, 0n, ethers.ZeroAddress, deployer.address, deployer.address)
     ).to.be.revertedWith("PTS_ZERO_OR_NEGATIVE");
 
     await expect(
       Auction.deploy(
-        0n,
+        openTime,
         K,
         GENESIS_PRICE,
         GENESIS_FLOOR,
@@ -94,7 +104,7 @@ describe("PulseAuction (Solidity)", function () {
 
     await expect(
       Auction.deploy(
-        0n,
+        openTime,
         (1n << 64n) + 1n,
         GENESIS_PRICE,
         GENESIS_FLOOR,
@@ -106,15 +116,15 @@ describe("PulseAuction (Solidity)", function () {
     ).to.be.revertedWith("K_OVER_PTS_OVERFLOW");
 
     await expect(
-      Auction.deploy(0n, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, ethers.ZeroAddress, ethers.ZeroAddress, deployer.address)
+      Auction.deploy(openTime, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, ethers.ZeroAddress, ethers.ZeroAddress, deployer.address)
     ).to.be.revertedWith("ZERO_TREASURY");
 
     await expect(
-      Auction.deploy(0n, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, deployer.address, deployer.address, deployer.address)
+      Auction.deploy(openTime, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, deployer.address, deployer.address, deployer.address)
     ).to.be.revertedWith("INVALID_PAYMENT_TOKEN");
 
     await expect(
-      Auction.deploy(0n, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, ethers.ZeroAddress, deployer.address, deployer.address)
+      Auction.deploy(openTime, K, GENESIS_PRICE, GENESIS_FLOOR, PTS, ethers.ZeroAddress, deployer.address, deployer.address)
     ).to.be.revertedWith("INVALID_ADAPTER");
   });
 

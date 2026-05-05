@@ -66,7 +66,7 @@ export async function deployPathMinterEnv(ethers, { firstPublicId = FIRST_PUBLIC
 
 async function deployPathPulseEnv(
   ethers,
-  { startDelaySec = 0n, paymentToken = ethers.ZeroAddress, freezeSalesCallerTo } = {}
+  { openTime, startDelaySec = 0n, paymentToken = ethers.ZeroAddress, freezeSalesCallerTo } = {}
 ) {
   const [deployer, alice, bob, treasury] = await ethers.getSigners();
 
@@ -90,9 +90,10 @@ async function deployPathPulseEnv(
   );
   await adapter.waitForDeployment();
 
+  const resolvedOpenTime = openTime ?? await resolveOpenTime(ethers, startDelaySec);
   const Auction = await ethers.getContractFactory("PulseAuction", deployer);
   const auction = await Auction.deploy(
-    startDelaySec,
+    resolvedOpenTime,
     K,
     GENESIS_PRICE,
     GENESIS_FLOOR,
@@ -128,11 +129,22 @@ async function deployPathPulseEnv(
   };
 }
 
+async function resolveOpenTime(ethers, startDelaySec) {
+  const latestBlock = await ethers.provider.getBlock("latest");
+  if (!latestBlock) {
+    throw new Error("Failed to resolve latest block timestamp");
+  }
+  const latest = BigInt(latestBlock.timestamp);
+  const requested = latest + BigInt(startDelaySec);
+  return requested > latest ? requested : latest + 1n;
+}
+
 export async function deployPathPulseEthEnv(
   ethers,
-  { startDelaySec = 0n, freezeSalesCallerTo } = {}
+  { openTime, startDelaySec = 0n, freezeSalesCallerTo } = {}
 ) {
   return deployPathPulseEnv(ethers, {
+    openTime,
     startDelaySec,
     paymentToken: ethers.ZeroAddress,
     freezeSalesCallerTo
@@ -141,7 +153,7 @@ export async function deployPathPulseEthEnv(
 
 export async function deployPathPulseErc20Env(
   ethers,
-  { startDelaySec = 0n, tokenName = "Mock USD", tokenSymbol = "mUSD", tokenDecimals = 18 } = {}
+  { openTime, startDelaySec = 0n, tokenName = "Mock USD", tokenSymbol = "mUSD", tokenDecimals = 18 } = {}
 ) {
   const [deployer] = await ethers.getSigners();
   const MockErc20 = await ethers.getContractFactory("MockERC20", deployer);
@@ -149,6 +161,7 @@ export async function deployPathPulseErc20Env(
   await paymentToken.waitForDeployment();
 
   const env = await deployPathPulseEnv(ethers, {
+    openTime,
     startDelaySec,
     paymentToken: await paymentToken.getAddress()
   });

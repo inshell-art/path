@@ -471,7 +471,7 @@ async function main() {
 
   const PulseAuction = await ethers.getContractFactory("PulseAuction", deployer);
   const auction = await PulseAuction.deploy(
-    resolvedLaunch.startDelaySec,
+    resolvedLaunch.openTime,
     cfg.k,
     cfg.genesisPrice,
     cfg.genesisFloor,

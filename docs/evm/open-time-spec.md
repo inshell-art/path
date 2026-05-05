@@ -1,6 +1,6 @@
 # PulseAuction Open Time Spec
 
-Status: `PROPOSED`
+Status: `IMPLEMENTED`
 
 ## 1. Objective
 
@@ -18,23 +18,23 @@ Out of scope:
 - Payment behavior (ETH/ERC20).
 - Adapter settlement and epoch-to-token coupling.
 
-## 3. Current Behavior (Baseline)
+## 3. Previous Behavior (Baseline)
 
-Current constructor sets:
+Previous constructor set:
 - `openTime = uint64(block.timestamp) + startDelaySec`
 
-Current bid gate:
+Bid gate:
 - `require(block.timestamp >= openTime, "AUCTION_NOT_OPEN")`
 
 References:
-- `vendors/pulse/evm/src/PulseAuction.sol`
+- `evm/src/PulseAuction.sol`
 - `evm/scripts/deploy-local-eth.js`
 
-## 4. Target Contract Behavior
+## 4. Contract Behavior
 
 ### 4.1 Constructor Input
 
-Change first constructor argument from `startDelaySec` to `openTime`.
+First constructor argument is `openTime`.
 
 Before:
 - `constructor(uint64 startDelaySec, ...)`
@@ -63,10 +63,10 @@ Optional strictness (recommended):
 
 ### 4.5 Eventing
 
-Add a constructor-time event:
+Constructor emits:
 - `event LaunchConfigured(uint64 indexed openTime, uint64 deployedAt);`
 
-Emit once during deployment.
+The event is emitted once during deployment.
 
 ## 5. Deployment Script Spec
 

@@ -15,16 +15,26 @@ describe("PulseAuction openTime constructor", function () {
     await conn.close();
   });
 
-  it("stores openTime as deployment timestamp plus startDelaySec", async function () {
-    const [deployer] = await ethers.getSigners();
-    const startDelaySec = 300n;
+  async function deployAdapter(deployer) {
     const StubAdapter = await ethers.getContractFactory("StubPulseAdapter", deployer);
     const adapter = await StubAdapter.deploy(deployer.address);
     await adapter.waitForDeployment();
+    return adapter;
+  }
+
+  async function futureOpenTime(offsetSec = 300n) {
+    const latest = await ethers.provider.getBlock("latest");
+    return BigInt(latest.timestamp) + offsetSec;
+  }
+
+  it("stores the exact constructor openTime", async function () {
+    const [deployer] = await ethers.getSigners();
+    const adapter = await deployAdapter(deployer);
+    const openTime = await futureOpenTime(300n);
 
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
     const auction = await Auction.deploy(
-      startDelaySec,
+      openTime,
       K,
       GENESIS_PRICE,
       GENESIS_FLOOR,
@@ -35,21 +45,17 @@ describe("PulseAuction openTime constructor", function () {
     );
     await auction.waitForDeployment();
 
-    const deploymentTx = auction.deploymentTransaction();
-    const deploymentReceipt = await deploymentTx.wait();
-    const deploymentBlock = await ethers.provider.getBlock(deploymentReceipt.blockNumber);
-    expect(await auction.openTime()).to.equal(BigInt(deploymentBlock.timestamp) + startDelaySec);
+    expect(await auction.openTime()).to.equal(openTime);
   });
 
-  it("supports zero start delay", async function () {
+  it("emits launch configuration", async function () {
     const [deployer] = await ethers.getSigners();
-    const StubAdapter = await ethers.getContractFactory("StubPulseAdapter", deployer);
-    const adapter = await StubAdapter.deploy(deployer.address);
-    await adapter.waitForDeployment();
+    const adapter = await deployAdapter(deployer);
+    const openTime = await futureOpenTime(300n);
     const Auction = await ethers.getContractFactory("PulseAuction", deployer);
 
-    const auction = await Auction.deploy(
-      0n,
+    const tx = await Auction.deploy(
+      openTime,
       K,
       GENESIS_PRICE,
       GENESIS_FLOOR,
@@ -58,11 +64,33 @@ describe("PulseAuction openTime constructor", function () {
       deployer.address,
       await adapter.getAddress()
     );
-    await auction.waitForDeployment();
+    const auction = await tx.waitForDeployment();
 
     const deploymentTx = auction.deploymentTransaction();
     const deploymentReceipt = await deploymentTx.wait();
     const deploymentBlock = await ethers.provider.getBlock(deploymentReceipt.blockNumber);
-    expect(await auction.openTime()).to.equal(BigInt(deploymentBlock.timestamp));
+    await expect(deploymentTx)
+      .to.emit(auction, "LaunchConfigured")
+      .withArgs(openTime, BigInt(deploymentBlock.timestamp));
+  });
+
+  it("rejects an openTime before deployment timestamp", async function () {
+    const [deployer] = await ethers.getSigners();
+    const adapter = await deployAdapter(deployer);
+    const latest = await ethers.provider.getBlock("latest");
+    const Auction = await ethers.getContractFactory("PulseAuction", deployer);
+
+    await expect(
+      Auction.deploy(
+        BigInt(latest.timestamp) - 1n,
+        K,
+        GENESIS_PRICE,
+        GENESIS_FLOOR,
+        PTS,
+        ethers.ZeroAddress,
+        deployer.address,
+        await adapter.getAddress()
+      )
+    ).to.be.revertedWith("OPEN_TIME_IN_PAST");
   });
 });
