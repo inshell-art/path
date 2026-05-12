@@ -5,7 +5,7 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "node": "hardhat node",
+    "node": "hardhat node --hostname 127.0.0.1 --port 8546 --chain-id 31338",
     "estimate:deploy:cost": "hardhat run scripts/estimate-deploy-cost.js",
     "deploy:local:eth": "hardhat run scripts/deploy-local-eth.js --network localhost",
     "gallery:looks:local:eth": "hardhat run scripts/generate-token-look-gallery.js --network localhost",

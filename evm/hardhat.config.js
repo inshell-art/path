@@ -1,9 +1,17 @@
 import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
 
+const localChainId = Number(process.env.PATH_LOCAL_CHAIN_ID ?? 31338);
+
 const networks = {
+  default: {
+    type: "edr-simulated",
+    chainId: localChainId,
+    networkId: localChainId
+  },
   localhost: {
     type: "http",
-    url: "http://127.0.0.1:8545"
+    url: process.env.PATH_LOCAL_RPC_URL ?? "http://127.0.0.1:8546",
+    chainId: localChainId
   }
 };
 

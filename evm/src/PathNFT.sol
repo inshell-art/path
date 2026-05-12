@@ -205,7 +205,14 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
         string memory thoughtProgress = _manifestProgress(state.thoughtMinted, state.thoughtQuota);
         string memory willProgress = _manifestProgress(state.willMinted, state.willQuota);
         string memory awaProgress = _manifestProgress(state.awaMinted, state.awaQuota);
-        string memory svg = _buildSvg(state.thoughtMinted, state.willMinted, state.awaMinted, state.willQuota);
+        string memory svg = _buildSvg(
+            state.thoughtMinted,
+            state.thoughtQuota,
+            state.willMinted,
+            state.willQuota,
+            state.awaMinted,
+            state.awaQuota
+        );
         string memory image = string.concat(
             "data:image/svg+xml;base64,",
             Base64.encode(bytes(svg))
@@ -263,11 +270,11 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
     }
 
     function _description() internal pure returns (string memory) {
-        return "PATH is a permission token. Holding PATH authorizes minting THOUGHT to WILL to AWA in order. The image and traits show quota usage and progress for this PATH token.";
+        return "PATH is a permission token for Inshell generative artworks. Holding PATH authorizes movement mints in order: THOUGHT, WILL, then AWA. The image and traits show this PATH token's movement progress.";
     }
 
     function _contractDescription() internal pure returns (string memory) {
-        return "PATH is a permission token used to authorize Inshell generative artworks. Each PATH progresses through THOUGHT, WILL, and AWA by consuming movement units.";
+        return "PATH is the permission-token collection for Inshell generative artworks. Each PATH progresses through THOUGHT, WILL, and AWA by consuming movement units.";
     }
 
     function _contractSvg() internal pure returns (string memory) {
@@ -400,39 +407,28 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
 
     function _buildSvg(
         uint32 thoughtMinted,
+        uint32 thoughtQuota,
         uint32 willMinted,
+        uint32 willQuota,
         uint32 awaMinted,
-        uint32 willQuota
+        uint32 awaQuota
     ) internal pure returns (string memory) {
         string memory thoughtDisplay = thoughtMinted > 0 ? "inline" : "none";
         string memory willDisplay = willMinted > 0 ? "inline" : "none";
         string memory awaDisplay = awaMinted > 0 ? "inline" : "none";
         string memory blankThought = thoughtMinted == 0
-            ? "<rect id='blank-mark-thought' x='207' y='297' width='3' height='3' fill='white'/>"
+            ? "<circle id='blank-mark-thought' cx='210' cy='300' r='1.5' fill='white'/>"
             : "";
         string memory blankWill = willMinted == 0
-            ? "<rect id='blank-mark-will' x='297' y='297' width='3' height='3' fill='white'/>"
+            ? "<circle id='blank-mark-will' cx='300' cy='300' r='1.5' fill='white'/>"
             : "";
         string memory blankAwa = awaMinted == 0
-            ? "<rect id='blank-mark-awa' x='387' y='297' width='3' height='3' fill='white'/>"
+            ? "<circle id='blank-mark-awa' cx='390' cy='300' r='1.5' fill='white'/>"
             : "";
 
-        uint256 willFillWidth = 0;
-        if (willQuota > 0 && willMinted > 0) {
-            willFillWidth = (60 * uint256(willMinted)) / uint256(willQuota);
-            if (willFillWidth > 60) {
-                willFillWidth = 60;
-            }
-        }
-
-        string memory willFillRect = "";
-        if (willMinted > 0 && willFillWidth > 0) {
-            willFillRect = string.concat(
-                "<rect id='will-fill' x='270' y='270' width='",
-                Strings.toString(willFillWidth),
-                "' height='60' fill='white' display='inline'/>"
-            );
-        }
+        string memory thoughtFillCircle = _slotFillCircle("thought-fill", 210, thoughtMinted, thoughtQuota);
+        string memory willFillCircle = _slotFillCircle("will-fill", 300, willMinted, willQuota);
+        string memory awaFillCircle = _slotFillCircle("awa-fill", 390, awaMinted, awaQuota);
 
         return string.concat(
             "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600' width='600' height='600' role='img' aria-label='PATH progress'>",
@@ -440,17 +436,59 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
             blankThought,
             blankWill,
             blankAwa,
-            "<rect id='thought-box' x='180' y='270' width='60' height='60' fill='white' display='",
+            "<circle id='thought-box' cx='210' cy='300' r='30' fill='none' display='",
             thoughtDisplay,
             "'/>",
-            "<rect id='will-box' x='270' y='270' width='60' height='60' fill='none' display='",
+            thoughtFillCircle,
+            "<circle id='will-box' cx='300' cy='300' r='30' fill='none' display='",
             willDisplay,
             "'/>",
-            willFillRect,
-            "<rect id='awa-box' x='360' y='270' width='60' height='60' fill='white' display='",
+            willFillCircle,
+            "<circle id='awa-box' cx='390' cy='300' r='30' fill='none' display='",
             awaDisplay,
             "'/>",
+            awaFillCircle,
             "</svg>"
         );
+    }
+
+    function _slotFillCircle(
+        string memory id,
+        uint256 cx,
+        uint32 minted,
+        uint32 quota
+    ) internal pure returns (string memory) {
+        uint256 diameter = _slotFillDiameter(minted, quota);
+        if (diameter == 0) {
+            return "";
+        }
+        return string.concat(
+            "<circle id='",
+            id,
+            "' cx='",
+            Strings.toString(cx),
+            "' cy='300' r='",
+            _slotRadius(diameter),
+            "' fill='white' display='inline'/>"
+        );
+    }
+
+    function _slotRadius(uint256 diameter) internal pure returns (string memory) {
+        uint256 whole = diameter / 2;
+        if (diameter % 2 == 0) {
+            return Strings.toString(whole);
+        }
+        return string.concat(Strings.toString(whole), ".5");
+    }
+
+    function _slotFillDiameter(uint32 minted, uint32 quota) internal pure returns (uint256) {
+        if (quota == 0 || minted == 0) {
+            return 0;
+        }
+        uint256 diameter = (60 * uint256(minted)) / uint256(quota);
+        if (diameter > 60) {
+            return 60;
+        }
+        return diameter;
     }
 }

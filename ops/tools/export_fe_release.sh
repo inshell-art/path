@@ -288,6 +288,7 @@ manifest = {
         "k": str(deploy["config"]["k"]),
         "genesis_price": str(deploy["config"]["genesisPrice"]),
         "genesis_floor": str(deploy["config"]["genesisFloor"]),
+        "pts": str(deploy["config"]["pts"]),
         "token_base": int(deploy["config"]["tokenBase"]),
         "epoch_base": int(deploy["config"]["epochBase"]),
     },

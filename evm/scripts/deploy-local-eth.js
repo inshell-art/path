@@ -219,7 +219,7 @@ function isLocalLikeNetwork(networkName, chainId) {
   if (networkName === "localhost" || networkName === "hardhat" || networkName === "anvil") {
     return true;
   }
-  return chainId === 31337n || chainId === 1337n;
+  return chainId === 31337n || chainId === 31338n || chainId === 1337n;
 }
 
 function unixSecondsToIso(unixSeconds) {

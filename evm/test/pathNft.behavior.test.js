@@ -170,8 +170,9 @@ describe("PathNFT (Solidity)", function () {
 
     const m0 = decodeMetadata(await nft.tokenURI(5n));
     expect(m0.name).to.equal("PATH #5");
-    expect(m0.description).to.be.a("string");
-    expect(m0.description).to.contain("permission token");
+    expect(m0.description).to.equal(
+      "PATH is a permission token for Inshell generative artworks. Holding PATH authorizes movement mints in order: THOUGHT, WILL, then AWA. The image and traits show this PATH token's movement progress."
+    );
     expect(m0.image.startsWith("data:image/svg+xml;base64,")).to.equal(true);
     expect(Array.isArray(m0.attributes)).to.equal(true);
     expect(m0.stage).to.equal("THOUGHT");
@@ -204,10 +205,55 @@ describe("PathNFT (Solidity)", function () {
 
     const willTrait1 = m1.attributes.find((x) => x.trait_type === "WILL");
     expect(willTrait1.value).to.equal("Minted(1/4)");
-    expect(m1.image_data).to.contain("id='will-fill' x='270' y='270' width='15'");
+    expect(m1.image_data).to.contain("<circle id='thought-box' cx='210' cy='300' r='30'");
+    expect(m1.image_data).to.contain("id='thought-fill' cx='210' cy='300' r='30'");
+    expect(m1.image_data).to.contain("id='will-fill' cx='300' cy='300' r='7.5'");
+    expect(m1.image_data).not.to.contain("clip-path");
     expect(m1.image_data).not.to.contain("id='blank-mark-thought'");
     expect(m1.image_data).not.to.contain("id='blank-mark-will'");
     expect(m1.image_data).to.contain("id='blank-mark-awa'");
+  });
+
+  it("token image fills each movement slot proportionally to quota progress", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, alice] = await ethers.getSigners();
+
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
+    await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 3)).wait();
+    await (await nft.setMovementConfig(movements.WILL, await mover.getAddress(), 2)).wait();
+    await (await nft.setMovementConfig(movements.AWA, await mover.getAddress(), 2)).wait();
+    await (await nft.safeMint(alice.address, 6n, "0x")).wait();
+
+    await (await consumeViaMover(mover, alice, nft, 6n, movements.THOUGHT, alice)).wait();
+    await (await consumeViaMover(mover, alice, nft, 6n, movements.THOUGHT, alice)).wait();
+
+    const thoughtInProgress = decodeMetadata(await nft.tokenURI(6n));
+    expect(thoughtInProgress.stage).to.equal("THOUGHT");
+    expect(thoughtInProgress.thought).to.equal("Minted(2/3)");
+    expect(thoughtInProgress.image_data).to.contain("<circle id='thought-box' cx='210' cy='300' r='30'");
+    expect(thoughtInProgress.image_data).to.contain("id='thought-fill' cx='210' cy='300' r='20'");
+    expect(thoughtInProgress.image_data).not.to.contain("clip-path");
+    expect(thoughtInProgress.image_data).not.to.contain("id='will-fill'");
+    expect(thoughtInProgress.image_data).not.to.contain("id='awa-fill'");
+
+    await (await consumeViaMover(mover, alice, nft, 6n, movements.THOUGHT, alice)).wait();
+    await (await consumeViaMover(mover, alice, nft, 6n, movements.WILL, alice)).wait();
+    await (await consumeViaMover(mover, alice, nft, 6n, movements.WILL, alice)).wait();
+    await (await consumeViaMover(mover, alice, nft, 6n, movements.AWA, alice)).wait();
+
+    const awaInProgress = decodeMetadata(await nft.tokenURI(6n));
+    expect(awaInProgress.stage).to.equal("AWA");
+    expect(awaInProgress.thought).to.equal("Minted(3/3)");
+    expect(awaInProgress.will).to.equal("Minted(2/2)");
+    expect(awaInProgress.awa).to.equal("Minted(1/2)");
+    expect(awaInProgress.image_data).to.contain("id='thought-fill' cx='210' cy='300' r='30'");
+    expect(awaInProgress.image_data).to.contain("id='will-fill' cx='300' cy='300' r='30'");
+    expect(awaInProgress.image_data).to.contain("id='awa-fill' cx='390' cy='300' r='15'");
+    expect(awaInProgress.image_data).not.to.contain("clip-path");
   });
 
   it("contractURI returns on-chain collection metadata", async function () {
@@ -215,7 +261,9 @@ describe("PathNFT (Solidity)", function () {
     const metadata = decodeContractMetadata(await nft.contractURI());
 
     expect(metadata.name).to.equal("PATH");
-    expect(metadata.description).to.be.a("string");
+    expect(metadata.description).to.equal(
+      "PATH is the permission-token collection for Inshell generative artworks. Each PATH progresses through THOUGHT, WILL, and AWA by consuming movement units."
+    );
     expect(metadata.image.startsWith("data:image/svg+xml;base64,")).to.equal(true);
     expect(metadata.external_link).to.equal("https://github.com/inshell-art/path");
   });

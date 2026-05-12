@@ -21,7 +21,7 @@ const MOVEMENT_MINTER_SYMBOLS = {
 };
 
 const EXPECTED_CHAIN_IDS = {
-  localhost: 31337,
+  localhost: 31338,
   sepolia: 11155111,
   mainnet: 1
 };
@@ -354,7 +354,7 @@ async function main() {
   // Policy-required checks that do not depend on deployed contracts.
   const rpcAllowlist = Array.isArray(policy?.rpc_allowlist) ? policy.rpc_allowlist.map(normalizeUrl) : [];
   const rpcHostAllowlist = Array.isArray(policy?.rpc_host_allowlist) ? policy.rpc_host_allowlist.map(normalizeHost) : [];
-  const defaultRpcFallback = conn.networkName === "localhost" ? "http://127.0.0.1:8545" : "";
+  const defaultRpcFallback = conn.networkName === "localhost" ? "http://127.0.0.1:8546" : "";
   const networkRpcEnv = process.env[`${String(conn.networkName ?? "").toUpperCase()}_RPC_URL`] ?? "";
   const configuredRpc = normalizeUrl(
     pickUrl(conn.networkConfig)

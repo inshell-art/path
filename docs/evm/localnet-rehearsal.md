@@ -16,7 +16,7 @@ cd evm
 npm run node
 ```
 
-If a previous node is already running on `127.0.0.1:8545`, stop it and start a fresh one so token IDs and epoch counters are predictable.
+If a previous node is already running on `127.0.0.1:8546`, stop it and start a fresh one so token IDs and epoch counters are predictable.
 
 ## 1) Deploy and sanity check
 
@@ -35,6 +35,22 @@ Expected:
 - Deployment file written to `evm/deployments/localhost-eth.json`
 - Smoke bid succeeds and mints token `1`
 - Scenario report in `evm/deployments/reports/localhost-path-cascade-eth-report.json` has `"allChecksPass": true`
+
+## 1.5) Export frontend handoff
+
+After deployment, export the local devnet FE release. The frontend should consume this OPS
+handoff instead of hard-coded local addresses.
+
+```bash
+npm run ops:export:local-fe-release -- --rpc-url http://127.0.0.1:8546 --force
+```
+
+Expected output:
+
+- `artifacts/devnet/current/fe-release/protocol-release.devnet.json`
+- `artifacts/devnet/current/fe-release/addresses.devnet.json`
+- `artifacts/devnet/current/fe-release/abi/PulseAuction.json`
+- `artifacts/devnet/current/fe-release/env.devnet.example`
 
 ## 2) Open interactive console
 

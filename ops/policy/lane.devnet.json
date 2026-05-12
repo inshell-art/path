@@ -1,8 +1,8 @@
 {
   "network": "devnet",
   "rpc_allowlist": [
-    "http://127.0.0.1:8545",
-    "http://localhost:8545"
+    "http://127.0.0.1:8546",
+    "http://localhost:8546"
   ],
   "signer_alias_map": {
     "DEVNET_DEPLOY_SW_A": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
