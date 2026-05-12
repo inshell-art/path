@@ -310,10 +310,19 @@ async function main() {
       mintSigner = callerSigner;
     } else {
       // Local signer list does not include the frozen caller (for example adapter).
-      // Fall back to direct NFT minting for visual previews.
+      // Fall back to direct NFT minting only when this isolated preview deploy
+      // can freeze or has already frozen the NFT public minter to the admin.
       mintMode = "nft";
-      if (!(await nft.hasRole(MINTER_ROLE, admin.address))) {
+      const publicMinterFrozen = await nft.publicMinterFrozen();
+      const publicMinter = publicMinterFrozen ? await nft.publicMinter() : ethers.ZeroAddress;
+      if (publicMinterFrozen && publicMinter.toLowerCase() !== admin.address.toLowerCase()) {
+        throw new Error("Cannot use direct NFT preview minting after public minter is frozen to another address");
+      }
+      if (!publicMinterFrozen && !(await nft.hasRole(MINTER_ROLE, admin.address))) {
         await (await nft.grantRole(MINTER_ROLE, admin.address)).wait();
+      }
+      if (!publicMinterFrozen) {
+        await (await nft.freezePublicMinter(admin.address)).wait();
       }
       fallbackNextTokenId = await firstUnmintedTokenId(nft, fallbackNextTokenId);
     }

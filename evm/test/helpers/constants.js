@@ -1,4 +1,4 @@
-export const NAME = "PATH NFT";
+export const NAME = "PATH";
 export const SYMBOL = "PATH";
 export const BASE_URI = "";
 

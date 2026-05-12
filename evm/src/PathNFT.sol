@@ -15,6 +15,7 @@ import {IPathNFT} from "./interfaces/IPathNFT.sol";
 /// @dev Current canonical implementation for the PATH NFT.
 contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant FROZEN_MINTER_ADMIN_ROLE = keccak256("FROZEN_MINTER_ADMIN_ROLE");
     bytes4 private constant _INTERFACE_ID_ERC4906 = 0x49064906;
 
     bytes32 public constant MOVEMENT_THOUGHT = bytes32("THOUGHT");
@@ -34,6 +35,9 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
     mapping(bytes32 movement => address minter) private _authorizedMinter;
     mapping(address claimer => uint256 nonce) private _consumeNonce;
 
+    address public publicMinter;
+    bool public publicMinterFrozen;
+
     struct RenderState {
         uint8 stage;
         uint32 thoughtQuota;
@@ -46,6 +50,7 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
 
     event MovementConsumed(uint256 indexed pathId, bytes32 indexed movement, address indexed claimer, uint32 serial);
     event MovementFrozen(bytes32 indexed movement);
+    event PublicMinterFrozen(address indexed publicMinter);
 
     constructor(
         address initialAdmin,
@@ -56,20 +61,35 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
         require(initialAdmin != address(0), "ZERO_ADMIN");
 
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
+        _setRoleAdmin(FROZEN_MINTER_ADMIN_ROLE, FROZEN_MINTER_ADMIN_ROLE);
         _baseTokenUri = baseUri_;
     }
 
     function safeMint(address recipient, uint256 tokenId, bytes calldata data) external override onlyRole(MINTER_ROLE) {
+        _assertPublicMinter();
         _safeMint(recipient, tokenId, data);
         _stage[tokenId] = 0;
         _stageMinted[tokenId] = 0;
     }
 
     /// @notice Snake-case alias kept for backward compatibility with older integrations.
-    function safe_mint(address recipient, uint256 tokenId, bytes calldata data) external onlyRole(MINTER_ROLE) {
+    function safe_mint(address recipient, uint256 tokenId, bytes calldata data) external override onlyRole(MINTER_ROLE) {
+        _assertPublicMinter();
         _safeMint(recipient, tokenId, data);
         _stage[tokenId] = 0;
         _stageMinted[tokenId] = 0;
+    }
+
+    function freezePublicMinter(address expectedMinter) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(!publicMinterFrozen, "PUBLIC_MINTER_FROZEN");
+        require(expectedMinter != address(0), "ZERO_PUBLIC_MINTER");
+        require(hasRole(MINTER_ROLE, expectedMinter), "MISSING_MINTER_ROLE");
+
+        publicMinter = expectedMinter;
+        publicMinterFrozen = true;
+        _setRoleAdmin(MINTER_ROLE, FROZEN_MINTER_ADMIN_ROLE);
+
+        emit PublicMinterFrozen(expectedMinter);
     }
 
     function setMovementConfig(bytes32 movement, address minter, uint32 quota) external override onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -82,8 +102,23 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
         _movementQuota[movement] = quota;
     }
 
+    function freezeMovementConfig(bytes32 movement) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        _assertValidMovement(movement);
+        require(!_movementFrozen[movement], "MOVEMENT_FROZEN");
+        require(_authorizedMinter[movement] != address(0), "MOVEMENT_NOT_CONFIGURED");
+        require(_movementQuota[movement] != 0, "ZERO_QUOTA");
+
+        _movementFrozen[movement] = true;
+        emit MovementFrozen(movement);
+    }
+
     function getAuthorizedMinter(bytes32 movement) external view override returns (address) {
         return _authorizedMinter[movement];
+    }
+
+    function isMovementFrozen(bytes32 movement) external view override returns (bool) {
+        _assertValidMovement(movement);
+        return _movementFrozen[movement];
     }
 
     function getStage(uint256 tokenId) external view override returns (uint8) {
@@ -175,6 +210,11 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
         );
         bytes32 digest = ECDSA.toEthSignedMessageHash(structHash);
         require(SignatureChecker.isValidSignatureNow(claimer, digest, signature), "BAD_CONSUME_AUTH");
+    }
+
+    function _assertPublicMinter() internal view {
+        require(publicMinterFrozen, "PUBLIC_MINTER_NOT_FROZEN");
+        require(_msgSender() == publicMinter, "NOT_PUBLIC_MINTER");
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {

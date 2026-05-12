@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import hre from "hardhat";
 
 const DEFAULTS = {
-  name: "PATH NFT",
+  name: "PATH",
   symbol: "PATH",
   baseUri: "",
   k: 600n,
@@ -15,6 +15,7 @@ const DEFAULTS = {
   epochBase: 1n,
   paymentToken: null
 };
+const DEFAULT_LOCAL_START_DELAY_SEC = 60n;
 
 const CLI_FLAG_MAP = {
   "params-file": "paramsFile",
@@ -352,8 +353,8 @@ function resolveDeployConfig({
     merged.openTimeIso = null;
   } else if (isLocalLikeNetwork(networkName, chainId)) {
     merged.openTime = null;
-    merged.openTimeSource = "default_local_now";
-    merged.startDelaySec = 0n;
+    merged.openTimeSource = "default_local_delay";
+    merged.startDelaySec = DEFAULT_LOCAL_START_DELAY_SEC;
     merged.openTimeIso = null;
   } else {
     throw new Error("OPEN_TIME_REQUIRED: provide openTime (recommended) or startDelaySec");
@@ -497,6 +498,10 @@ async function main() {
   await grantNftMinterTx.wait();
   wiringTxs.nftGrantMinterRole = grantNftMinterTx.hash;
 
+  const freezePublicMinterTx = await nft.freezePublicMinter(await minter.getAddress());
+  await freezePublicMinterTx.wait();
+  wiringTxs.nftFreezePublicMinter = freezePublicMinterTx.hash;
+
   const grantMinterSalesTx = await minter.grantRole(salesRole, await adapter.getAddress());
   await grantMinterSalesTx.wait();
   wiringTxs.minterGrantSalesRole = grantMinterSalesTx.hash;
@@ -504,6 +509,27 @@ async function main() {
   const freezeSalesCallerTx = await minter.freezeSalesCaller(await adapter.getAddress());
   await freezeSalesCallerTx.wait();
   wiringTxs.minterFreezeSalesCaller = freezeSalesCallerTx.hash;
+
+  const auctionMintAdapter = await auction.mintAdapter();
+  const publicMinter = await nft.publicMinter();
+  const publicMinterFrozen = await nft.publicMinterFrozen();
+  const salesCaller = await minter.salesCaller();
+  const salesCallerFrozen = await minter.salesCallerFrozen();
+  const latestAfterFreezes = await readLatestTimestamp(ethers.provider);
+  if (auctionMintAdapter.toLowerCase() === ethers.ZeroAddress.toLowerCase()) {
+    throw new Error("UNQUALIFIED_DEPLOYMENT: Pulse mintAdapter is zero");
+  }
+  if (latestAfterFreezes >= resolvedLaunch.openTime) {
+    throw new Error(
+      `UNQUALIFIED_DEPLOYMENT: freezes completed after openTime latestBlockTs=${latestAfterFreezes.toString()} openTime=${resolvedLaunch.openTime.toString()}`
+    );
+  }
+  if (!publicMinterFrozen || publicMinter.toLowerCase() !== (await minter.getAddress()).toLowerCase()) {
+    throw new Error("UNQUALIFIED_DEPLOYMENT: PathNFT public minter is not frozen to PathMinter");
+  }
+  if (!salesCallerFrozen || salesCaller.toLowerCase() !== (await adapter.getAddress()).toLowerCase()) {
+    throw new Error("UNQUALIFIED_DEPLOYMENT: PathMinter sales caller is not frozen to adapter");
+  }
 
   const deployerIsFinalAdmin = cfg.admin.toLowerCase() === deployer.address.toLowerCase();
   const defaultAdminRole = await nft.DEFAULT_ADMIN_ROLE();
@@ -595,6 +621,15 @@ async function main() {
       defaultAdminRole,
       minterRole,
       salesRole
+    },
+    freezeStatus: {
+      qualifiedBeforeOpen: true,
+      checkedAtBlockTimestamp: latestAfterFreezes.toString(),
+      pulseMintAdapter: auctionMintAdapter,
+      pathPublicMinter: publicMinter,
+      pathPublicMinterFrozen: publicMinterFrozen,
+      salesCaller,
+      salesCallerFrozen
     }
   };
 

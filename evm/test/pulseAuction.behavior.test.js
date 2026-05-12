@@ -128,8 +128,8 @@ describe("PulseAuction (Solidity)", function () {
     ).to.be.revertedWith("INVALID_ADAPTER");
   });
 
-  it("initializeMintAdapter is deployer-only, rejects zero, and is one-shot", async function () {
-    const { deployer, auction } = await deployAuction({ mintAdapter: ethers.ZeroAddress });
+  it("initializeMintAdapter is deployer-only, pre-open, rejects zero, and is one-shot", async function () {
+    const { deployer, auction } = await deployAuction({ startDelaySec: 60n, mintAdapter: ethers.ZeroAddress });
     const [, alice, bob] = await ethers.getSigners();
 
     const StubAdapter = await ethers.getContractFactory("StubPulseAdapter", deployer);
@@ -144,6 +144,18 @@ describe("PulseAuction (Solidity)", function () {
     expect(await auction.mintAdapter()).to.equal(await stubAdapter.getAddress());
 
     await expect(auction.initializeMintAdapter(deployer.address)).to.be.revertedWith("ADAPTER_ALREADY_SET");
+  });
+
+  it("initializeMintAdapter reverts after open", async function () {
+    const { deployer, auction } = await deployAuction({ startDelaySec: 60n, mintAdapter: ethers.ZeroAddress });
+    const [, , bob] = await ethers.getSigners();
+
+    const StubAdapter = await ethers.getContractFactory("StubPulseAdapter", deployer);
+    const stubAdapter = await StubAdapter.deploy(bob.address);
+    await stubAdapter.waitForDeployment();
+
+    await setNextBlockTimestamp(provider, await auction.openTime());
+    await expect(auction.initializeMintAdapter(await stubAdapter.getAddress())).to.be.revertedWith("AUCTION_ALREADY_OPEN");
   });
 
   it("bid rejects maxPrice below current ask", async function () {

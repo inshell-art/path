@@ -82,7 +82,7 @@ await adapter.getAuthorizedAuction(); // explicit auction getter
 await adapter.getMinterTarget();      // explicit minter getter
 await minter.pathNft();         // should point at PathNFT
 await minter.nextId();          // next public token id
-await nft.name();               // PATH NFT
+await nft.name();               // PATH
 await nft.symbol();             // PATH
 ```
 

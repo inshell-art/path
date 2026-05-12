@@ -4,9 +4,17 @@ pragma solidity ^0.8.24;
 interface IPathNFT {
     function safeMint(address recipient, uint256 tokenId, bytes calldata data) external;
 
+    function safe_mint(address recipient, uint256 tokenId, bytes calldata data) external;
+
+    function freezePublicMinter(address expectedMinter) external;
+
     function setMovementConfig(bytes32 movement, address minter, uint32 quota) external;
 
+    function freezeMovementConfig(bytes32 movement) external;
+
     function getAuthorizedMinter(bytes32 movement) external view returns (address);
+
+    function isMovementFrozen(bytes32 movement) external view returns (bool);
 
     function getStage(uint256 tokenId) external view returns (uint8);
 

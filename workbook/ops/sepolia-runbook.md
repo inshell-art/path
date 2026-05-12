@@ -53,7 +53,7 @@ $EDITOR ~/.opsec/path/params/params.sepolia.deploy.json
 
 # Example params file:
 # {
-#   "name": "PATH NFT",
+#   "name": "PATH",
 #   "symbol": "PATH",
 #   "baseUri": "",
 #   # Set exactly one of openTime or startDelaySec.

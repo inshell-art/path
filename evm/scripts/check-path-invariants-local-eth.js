@@ -495,14 +495,18 @@ async function main() {
   const adapterOwner = await adapter.owner();
   const nftDefaultAdminRole = await nft.DEFAULT_ADMIN_ROLE();
   const nftMinterRole = await nft.MINTER_ROLE();
+  const nftFrozenMinterAdminRole = await nft.FROZEN_MINTER_ADMIN_ROLE();
   const minterDefaultAdminRole = await minter.DEFAULT_ADMIN_ROLE();
   const salesRole = await minter.SALES_ROLE();
   const frozenSalesAdminRole = await minter.FROZEN_SALES_ADMIN_ROLE();
   const expectedAdmin = deployment.admin ?? deployment.authority?.admin ?? deployment.deployer;
+  const publicMinter = await nft.publicMinter();
+  const publicMinterFrozen = await nft.publicMinterFrozen();
 
   const roleExpectations = {
     nftDefaultAdmin: [expectedAdmin],
     nftMinterRole: [deployment.contracts.pathMinter],
+    nftFrozenMinterAdminRole: [],
     minterDefaultAdmin: [expectedAdmin],
     minterSalesRole: [deployment.contracts.pathMinterAdapter],
     minterFrozenSalesAdminRole: []
@@ -510,6 +514,7 @@ async function main() {
   const roleObservations = {
     nftDefaultAdmin: roleMembers(nftRoleMembers, nftDefaultAdminRole),
     nftMinterRole: roleMembers(nftRoleMembers, nftMinterRole),
+    nftFrozenMinterAdminRole: roleMembers(nftRoleMembers, nftFrozenMinterAdminRole),
     minterDefaultAdmin: roleMembers(minterRoleMembers, minterDefaultAdminRole),
     minterSalesRole: roleMembers(minterRoleMembers, salesRole),
     minterFrozenSalesAdminRole: roleMembers(minterRoleMembers, frozenSalesAdminRole)
@@ -518,6 +523,7 @@ async function main() {
     lower(adapterOwner) === lower(expectedAdmin)
     && sameAddressSet(roleObservations.nftDefaultAdmin, roleExpectations.nftDefaultAdmin)
     && sameAddressSet(roleObservations.nftMinterRole, roleExpectations.nftMinterRole)
+    && sameAddressSet(roleObservations.nftFrozenMinterAdminRole, roleExpectations.nftFrozenMinterAdminRole)
     && sameAddressSet(roleObservations.minterDefaultAdmin, roleExpectations.minterDefaultAdmin)
     && sameAddressSet(roleObservations.minterSalesRole, roleExpectations.minterSalesRole)
     && sameAddressSet(roleObservations.minterFrozenSalesAdminRole, roleExpectations.minterFrozenSalesAdminRole);
@@ -551,10 +557,12 @@ async function main() {
     const movement = movementConstants[label];
     const minterAddress = await nft.getAuthorizedMinter(movement);
     const quota = await nft.getMovementQuota(movement);
+    const frozen = await nft.isMovementFrozen(movement);
     const unset = lower(minterAddress) === lower(ethers.ZeroAddress) && toBigInt(quota) === 0n;
     movementObserved[label] = {
       minter: minterAddress,
       quota: quota.toString(),
+      frozen,
       unset
     };
     if (!unset) allMovementsUnset = false;
@@ -683,8 +691,12 @@ async function main() {
       wiringFrozen
       && lower(authorizedAuction) === lower(deployment.contracts.pulseAuction)
       && lower(minterTarget) === lower(deployment.contracts.pathMinter),
+    public_minter_frozen_to_path_minter:
+      publicMinterFrozen && lower(publicMinter) === lower(deployment.contracts.pathMinter),
     sales_caller_frozen_to_adapter:
       salesCallerFrozen && lower(salesCaller) === lower(deployment.contracts.pathMinterAdapter),
+    auction_mint_adapter_set:
+      lower(auctionMintAdapter) === lower(deployment.contracts.pathMinterAdapter),
     epoch_token_coupling_holds: couplingMatchesBeforeSale,
     role_owner_hygiene_ok: roleOwnerHygieneOk,
     auction_config_matches: auctionConfigMatches,
@@ -731,6 +743,11 @@ async function main() {
         frozen: salesCallerFrozen,
         expected: deployment.contracts.pathMinterAdapter,
         observed: salesCaller
+      },
+      publicMinter: {
+        frozen: publicMinterFrozen,
+        expected: deployment.contracts.pathMinter,
+        observed: publicMinter
       },
       coupling: {
         tokenBase: tokenBase.toString(),

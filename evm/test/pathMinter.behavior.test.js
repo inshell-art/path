@@ -16,6 +16,12 @@ describe("PathMinter (Solidity)", function () {
     }
   }
 
+  async function grantAndFreezePathMinter(nft, roles, minter) {
+    const minterAddress = await minter.getAddress();
+    await (await nft.grantRole(roles.MINTER_ROLE, minterAddress)).wait();
+    await (await nft.freezePublicMinter(minterAddress)).wait();
+  }
+
   beforeEach(async function () {
     conn = await hre.network.connect();
     ethers = conn.ethers;
@@ -55,7 +61,7 @@ describe("PathMinter (Solidity)", function () {
     const { nft, minter, roles } = await deployPathMinterEnv(ethers);
     const [, alice] = await ethers.getSigners();
 
-    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
+    await grantAndFreezePathMinter(nft, roles, minter);
     await (await minter.grantRole(roles.SALES_ROLE, alice.address)).wait();
 
     await expect(minter.connect(alice).mintPublic(alice.address, "0x"))
@@ -79,7 +85,7 @@ describe("PathMinter (Solidity)", function () {
     expect(await minter.salesCaller()).to.equal(ethers.ZeroAddress);
     expect(await minter.salesCallerFrozen()).to.equal(false);
 
-    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
+    await grantAndFreezePathMinter(nft, roles, minter);
     await (await minter.freezeSalesCaller(alice.address)).wait();
 
     await (await minter.connect(alice).mintPublic(alice.address, "0x")).wait();
@@ -94,7 +100,7 @@ describe("PathMinter (Solidity)", function () {
     const { minter, nft, roles } = await deployPathMinterEnv(ethers);
     const [deployer, alice, bob] = await ethers.getSigners();
 
-    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
+    await grantAndFreezePathMinter(nft, roles, minter);
     await (await minter.grantRole(roles.SALES_ROLE, alice.address)).wait();
     await (await minter.grantRole(roles.SALES_ROLE, bob.address)).wait();
 
@@ -126,7 +132,7 @@ describe("PathMinter (Solidity)", function () {
     const { minter, nft, roles } = await deployPathMinterEnv(ethers);
     const [deployer, alice, bob] = await ethers.getSigners();
 
-    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
+    await grantAndFreezePathMinter(nft, roles, minter);
     await (await minter.grantRole(roles.SALES_ROLE, alice.address)).wait();
     await (await minter.freezeSalesCaller(alice.address)).wait();
     await (await minter.connect(alice).mintPublic(alice.address, "0x")).wait();
@@ -145,7 +151,7 @@ describe("PathMinter (Solidity)", function () {
     const rejector = await Rejector.deploy();
     await rejector.waitForDeployment();
 
-    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
+    await grantAndFreezePathMinter(nft, roles, minter);
     await (await minter.grantRole(roles.SALES_ROLE, alice.address)).wait();
     await (await minter.freezeSalesCaller(alice.address)).wait();
 
@@ -158,7 +164,7 @@ describe("PathMinter (Solidity)", function () {
     const { minter, nft, roles } = await deployPathMinterEnv(ethers, { firstPublicId: HIGH_START });
     const [, alice] = await ethers.getSigners();
 
-    await (await nft.grantRole(roles.MINTER_ROLE, await minter.getAddress())).wait();
+    await grantAndFreezePathMinter(nft, roles, minter);
     await (await minter.grantRole(roles.SALES_ROLE, alice.address)).wait();
     await (await minter.freezeSalesCaller(alice.address)).wait();
 

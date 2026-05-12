@@ -31,7 +31,8 @@ export async function deployPathNftEnv(ethers, { admin } = {}) {
     nft,
     roles: {
       DEFAULT_ADMIN_ROLE: await nft.DEFAULT_ADMIN_ROLE(),
-      MINTER_ROLE: roleId(ethers, "MINTER_ROLE")
+      MINTER_ROLE: roleId(ethers, "MINTER_ROLE"),
+      FROZEN_MINTER_ADMIN_ROLE: roleId(ethers, "FROZEN_MINTER_ADMIN_ROLE")
     },
     movements: {
       THOUGHT: movementBytes32(ethers, "THOUGHT"),
@@ -107,6 +108,7 @@ async function deployPathPulseEnv(
   await (await adapter.setAuction(await auction.getAddress())).wait();
   await (await adapter.freezeWiring()).wait();
   await (await nftEnv.nft.grantRole(nftEnv.roles.MINTER_ROLE, await minter.getAddress())).wait();
+  await (await nftEnv.nft.freezePublicMinter(await minter.getAddress())).wait();
   const defaultSalesCaller = await adapter.getAddress();
   const salesCaller = freezeSalesCallerTo ?? defaultSalesCaller;
   const salesRole = roleId(ethers, "SALES_ROLE");

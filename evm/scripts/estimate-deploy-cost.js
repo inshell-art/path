@@ -8,7 +8,7 @@ const PTS = 1n;
 const FIRST_PUBLIC_ID = 1n;
 const EPOCH_BASE = 1n;
 
-const NAME = "PATH NFT";
+const NAME = "PATH";
 const SYMBOL = "PATH";
 const BASE_URI = "";
 
@@ -245,6 +245,7 @@ async function estimateWiringAndAuthorityGas(ethers, deployer, finalAdmin) {
   const setAuctionGas = await txGas(adapter.setAuction(await auction.getAddress()));
   const freezeWiringGas = await txGas(adapter.freezeWiring());
   const grantMinterRoleGas = await txGas(nft.grantRole(minterRole, await minter.getAddress()));
+  const freezePublicMinterGas = await txGas(nft.freezePublicMinter(await minter.getAddress()));
   const grantSalesRoleGas = await txGas(minter.grantRole(salesRole, await adapter.getAddress()));
   const freezeSalesCallerGas = await txGas(minter.freezeSalesCaller(await adapter.getAddress()));
   const grantNftAdminGas = await txGas(nft.grantRole(defaultAdminRole, finalAdmin.address));
@@ -254,7 +255,12 @@ async function estimateWiringAndAuthorityGas(ethers, deployer, finalAdmin) {
   const transferAdapterOwnerGas = await txGas(adapter.transferOwnership(finalAdmin.address));
 
   const wiringTotalGas =
-    setAuctionGas + freezeWiringGas + grantMinterRoleGas + grantSalesRoleGas + freezeSalesCallerGas;
+    setAuctionGas
+    + freezeWiringGas
+    + grantMinterRoleGas
+    + freezePublicMinterGas
+    + grantSalesRoleGas
+    + freezeSalesCallerGas;
   const authorityTotalGas =
     grantNftAdminGas
     + renounceNftAdminGas
@@ -266,6 +272,7 @@ async function estimateWiringAndAuthorityGas(ethers, deployer, finalAdmin) {
     setAuctionGas,
     freezeWiringGas,
     grantMinterRoleGas,
+    freezePublicMinterGas,
     grantSalesRoleGas,
     freezeSalesCallerGas,
     wiringTotalGas,
@@ -324,6 +331,7 @@ async function main() {
   printRow("adapter.setAuction", wiring.setAuctionGas, gasPrice.gwei, ethUsd.usd);
   printRow("adapter.freezeWiring", wiring.freezeWiringGas, gasPrice.gwei, ethUsd.usd);
   printRow("nft.grantRole", wiring.grantMinterRoleGas, gasPrice.gwei, ethUsd.usd);
+  printRow("nft.freezeMinter", wiring.freezePublicMinterGas, gasPrice.gwei, ethUsd.usd);
   printRow("minter.grantRole", wiring.grantSalesRoleGas, gasPrice.gwei, ethUsd.usd);
   printRow("minter.freezeSales", wiring.freezeSalesCallerGas, gasPrice.gwei, ethUsd.usd);
   printRow("WIRING TOTAL", wiring.wiringTotalGas, gasPrice.gwei, ethUsd.usd);

@@ -53,7 +53,7 @@ inputs = {
     "lane": "deploy",
     "run_id": run_id,
     "payload": {
-        "name": "PATH NFT",
+        "name": "PATH",
         "symbol": "PATH"
     }
 }
