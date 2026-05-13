@@ -113,3 +113,17 @@ Outputs:
 - `PathNFT` emits EIP-4906 `MetadataUpdate(tokenId)` on progression (`consumeUnit`) so indexers can refresh metadata.
 - `PathNFT.contractURI` is available for optional contract-level collection metadata.
 - This EVM stack has no separate renderer contract.
+
+## Marketplace Metadata Contract
+
+`PathNFT` metadata is intended to be enough for generic NFT marketplaces:
+
+- `name`: `PATH #<tokenId>`
+- `description`: protocol-level PATH description
+- `image`: embedded SVG data URL
+- `image_data`: same SVG inline for clients that prefer raw SVG
+- `attributes`: stable traits `Stage`, `THOUGHT`, `WILL`, `AWA`
+
+Progress traits currently use `Minted(x/y)` for every movement. If a movement is not configured yet, its quota is `0`, so the raw on-chain value is `Minted(0/0)`.
+
+Marketplace refresh depends on the marketplace. The contract emits EIP-4906 `MetadataUpdate(tokenId)` on every successful movement consume; marketplaces that honor EIP-4906 can refresh automatically, while others may need manual refresh.

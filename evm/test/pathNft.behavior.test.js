@@ -322,6 +322,33 @@ describe("PathNFT (Solidity)", function () {
     expect(metadata.external_link).to.equal("https://github.com/inshell-art/path");
   });
 
+  it("tokenURI remains self-contained and marketplace-shaped when movements are not configured", async function () {
+    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+    const [, alice] = await ethers.getSigners();
+
+    await grantAndFreezePublicMinter(nft, roles, deployer.address);
+    await (await nft.safeMint(alice.address, 7n, "0x")).wait();
+
+    const metadata = decodeMetadata(await nft.tokenURI(7n));
+    const decodedImage = Buffer.from(metadata.image.split(",")[1], "base64").toString("utf8");
+
+    expect(metadata.name).to.equal("PATH #7");
+    expect(metadata.image.startsWith("data:image/svg+xml;base64,")).to.equal(true);
+    expect(metadata.image_data).to.equal(decodedImage);
+    expect(metadata.image_data).to.contain("<svg");
+    expect(metadata.image_data).to.contain("<rect width='600' height='600' fill='black'/>");
+    expect(metadata.attributes.map((x) => x.trait_type)).to.deep.equal([
+      "Stage",
+      "THOUGHT",
+      "WILL",
+      "AWA"
+    ]);
+    expect(metadata.stage).to.equal("THOUGHT");
+    expect(metadata.thought).to.equal("Minted(0/0)");
+    expect(metadata.will).to.equal("Minted(0/0)");
+    expect(metadata.awa).to.equal("Minted(0/0)");
+  });
+
   it("supports ERC-4906 and emits MetadataUpdate on consumeUnit", async function () {
     const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
     const [, alice] = await ethers.getSigners();
