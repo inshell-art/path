@@ -36,7 +36,15 @@ if [[ -z "$OUT_DIR" ]]; then
   OUT_DIR="$ROOT/artifacts/$NETWORK/current/inputs"
 fi
 
-INPUT_PATH=$(cd "$(dirname "$INPUT_FILE")" && pwd)/$(basename "$INPUT_FILE")
+if [[ "$INPUT_FILE" = /* ]]; then
+  INPUT_FILE_SRC="$INPUT_FILE"
+elif [[ -f "$ROOT/$INPUT_FILE" ]]; then
+  INPUT_FILE_SRC="$ROOT/$INPUT_FILE"
+else
+  INPUT_FILE_SRC="$INPUT_FILE"
+fi
+
+INPUT_PATH=$(cd "$(dirname "$INPUT_FILE_SRC")" && pwd)/$(basename "$INPUT_FILE_SRC")
 if [[ ! -f "$INPUT_PATH" ]]; then
   echo "INPUT_FILE not found: $INPUT_PATH" >&2
   exit 2
