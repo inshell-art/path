@@ -132,6 +132,24 @@ for key, value in rows:
 PY
 fi
 
+if [[ -f "$BUNDLE_DIR/treasury_safe.json" ]]; then
+  echo "Treasury Safe summary (deterministic):"
+  TREASURY_SAFE_PATH="$BUNDLE_DIR/treasury_safe.json" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+safe = json.loads(Path(os.environ["TREASURY_SAFE_PATH"]).read_text())
+owners = safe.get("owners", [])
+owner_refs = ", ".join([str(owner.get("signerRef", "<missing>")) for owner in owners])
+print(f"  safeAddress       {safe.get('safeAddress', '<missing>')}")
+print(f"  treasurySignerRef {safe.get('treasurySignerRef', '<missing>')}")
+print(f"  threshold         {safe.get('threshold', '<missing>')}")
+print(f"  ownerSignerRefs   {owner_refs if owner_refs else '<missing>'}")
+print(f"  deploymentTx      {safe.get('deploymentTx', '<missing>')}")
+PY
+fi
+
 SUFFIX=${BUNDLE_HASH: -8}
 if [[ -n "$INPUTS_HASH" ]]; then
   INPUTS_SUFFIX=${INPUTS_HASH: -8}

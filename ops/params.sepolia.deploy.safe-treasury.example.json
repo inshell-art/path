@@ -1,0 +1,17 @@
+{
+  "name": "PATH",
+  "symbol": "PATH",
+  "baseUri": "",
+  "startDelaySec": "600",
+  "admin": "0xa31Fe4bC2A9A4EeA01275A6c4b4be2Aa994A0981",
+  "adminSignerRef": "SEPOLIA_ADMIN_HW_A",
+  "k": "100000000000000000000",
+  "genesisPrice": "1000000000000000000",
+  "genesisFloor": "100000000000000000",
+  "pts": "100000000000000",
+  "firstPublicId": "1",
+  "epochBase": "1",
+  "paymentToken": "0x0000000000000000000000000000000000000000",
+  "treasury": "0xE524EDf82c2D0d8243eE4fF21FB020Bd8b45D47F",
+  "treasurySignerRef": "SEPOLIA_TREASURY_SAFE_1OF1"
+}

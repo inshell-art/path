@@ -36,6 +36,8 @@
 - `PathNFT` on-chain collection name and symbol are `PATH`. UI copy may show `$PATH`, but contract metadata should stay marketplace-compatible.
 - Public mint authority is one-way frozen with `freezePublicMinter`; after freeze, only the selected public minter can mint and `MINTER_ROLE` administration is locked.
 - The active public minter is the Pulse adapter/minter path. Do not reintroduce deprecated reserved/spark minting paths.
+- Sepolia deploy bundles must use Safe-backed treasury custody: constructor `treasury` is the Safe address, `treasurySignerRef` is `SEPOLIA_TREASURY_SAFE_1OF1`, the Safe owner ref is `SEPOLIA_TREASURY_HW_A`, and `ADMIN` remains the direct Ledger-backed `SEPOLIA_ADMIN_HW_A`.
+- Safe-backed deploy bundles must include a verified `treasury_safe.json` artifact in the immutable bundle manifest.
 - There must be no assumptions about `reservedCap`, `reserved_cap`, `RESERVED_ROLE`, `SPARK_BASE`, `mintSparker`, `getReservedCap`, or `getReservedRemaining`.
 - Frontends must not classify "spark" or special tokens by high token id.
 - Movement order is fixed: `THOUGHT`, then `WILL`, then `AWA`.

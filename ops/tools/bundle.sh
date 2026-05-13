@@ -7,6 +7,7 @@ RUN_ID=${RUN_ID:-}
 FORCE=${FORCE:-0}
 LOCKED_INPUTS_FILE=${LOCKED_INPUTS_FILE:-}
 INPUTS_TEMPLATE=${INPUTS_TEMPLATE:-}
+TREASURY_SAFE_FILE=${TREASURY_SAFE_FILE:-}
 
 if [[ -n "$LOCKED_INPUTS_FILE" && -n "$INPUTS_TEMPLATE" && "$LOCKED_INPUTS_FILE" != "$INPUTS_TEMPLATE" ]]; then
   echo "LOCKED_INPUTS_FILE and deprecated INPUTS_TEMPLATE both set but differ" >&2
@@ -16,7 +17,7 @@ fi
 LOCKED_INPUTS_FILE=${LOCKED_INPUTS_FILE:-$INPUTS_TEMPLATE}
 
 if [[ -z "$NETWORK" || -z "$LANE" || -z "$RUN_ID" ]]; then
-  echo "Usage: NETWORK=<devnet|sepolia|mainnet> LANE=<observe|plan|deploy|handoff|govern|treasury|operate|emergency> RUN_ID=<id> [LOCKED_INPUTS_FILE=<path>] $0" >&2
+  echo "Usage: NETWORK=<devnet|sepolia|mainnet> LANE=<observe|plan|deploy|handoff|govern|treasury|operate|emergency> RUN_ID=<id> [LOCKED_INPUTS_FILE=<path>] [TREASURY_SAFE_FILE=<path>] $0" >&2
   exit 2
 fi
 
@@ -78,6 +79,21 @@ else
   LOCKED_INPUTS_FILE_ABS=""
 fi
 
+if [[ -n "$TREASURY_SAFE_FILE" ]]; then
+  if [[ "$TREASURY_SAFE_FILE" = /* ]]; then
+    TREASURY_SAFE_FILE_SRC="$TREASURY_SAFE_FILE"
+  else
+    TREASURY_SAFE_FILE_SRC="$ROOT/$TREASURY_SAFE_FILE"
+  fi
+  TREASURY_SAFE_FILE_ABS=$(cd "$(dirname "$TREASURY_SAFE_FILE_SRC")" && pwd)/$(basename "$TREASURY_SAFE_FILE_SRC")
+  if [[ ! -f "$TREASURY_SAFE_FILE_ABS" ]]; then
+    echo "TREASURY_SAFE_FILE not found: $TREASURY_SAFE_FILE_ABS" >&2
+    exit 2
+  fi
+else
+  TREASURY_SAFE_FILE_ABS=""
+fi
+
 mkdir -p "$BUNDLE_DIR"
 
 PATH_INVARIANTS_REQUIRED=$(POLICY_FILE="$POLICY_FILE" RUN_LANE="$LANE" python3 - <<'PY'
@@ -105,7 +121,7 @@ fi
 GIT_COMMIT=$(git rev-parse HEAD)
 CREATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-export ROOT BUNDLE_DIR NETWORK LANE RUN_ID GIT_COMMIT CREATED_AT POLICY_FILE LOCKED_INPUTS_FILE_ABS
+export ROOT BUNDLE_DIR NETWORK LANE RUN_ID GIT_COMMIT CREATED_AT POLICY_FILE LOCKED_INPUTS_FILE_ABS TREASURY_SAFE_FILE_ABS
 
 python3 - <<'PY'
 import hashlib
@@ -186,6 +202,7 @@ git_commit = os.environ["GIT_COMMIT"]
 created_at = os.environ["CREATED_AT"]
 policy_file = Path(os.environ["POLICY_FILE"])
 locked_inputs_file = os.environ.get("LOCKED_INPUTS_FILE_ABS", "")
+treasury_safe_file = os.environ.get("TREASURY_SAFE_FILE_ABS", "")
 
 policy = json.loads(policy_file.read_text())
 lane_cfg = ((policy.get("lanes") or {}).get(lane) or {})
@@ -239,6 +256,88 @@ else:
     if required_kinds:
         raise SystemExit(f"Missing LOCKED_INPUTS_FILE for lane requiring inputs kinds: {required_kinds}")
 
+
+def is_safe_ref(value):
+    return "SAFE" in str(value or "").upper()
+
+
+def addr_lower(value):
+    return str(value or "").lower()
+
+
+def validate_treasury_safe(payload, params):
+    if not isinstance(payload, dict):
+        raise ValueError("treasury_safe must be a JSON object")
+
+    required = ["network", "safeAddress", "treasurySignerRef", "threshold", "owners", "deploymentTx", "verification"]
+    missing = [key for key in required if key not in payload]
+    if missing:
+        raise ValueError(f"treasury_safe missing required keys: {', '.join(missing)}")
+
+    if payload.get("network") != network:
+        raise ValueError("treasury_safe.network does not match bundle network")
+
+    if addr_lower(payload.get("safeAddress")) != addr_lower(params.get("treasury")):
+        raise ValueError("treasury_safe.safeAddress does not match constructor treasury")
+
+    if payload.get("treasurySignerRef") != params.get("treasurySignerRef"):
+        raise ValueError("treasury_safe.treasurySignerRef does not match constructor treasurySignerRef")
+
+    owners = payload.get("owners")
+    if not isinstance(owners, list) or not owners:
+        raise ValueError("treasury_safe.owners must be a non-empty list")
+
+    threshold = payload.get("threshold")
+    if not isinstance(threshold, int) or isinstance(threshold, bool) or threshold < 1:
+        raise ValueError("treasury_safe.threshold must be a positive integer")
+
+    if threshold > len(owners):
+        raise ValueError("treasury_safe.threshold cannot exceed owner count")
+
+    verification = payload.get("verification")
+    if not isinstance(verification, dict):
+        raise ValueError("treasury_safe.verification must be an object")
+
+    required_true = ["codeIsContract", "ownersReadbackMatch", "thresholdMatches"]
+    failed = [key for key in required_true if verification.get(key) is not True]
+    if failed:
+        raise ValueError(f"treasury_safe verification failed: {', '.join(failed)}")
+
+    if verification.get("thresholdReadback") != threshold:
+        raise ValueError("treasury_safe threshold readback mismatch")
+
+    if payload.get("treasurySignerRef") == "SEPOLIA_TREASURY_SAFE_1OF1":
+        if network != "sepolia":
+            raise ValueError("SEPOLIA_TREASURY_SAFE_1OF1 used outside sepolia")
+        if threshold != 1 or len(owners) != 1:
+            raise ValueError("SEPOLIA_TREASURY_SAFE_1OF1 must be a 1-of-1 Safe")
+        if owners[0].get("signerRef") != "SEPOLIA_TREASURY_HW_A":
+            raise ValueError("SEPOLIA_TREASURY_SAFE_1OF1 owner must be SEPOLIA_TREASURY_HW_A")
+
+
+treasury_safe_sha256 = ""
+if inputs_payload is not None:
+    params = inputs_payload.get("params", {}) if isinstance(inputs_payload.get("params"), dict) else {}
+    treasury_signer_ref = params.get("treasurySignerRef", "")
+    if is_safe_ref(treasury_signer_ref) and not treasury_safe_file:
+        raise SystemExit("constructor treasurySignerRef is Safe-backed; provide TREASURY_SAFE_FILE")
+else:
+    params = {}
+
+if treasury_safe_file:
+    if inputs_payload is None:
+        raise SystemExit("TREASURY_SAFE_FILE requires LOCKED_INPUTS_FILE with constructor params")
+
+    try:
+        treasury_safe_payload = json.loads(Path(treasury_safe_file).read_text())
+        validate_treasury_safe(treasury_safe_payload, params)
+    except Exception as exc:
+        raise SystemExit(f"Invalid TREASURY_SAFE_FILE: {exc}")
+
+    canonical_safe = json.dumps(treasury_safe_payload, indent=2, sort_keys=True) + "\n"
+    (bundle_dir / "treasury_safe.json").write_text(canonical_safe)
+    treasury_safe_sha256 = hashlib.sha256(canonical_safe.encode()).hexdigest()
+
 run = {
     "run_id": run_id,
     "network": network,
@@ -255,6 +354,8 @@ intent = {
 }
 if inputs_sha256:
     intent["inputs_sha256"] = inputs_sha256
+if treasury_safe_sha256:
+    intent["treasury_safe_sha256"] = treasury_safe_sha256
 
 checks = {
     "checks_version": 1,
@@ -266,14 +367,56 @@ checks = {
 }
 if inputs_sha256:
     checks["inputs_pinned"] = True
+if treasury_safe_sha256:
+    checks["treasury_safe_verified"] = True
+    checks["treasury_safe_sha256"] = treasury_safe_sha256
 
 (bundle_dir / "run.json").write_text(json.dumps(run, indent=2, sort_keys=True) + "\n")
 (bundle_dir / "intent.json").write_text(json.dumps(intent, indent=2, sort_keys=True) + "\n")
 (bundle_dir / "checks.json").write_text(json.dumps(checks, indent=2, sort_keys=True) + "\n")
 
-immutable_files = ["run.json", "intent.json", "checks.json"]
+runbook_lines = [
+    "# PATH OPS Bundle Runbook",
+    "",
+    f"- network: `{network}`",
+    f"- lane: `{lane}`",
+    f"- run id: `{run_id}`",
+    f"- source commit: `{git_commit}`",
+]
+if inputs_sha256:
+    runbook_lines.append(f"- inputs sha256: `{inputs_sha256}`")
+if treasury_safe_sha256:
+    runbook_lines.append(f"- treasury Safe sha256: `{treasury_safe_sha256}`")
+
+runbook_lines.extend([
+    "",
+    "## Operator Commands",
+    "",
+    "Run from the pinned PATH repo checkout:",
+    "",
+    "```bash",
+    f"NETWORK={network} RUN_ID={run_id} npm run ops:verify",
+    f"NETWORK={network} RUN_ID={run_id} npm run ops:approve",
+    f"NETWORK={network} RUN_ID={run_id} npm run ops:apply",
+    f"NETWORK={network} RUN_ID={run_id} npm run ops:postconditions",
+    "```",
+    "",
+    "## Stop Conditions",
+    "",
+    "- manifest hash mismatch",
+    "- repo commit mismatch",
+    "- constructor params mismatch",
+    "- signer allowlist mismatch",
+    "- Safe treasury evidence mismatch",
+    "- predeploy/postdeploy invariant failure",
+])
+(bundle_dir / "RUNBOOK.md").write_text("\n".join(runbook_lines) + "\n")
+
+immutable_files = ["run.json", "intent.json", "checks.json", "RUNBOOK.md"]
 if inputs_sha256:
     immutable_files.append("inputs.json")
+if treasury_safe_sha256:
+    immutable_files.append("treasury_safe.json")
 if (bundle_dir / "checks.path.json").exists():
     immutable_files.append("checks.path.json")
 

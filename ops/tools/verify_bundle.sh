@@ -197,13 +197,18 @@ for item in required_inputs:
         required_kinds.append(item["kind"].strip())
 
 inputs_path = bundle_dir / "inputs.json"
+treasury_safe_path = bundle_dir / "treasury_safe.json"
 has_inputs = inputs_path.exists()
+has_treasury_safe = treasury_safe_path.exists()
 if has_inputs and "inputs.json" not in paths:
     raise SystemExit("inputs.json exists but is not listed in immutable manifest")
+if has_treasury_safe and "treasury_safe.json" not in paths:
+    raise SystemExit("treasury_safe.json exists but is not listed in immutable manifest")
 
 if required_kinds and not has_inputs:
     raise SystemExit(f"inputs.json required for lane '{run_lane}' (expected kind in {required_kinds})")
 
+inputs = None
 if has_inputs:
     schema_path = root / "schemas/inputs.schema.json"
     if not schema_path.exists():
@@ -237,6 +242,62 @@ if has_inputs:
 
     if checks.get("inputs_pinned") is not True:
         raise SystemExit("inputs.json present but checks.json.inputs_pinned is not true")
+
+    params = inputs.get("params", {}) if isinstance(inputs.get("params"), dict) else {}
+    treasury_signer_ref = str(params.get("treasurySignerRef", ""))
+    if "SAFE" in treasury_signer_ref.upper():
+        if not has_treasury_safe:
+            raise SystemExit("Safe-backed treasurySignerRef requires treasury_safe.json in immutable manifest")
+
+if has_treasury_safe:
+    if not has_inputs:
+        raise SystemExit("treasury_safe.json requires inputs.json")
+    safe = json.loads(treasury_safe_path.read_text())
+    params = inputs.get("params", {}) if isinstance(inputs.get("params"), dict) else {}
+
+    def addr_lower(value):
+        return str(value or "").lower()
+
+    if safe.get("network") != run_network:
+        raise SystemExit("treasury_safe.network does not match run.json.network")
+    if addr_lower(safe.get("safeAddress")) != addr_lower(params.get("treasury")):
+        raise SystemExit("treasury_safe.safeAddress does not match inputs.params.treasury")
+    if safe.get("treasurySignerRef") != params.get("treasurySignerRef"):
+        raise SystemExit("treasury_safe.treasurySignerRef does not match inputs.params.treasurySignerRef")
+
+    owners = safe.get("owners")
+    threshold = safe.get("threshold")
+    if not isinstance(owners, list) or not owners:
+        raise SystemExit("treasury_safe.owners must be non-empty")
+    if not isinstance(threshold, int) or isinstance(threshold, bool) or threshold < 1 or threshold > len(owners):
+        raise SystemExit("treasury_safe.threshold invalid")
+
+    verification = safe.get("verification")
+    if not isinstance(verification, dict):
+        raise SystemExit("treasury_safe.verification must be an object")
+    required_true = ["codeIsContract", "ownersReadbackMatch", "thresholdMatches"]
+    failed = [key for key in required_true if verification.get(key) is not True]
+    if failed:
+        raise SystemExit(f"treasury_safe verification failed: {', '.join(failed)}")
+    if verification.get("thresholdReadback") != threshold:
+        raise SystemExit("treasury_safe threshold readback mismatch")
+
+    if safe.get("treasurySignerRef") == "SEPOLIA_TREASURY_SAFE_1OF1":
+        if run_network != "sepolia":
+            raise SystemExit("SEPOLIA_TREASURY_SAFE_1OF1 used outside sepolia")
+        if threshold != 1 or len(owners) != 1:
+            raise SystemExit("SEPOLIA_TREASURY_SAFE_1OF1 must be 1-of-1")
+        if owners[0].get("signerRef") != "SEPOLIA_TREASURY_HW_A":
+            raise SystemExit("SEPOLIA_TREASURY_SAFE_1OF1 owner must be SEPOLIA_TREASURY_HW_A")
+
+    safe_hash = hashlib.sha256(treasury_safe_path.read_bytes()).hexdigest()
+    intent_safe_hash = intent.get("treasury_safe_sha256", "")
+    if not intent_safe_hash:
+        raise SystemExit("treasury_safe.json present but intent.json.treasury_safe_sha256 is missing")
+    if intent_safe_hash != safe_hash:
+        raise SystemExit("treasury_safe hash mismatch: intent.json.treasury_safe_sha256 vs treasury_safe.json")
+    if checks.get("treasury_safe_verified") is not True:
+        raise SystemExit("treasury_safe.json present but checks.json.treasury_safe_verified is not true")
 
 required_checks = lane_cfg.get("required_checks", [])
 if required_checks is None:

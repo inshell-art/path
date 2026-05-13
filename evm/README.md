@@ -114,6 +114,49 @@ Outputs:
 - `PathNFT.contractURI` is available for optional contract-level collection metadata.
 - This EVM stack has no separate renderer contract.
 
+## Publish-Ready Invariants
+
+Constructor params:
+
+- `name` / `symbol`: marketplace-facing collection identity. The contract uses `PATH`; UI copy may render `$PATH`.
+- `baseUri`: optional fallback base URI. The current marketplace path relies on on-chain data URLs.
+- `admin`: direct Ledger-backed admin authority. On Sepolia this is `SEPOLIA_ADMIN_HW_A`.
+- `openTime`: preferred formal launch input, unix seconds UTC. Do not combine with `startDelaySec`.
+- `startDelaySec`: rehearsal convenience input that scripts convert to `openTime`.
+- `k`, `genesisPrice`, `genesisFloor`, `pts`: Pulse pricing constants.
+- `firstPublicId` / `epochBase`: token/epoch alignment constants.
+- `paymentToken`: zero address for ETH.
+- `treasury`: payment recipient. On Sepolia this must be the Safe address, not the Safe owner EOA.
+- `treasurySignerRef`: on Sepolia this must be `SEPOLIA_TREASURY_SAFE_1OF1`.
+
+Role and freeze model:
+
+- `PathNFT.freezePublicMinter(expectedMinter)` is one-way and locks public minting to `PathMinter`.
+- `PathMinter.freezeSalesCaller(expectedCaller)` is one-way and locks public mint execution to the Pulse adapter path.
+- `PathMinterAdapter.freezeWiring()` is one-way and locks its auction/minter endpoints.
+- Movement config is one-way per movement. A movement can be explicitly frozen by admin or implicitly frozen on first successful consume.
+
+Irreversible actions:
+
+- Public PATH mint creates an ERC-721 token and cannot be undone by protocol code.
+- `consumeUnit` consumes one movement unit, advances movement progress/stage, increments the claimer nonce, emits `MetadataUpdate`, and cannot be replayed.
+- Public minter, sales caller, adapter wiring, and frozen movement configs cannot be changed after freeze.
+
+Metadata and indexer expectations:
+
+- `tokenURI` is self-contained JSON with embedded SVG.
+- `contractURI` is self-contained collection metadata.
+- `attributes` keep stable trait names: `Stage`, `THOUGHT`, `WILL`, and `AWA`.
+- `MetadataUpdate(tokenId)` is emitted on every movement consume. Marketplaces that do not honor EIP-4906 may require manual metadata refresh.
+- `MovementConsumed(pathId,movement,claimer,serial)` is the canonical movement-consumption event.
+
+Deploy-time assumptions:
+
+- Sepolia treasury uses Safe custody: `safeAddress=0xE524EDf82c2D0d8243eE4fF21FB020Bd8b45D47F`, `treasurySignerRef=SEPOLIA_TREASURY_SAFE_1OF1`, `threshold=1`, owner ref `SEPOLIA_TREASURY_HW_A`.
+- Sepolia ADMIN remains the direct Ledger-backed `SEPOLIA_ADMIN_HW_A`.
+- Sepolia deploy has no normal post-deploy handoff of ADMIN or treasury; deploy scripts must freeze the public mint path instead.
+- Safe-backed deploy bundles must include verified `treasury_safe.json` evidence in the immutable bundle manifest.
+
 ## Marketplace Metadata Contract
 
 `PathNFT` metadata is intended to be enough for generic NFT marketplaces:

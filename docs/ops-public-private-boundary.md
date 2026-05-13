@@ -32,11 +32,15 @@ Never commit:
 
 ## Final custody rule
 
-Final PATH custody is hardware-only:
-- `ADMIN` is the Ledger-backed contract authority account
-- `TREASURY` is the Ledger-backed recipient/holding account
-- the live Ledger addresses correspond to attached-passphrase / secondary-PIN operational wallets
-- base / no-passphrase wallets are intentionally unused
+Final PATH custody uses hardware-backed authority and Safe-backed treasury:
+- `ADMIN` is the direct Ledger-backed contract authority account.
+- On Sepolia, `ADMIN` is `SEPOLIA_ADMIN_HW_A`.
+- `TREASURY` is a Safe address, not the Safe owner EOA.
+- On Sepolia, `TREASURY` uses `treasurySignerRef = SEPOLIA_TREASURY_SAFE_1OF1`.
+- The Sepolia Safe owner ref is `SEPOLIA_TREASURY_HW_A`.
+- The Safe verification artifact must include `safeAddress`, `threshold`, `owners`, deployment tx, and on-chain readback evidence.
+- The live Ledger/Safe addresses correspond to attached-passphrase / secondary-PIN operational wallets.
+- Base / no-passphrase wallets are intentionally unused.
 
 Daily ops secret layer is only:
 - Ledger secondary PINs / operational PIN path

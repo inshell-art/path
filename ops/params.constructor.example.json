@@ -13,5 +13,5 @@
   "epochBase": "1",
   "paymentToken": "0x0000000000000000000000000000000000000000",
   "treasury": "0x1111111111111111111111111111111111111111",
-  "treasurySignerRef": "NETWORK-TREASURY"
+  "treasurySignerRef": "NETWORK-TREASURY-SAFE"
 }

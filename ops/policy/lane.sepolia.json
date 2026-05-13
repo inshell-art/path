@@ -14,6 +14,14 @@
     "SEPOLIA_TREASURY_HW_A": "0xFC309d64Ff133d69bE2B690931BE2E923ef05E90"
   },
   "path": {
+    "treasury_safe": {
+      "safeAddress": "0xE524EDf82c2D0d8243eE4fF21FB020Bd8b45D47F",
+      "treasurySignerRef": "SEPOLIA_TREASURY_SAFE_1OF1",
+      "threshold": 1,
+      "ownerSignerRefs": [
+        "SEPOLIA_TREASURY_HW_A"
+      ]
+    },
     "movement_config": {
       "mode": "allow_unset",
       "expected": {}

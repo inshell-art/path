@@ -123,6 +123,7 @@ PATH-owned protocol data may include additional fields such as:
 - audit ids
 - policy allowlists
 - signer alias maps
+- Safe treasury evidence such as `treasury_safe.json`
 - locked inputs
 - PATH contract addresses
 - ABIs
@@ -149,6 +150,7 @@ Dev OS side in `path/`:
 - policy edits
 - `ops:lock-inputs`
 - `ops:dispatch-bundle`
+- Safe treasury evidence pinning for Safe-backed treasury deploy bundles
 - PATH handoff file preparation
 
 Signing OS side in `path/`:

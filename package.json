@@ -40,6 +40,7 @@
     "ops:audit:signoff": "make -C ops audit-signoff",
     "ops:audit:all": "make -C ops audit-all",
     "ops:audit:test": "./ops/tests/audit_smoke.sh && ./ops/tests/audit_negative.sh",
+    "ops:test:safe-treasury": "./ops/tests/safe_treasury_bundle.sh",
     "ops:check:public-safe": "./scripts/check-public-safe-ops.sh",
     "ops:lint:secret-snippets": "make -C ops lint-secret-snippets",
     "ops:scan-secrets": "make -C ops scan-secrets",
