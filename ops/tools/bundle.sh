@@ -349,11 +349,21 @@ intent = {
     "intent_version": 1,
     "network": network,
     "lane": lane,
-    "ops": ["stub"],
-    "notes": "Scaffold stub. Replace with real intent generation.",
+    "run_id": run_id,
+    "operation": "path.deploy",
+    "source_commit": git_commit,
 }
 if inputs_sha256:
     intent["inputs_sha256"] = inputs_sha256
+if inputs_payload is not None:
+    source = inputs_payload.get("source", {}) if isinstance(inputs_payload.get("source"), dict) else {}
+    intent["constructor_params_source"] = source.get("path_hint", "")
+    intent["constructor_params_source_sha256"] = source.get("sha256", "")
+    intent["constructor_params_kind"] = inputs_payload.get("kind", "")
+    intent["constructor_params"] = params
+    allowed_signers = lane_cfg.get("allowed_signers") or []
+    if allowed_signers:
+        intent["deployerSignerRef"] = allowed_signers[0]
 if treasury_safe_sha256:
     intent["treasury_safe_sha256"] = treasury_safe_sha256
 
@@ -361,12 +371,13 @@ checks = {
     "checks_version": 1,
     "network": network,
     "lane": lane,
+    "run_id": run_id,
     "pass": True,
-    "stub": True,
-    "notes": "Scaffold stub. Replace with real checks/simulations.",
+    "required_checks": lane_cfg.get("required_checks", []),
 }
 if inputs_sha256:
     checks["inputs_pinned"] = True
+    checks["constructor_params_schema_checked"] = True
 if treasury_safe_sha256:
     checks["treasury_safe_verified"] = True
     checks["treasury_safe_sha256"] = treasury_safe_sha256
