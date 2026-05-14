@@ -40,44 +40,40 @@
     "contracts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path_nft", "path_minter", "path_minter_adapter", "pulse_auction"],
+      "required": ["path_nft", "path_pulse_adapter", "pulse_auction"],
       "properties": {
         "path_nft": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
-        "path_minter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
-        "path_minter_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
+        "path_pulse_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
         "pulse_auction": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"}
       }
     },
     "deploy_txs": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path_nft", "path_minter", "path_minter_adapter", "pulse_auction"],
+      "required": ["path_nft", "path_pulse_adapter", "pulse_auction"],
       "properties": {
         "path_nft": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
-        "path_minter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
-        "path_minter_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
+        "path_pulse_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
         "pulse_auction": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"}
       }
     },
     "deploy_blocks": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path_nft", "path_minter", "path_minter_adapter", "pulse_auction"],
+      "required": ["path_nft", "path_pulse_adapter", "pulse_auction"],
       "properties": {
         "path_nft": {"type": "integer", "minimum": 0},
-        "path_minter": {"type": "integer", "minimum": 0},
-        "path_minter_adapter": {"type": "integer", "minimum": 0},
+        "path_pulse_adapter": {"type": "integer", "minimum": 0},
         "pulse_auction": {"type": "integer", "minimum": 0}
       }
     },
     "code_hashes": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path_nft", "path_minter", "path_minter_adapter", "pulse_auction"],
+      "required": ["path_nft", "path_pulse_adapter", "pulse_auction"],
       "properties": {
         "path_nft": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
-        "path_minter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
-        "path_minter_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
+        "path_pulse_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"},
         "pulse_auction": {"type": "string", "pattern": "^0x[a-fA-F0-9]{64}$"}
       }
     },

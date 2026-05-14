@@ -87,13 +87,12 @@ if [[ $FORCE -ne 1 && -e "$OUT_DIR/protocol-release.$NETWORK.json" ]]; then
 fi
 
 PATH_NFT_ADDR=$(jq -r '.contracts.pathNft' "$DEPLOY_FILE")
-PATH_MINTER_ADDR=$(jq -r '.contracts.pathMinter' "$DEPLOY_FILE")
-PATH_ADAPTER_ADDR=$(jq -r '.contracts.pathMinterAdapter' "$DEPLOY_FILE")
+PATH_PULSE_ADAPTER_ADDR=$(jq -r '.contracts.pathPulseAdapter' "$DEPLOY_FILE")
 PULSE_AUCTION_ADDR=$(jq -r '.contracts.pulseAuction' "$DEPLOY_FILE")
 TREASURY_ADDR=$(jq -r '.treasury' "$DEPLOY_FILE")
 PAYMENT_TOKEN_ADDR=$(jq -r '.paymentToken' "$DEPLOY_FILE")
 
-for addr in "$PATH_NFT_ADDR" "$PATH_MINTER_ADDR" "$PATH_ADAPTER_ADDR" "$PULSE_AUCTION_ADDR" "$TREASURY_ADDR" "$PAYMENT_TOKEN_ADDR"; do
+for addr in "$PATH_NFT_ADDR" "$PATH_PULSE_ADAPTER_ADDR" "$PULSE_AUCTION_ADDR" "$TREASURY_ADDR" "$PAYMENT_TOKEN_ADDR"; do
   [[ "$addr" =~ ^0x[a-fA-F0-9]{40}$ ]] || { echo "Invalid address in deployment file: $addr" >&2; exit 1; }
 done
 
@@ -105,8 +104,7 @@ extract_abi() {
 }
 
 extract_abi "evm/artifacts/src/PathNFT.sol/PathNFT.json" "$ABI_DIR/PathNFT.json"
-extract_abi "evm/artifacts/src/PathMinter.sol/PathMinter.json" "$ABI_DIR/PathMinter.json"
-extract_abi "evm/artifacts/src/PathMinterAdapter.sol/PathMinterAdapter.json" "$ABI_DIR/PathMinterAdapter.json"
+extract_abi "evm/artifacts/src/PathPulseAdapter.sol/PathPulseAdapter.json" "$ABI_DIR/PathPulseAdapter.json"
 extract_abi "evm/artifacts/src/PulseAuction.sol/PulseAuction.json" "$ABI_DIR/PulseAuction.json"
 
 rpc_tmp=$(mktemp)
@@ -141,17 +139,15 @@ load_receipt() {
 }
 
 PATH_NFT_TX=$(jq -r '.deployTxs.pathNft' "$DEPLOY_FILE")
-PATH_MINTER_TX=$(jq -r '.deployTxs.pathMinter' "$DEPLOY_FILE")
-PATH_ADAPTER_TX=$(jq -r '.deployTxs.pathMinterAdapter' "$DEPLOY_FILE")
+PATH_PULSE_ADAPTER_TX=$(jq -r '.deployTxs.pathPulseAdapter' "$DEPLOY_FILE")
 PULSE_AUCTION_TX=$(jq -r '.deployTxs.pulseAuction' "$DEPLOY_FILE")
 
 jq -s 'add' \
   <(load_receipt path_nft "$PATH_NFT_TX" "$PATH_NFT_ADDR") \
-  <(load_receipt path_minter "$PATH_MINTER_TX" "$PATH_MINTER_ADDR") \
-  <(load_receipt path_minter_adapter "$PATH_ADAPTER_TX" "$PATH_ADAPTER_ADDR") \
+  <(load_receipt path_pulse_adapter "$PATH_PULSE_ADAPTER_TX" "$PATH_PULSE_ADAPTER_ADDR") \
   <(load_receipt pulse_auction "$PULSE_AUCTION_TX" "$PULSE_AUCTION_ADDR") > "$rpc_tmp"
 
-for addr in "$PATH_NFT_ADDR" "$PATH_MINTER_ADDR" "$PATH_ADAPTER_ADDR" "$PULSE_AUCTION_ADDR"; do
+for addr in "$PATH_NFT_ADDR" "$PATH_PULSE_ADAPTER_ADDR" "$PULSE_AUCTION_ADDR"; do
   code=$(cast code --rpc-url "$RPC_URL" "$addr")
   [[ -n "$code" && "$code" != "0x" ]] || { echo "No on-chain code at $addr" >&2; exit 1; }
 done
@@ -224,8 +220,7 @@ if audit_id:
 
 contracts = {
     "path_nft": deploy["contracts"]["pathNft"],
-    "path_minter": deploy["contracts"]["pathMinter"],
-    "path_minter_adapter": deploy["contracts"]["pathMinterAdapter"],
+    "path_pulse_adapter": deploy["contracts"]["pathPulseAdapter"],
     "pulse_auction": deploy["contracts"]["pulseAuction"],
 }
 admin = deploy.get("admin") or deploy.get("authority", {}).get("admin") or deploy["deployer"]
@@ -244,8 +239,7 @@ if not addr_re.match(admin):
 
 code_hashes = {
     "path_nft": deploy["codeHashes"]["pathNft"],
-    "path_minter": deploy["codeHashes"]["pathMinter"],
-    "path_minter_adapter": deploy["codeHashes"]["pathMinterAdapter"],
+    "path_pulse_adapter": deploy["codeHashes"]["pathPulseAdapter"],
     "pulse_auction": deploy["codeHashes"]["pulseAuction"],
 }
 for key, value in code_hashes.items():
@@ -267,14 +261,12 @@ manifest = {
     "contracts": contracts,
     "deploy_txs": {
         "path_nft": deploy["deployTxs"]["pathNft"],
-        "path_minter": deploy["deployTxs"]["pathMinter"],
-        "path_minter_adapter": deploy["deployTxs"]["pathMinterAdapter"],
+        "path_pulse_adapter": deploy["deployTxs"]["pathPulseAdapter"],
         "pulse_auction": deploy["deployTxs"]["pulseAuction"],
     },
     "deploy_blocks": {
         "path_nft": int(blocks["path_nft"]),
-        "path_minter": int(blocks["path_minter"]),
-        "path_minter_adapter": int(blocks["path_minter_adapter"]),
+        "path_pulse_adapter": int(blocks["path_pulse_adapter"]),
         "pulse_auction": int(blocks["pulse_auction"]),
     },
     "code_hashes": code_hashes,
@@ -342,8 +334,7 @@ manifest = json.loads(Path(sys.argv[2]).read_text())
 
 required_addresses = {
     "path_nft",
-    "path_minter",
-    "path_minter_adapter",
+    "path_pulse_adapter",
     "pulse_auction",
     "treasury",
     "payment_token",
@@ -367,7 +358,7 @@ if not addr_re.match(manifest.get("deployer", "")):
 if not addr_re.match(manifest.get("admin", "")):
     raise SystemExit("invalid admin")
 contracts = manifest.get("contracts", {})
-required_contracts = {"path_nft", "path_minter", "path_minter_adapter", "pulse_auction"}
+required_contracts = {"path_nft", "path_pulse_adapter", "pulse_auction"}
 if set(contracts.keys()) != required_contracts:
     raise SystemExit("manifest contracts shape mismatch")
 for key in required_contracts:
@@ -377,7 +368,7 @@ if manifest.get("treasury") != addresses["treasury"]:
     raise SystemExit("manifest treasury does not match addresses file")
 if manifest.get("payment_token") != addresses["payment_token"]:
     raise SystemExit("manifest payment_token does not match addresses file")
-required_blocks = {"path_nft", "path_minter", "path_minter_adapter", "pulse_auction"}
+required_blocks = {"path_nft", "path_pulse_adapter", "pulse_auction"}
 if set(manifest.get("deploy_blocks", {}).keys()) != required_blocks:
     raise SystemExit("deploy_blocks shape mismatch")
 if manifest.get("status", {}).get("postconditions") != "pass":

@@ -2,7 +2,7 @@
 
 ## Path contracts
 - [ ] Confirm target branch and spec docs to apply.
-- [ ] Re-sync deployment addresses (PathNFT, PathMinter, PathMinterAdapter, PulseAuction).
+- [ ] Re-sync deployment addresses (PathNFT, PathPulseAdapter, PulseAuction).
 - [ ] Re-run EVM tests: `npm run evm:test`.
 - [ ] Re-run compile check: `npm run evm:compile`.
 - [ ] Update EVM docs if wiring or role changes.
@@ -18,7 +18,7 @@
 - [ ] Deploy EVM PATH stack (`npm run evm:deploy:local:eth`).
 - [ ] Wire roles and freeze checks pass in deployment output.
 - [ ] Mint a PATH via auction flow and validate `tokenURI` + metadata SVG.
-- [ ] Run a bid and confirm adapter -> minter -> nft mint pipeline.
+- [ ] Run a bid and confirm auction -> PathPulseAdapter -> PathNFT mint pipeline.
 
 ## Commit hygiene
 - [ ] Keep changes scoped by repo.

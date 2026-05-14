@@ -69,6 +69,11 @@ MUTABLE_BUNDLE_PATHS = [
     "snapshots",
 ]
 
+REGENERATED_INTERNAL_BUNDLE_FILES = {
+    "bundle_manifest.json",
+    "checks.path.json",
+}
+
 
 ROOT = Path(__file__).resolve().parents[2]
 TOOLS_DIR = Path(__file__).resolve().parent
@@ -168,6 +173,37 @@ def copytree(src: Path, dst: Path) -> None:
     shutil.copytree(src, dst, symlinks=True)
 
 
+def clean_manifest_relpath(raw: object) -> str:
+    rel = str(raw or "").strip()
+    if not rel:
+        raise SystemExit("bundle_manifest.json immutable file entry missing path")
+    path = Path(rel)
+    if path.is_absolute() or ".." in path.parts:
+        raise SystemExit(f"Unsafe immutable file path in bundle_manifest.json: {rel}")
+    return path.as_posix()
+
+
+def copy_manifest_immutable_files(source_manifest: dict, source_bundle_dir: Path, internal_bundle_dir: Path) -> None:
+    immutable_files = source_manifest.get("immutable_files", [])
+    if not isinstance(immutable_files, list):
+        raise SystemExit("bundle_manifest.json immutable_files must be a list")
+
+    for item in immutable_files:
+        if not isinstance(item, dict):
+            raise SystemExit("bundle_manifest.json immutable_files must contain objects")
+        rel = clean_manifest_relpath(item.get("path"))
+        if rel in REGENERATED_INTERNAL_BUNDLE_FILES:
+            continue
+
+        src = source_bundle_dir / rel
+        if not src.is_file():
+            raise SystemExit(f"Missing immutable file while preparing Signing OS workspace: {rel}")
+
+        dst = internal_bundle_dir / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+
+
 def resolve_node_runtime_root() -> Path:
     explicit = os.environ.get(DEFAULT_NODE_RUNTIME_ENV, "").strip()
     if explicit:
@@ -190,13 +226,53 @@ def resolve_node_runtime_root() -> Path:
     return root
 
 
+def configure_local_submodule_urls(source_repo_root: Path, workspace_root: Path) -> None:
+    gitmodules = source_repo_root / ".gitmodules"
+    if not gitmodules.is_file():
+        return
+
+    result = subprocess.run(
+        ["git", "config", "--file", str(gitmodules), "--get-regexp", r"^submodule\..*\.path$"],
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        return
+
+    for line in result.stdout.splitlines():
+        parts = line.split(maxsplit=1)
+        if len(parts) != 2:
+            continue
+        key, rel_path = parts
+        if not key.startswith("submodule.") or not key.endswith(".path"):
+            continue
+        name = key[len("submodule.") : -len(".path")]
+        local_submodule = source_repo_root / rel_path
+        if not local_submodule.exists():
+            continue
+        run(["git", "-C", str(workspace_root), "config", f"submodule.{name}.path", rel_path])
+        run(["git", "-C", str(workspace_root), "config", f"submodule.{name}.url", str(local_submodule)])
+
+
 def build_sparse_workspace(repo_root: Path, commit: str, workspace_root: Path) -> None:
     run(["git", "clone", "--no-checkout", str(repo_root), str(workspace_root)])
     run(["git", "-C", str(workspace_root), "sparse-checkout", "init", "--cone"])
     run(["git", "-C", str(workspace_root), "sparse-checkout", "set", *SPARSE_PATHS])
     run(["git", "-C", str(workspace_root), "checkout", "--detach", commit])
+    configure_local_submodule_urls(repo_root, workspace_root)
     subprocess.run(
-        ["git", "-C", str(workspace_root), "submodule", "update", "--init", "--checkout", "--recursive"],
+        [
+            "git",
+            "-c",
+            "protocol.file.allow=always",
+            "-C",
+            str(workspace_root),
+            "submodule",
+            "update",
+            "--init",
+            "--checkout",
+            "--recursive",
+        ],
         check=True,
     )
     origin = run(["git", "-C", str(workspace_root), "remote"], cwd=workspace_root).stdout.split()
@@ -292,8 +368,8 @@ def render_export_bundle_manifest(source_manifest: dict, internal_bundle_dir: Pa
     for item in source_manifest.get("immutable_files", []):
         if not isinstance(item, dict):
             raise SystemExit("bundle_manifest.json immutable_files must contain objects")
-        rel = str(item.get("path", "")).strip()
-        if not rel or rel == "checks.path.json":
+        rel = clean_manifest_relpath(item.get("path"))
+        if rel in REGENERATED_INTERNAL_BUNDLE_FILES:
             continue
         file_path = internal_bundle_dir / rel
         if not file_path.is_file():
@@ -1091,12 +1167,7 @@ def export_bundle(bundle_dir: Path, output_dir: Path, signer_alias: str, rpc_url
 
         internal_bundle_dir = tmp_workspace / "bundles" / network / run_id
         internal_bundle_dir.mkdir(parents=True, exist_ok=True)
-        for name in IMMUTABLE_BUNDLE_FILES + OPTIONAL_BUNDLE_FILES:
-            if name == "bundle_manifest.json":
-                continue
-            src = bundle_dir / name
-            if src.exists():
-                shutil.copy2(src, internal_bundle_dir / name)
+        copy_manifest_immutable_files(source_bundle_manifest, bundle_dir, internal_bundle_dir)
 
         exported_bundle_manifest = render_export_bundle_manifest(source_bundle_manifest, internal_bundle_dir)
         write_text(

@@ -5,8 +5,7 @@ This folder contains the Ethereum Solidity port for the PATH stack in this repo.
 Core contracts:
 
 - `evm/src/PathNFT.sol`
-- `evm/src/PathMinter.sol`
-- `evm/src/PathMinterAdapter.sol`
+- `evm/src/PathPulseAdapter.sol`
 - `evm/src/PulseAuction.sol`
 
 Test mocks:
@@ -16,6 +15,10 @@ Test mocks:
 - `evm/src/mocks/RejectingERC721Receiver.sol`
 - `evm/src/mocks/StubPathMinter.sol`
 - `evm/src/mocks/BidBatcher.sol`
+
+Legacy compatibility contracts remain in `evm/src/PathMinter.sol` and
+`evm/src/PathMinterAdapter.sol`, but they are not part of the public issuance
+path for new deploy bundles.
 
 ## Hardhat
 
@@ -37,8 +40,7 @@ GAS_PRICE_GWEI=20 ETH_USD=3000 npm run estimate:deploy:cost
 The local scripts deploy a full ETH-settled stack:
 
 - `PathNFT`
-- `PathMinter`
-- `PathMinterAdapter`
+- `PathPulseAdapter`
 - `PulseAuction` (`paymentToken = address(0)`)
 
 In one terminal:
@@ -131,16 +133,16 @@ Constructor params:
 
 Role and freeze model:
 
-- `PathNFT.freezePublicMinter(expectedMinter)` is one-way and locks public minting to `PathMinter`.
-- `PathMinter.freezeSalesCaller(expectedCaller)` is one-way and locks public mint execution to the Pulse adapter path.
-- `PathMinterAdapter.freezeWiring()` is one-way and locks its auction/minter endpoints.
+- `PathNFT.freezePublicMinter(expectedMinter)` is one-way and locks public minting to `PathPulseAdapter`.
+- `PathPulseAdapter.freezeWiring()` is one-way and locks its `PulseAuction` / `PathNFT` endpoints.
+- `PulseAuction.mintAdapter` is the only public sale settlement caller and must point at `PathPulseAdapter`.
 - Movement config is one-way per movement. A movement can be explicitly frozen by admin or implicitly frozen on first successful consume.
 
 Irreversible actions:
 
 - Public PATH mint creates an ERC-721 token and cannot be undone by protocol code.
 - `consumeUnit` consumes one movement unit, advances movement progress/stage, increments the claimer nonce, emits `MetadataUpdate`, and cannot be replayed.
-- Public minter, sales caller, adapter wiring, and frozen movement configs cannot be changed after freeze.
+- Public minter, adapter wiring, and frozen movement configs cannot be changed after freeze.
 
 Metadata and indexer expectations:
 

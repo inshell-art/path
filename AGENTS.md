@@ -35,7 +35,8 @@
 ## Publish-Ready Contract Invariants
 - `PathNFT` on-chain collection name and symbol are `PATH`. UI copy may show `$PATH`, but contract metadata should stay marketplace-compatible.
 - Public mint authority is one-way frozen with `freezePublicMinter`; after freeze, only the selected public minter can mint and `MINTER_ROLE` administration is locked.
-- The active public minter is the Pulse adapter/minter path. Do not reintroduce deprecated reserved/spark minting paths.
+- The active public minter is `PathPulseAdapter`, which settles Pulse epochs directly into `PathNFT.safeMint`.
+- `PathMinter` / `PathMinterAdapter` are legacy compatibility surfaces only; do not use them in deploy bundles or public issuance paths.
 - Sepolia deploy bundles must use Safe-backed treasury custody: constructor `treasury` is the Safe address, `treasurySignerRef` is `SEPOLIA_TREASURY_SAFE_1OF1`, the Safe owner ref is `SEPOLIA_TREASURY_HW_A`, and `ADMIN` remains the direct Ledger-backed `SEPOLIA_ADMIN_HW_A`.
 - Safe-backed deploy bundles must include a verified `treasury_safe.json` artifact in the immutable bundle manifest.
 - There must be no assumptions about `reservedCap`, `reserved_cap`, `RESERVED_ROLE`, `SPARK_BASE`, `mintSparker`, `getReservedCap`, or `getReservedRemaining`.
@@ -46,7 +47,7 @@
 - `consumeUnit` must emit `MetadataUpdate(tokenId)` and `MovementConsumed` so marketplaces/indexers can refresh token metadata.
 - `tokenURI` and `contractURI` must remain self-contained data URLs with embedded SVG. Do not depend on an off-chain renderer for marketplace display.
 - `attributes` must keep stable trait names: `Stage`, `THOUGHT`, `WILL`, and `AWA`.
-- ABI/type snapshots and downstream FE releases must match the current `PathMinter` / `PathNFT` surface before Sepolia or Mainnet handoff.
+- ABI/type snapshots and downstream FE releases must match the current `PathPulseAdapter` / `PathNFT` / `PulseAuction` surface before Sepolia or Mainnet handoff.
 
 ## Signing OS Handoff Contract
 - Boundary source of truth is `docs/repo-boundary.md`.

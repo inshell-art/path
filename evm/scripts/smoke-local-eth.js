@@ -25,11 +25,17 @@ async function main() {
 
   const [, buyer] = await ethers.getSigners();
   const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
-  const adapter = await ethers.getContractAt("PathMinterAdapter", deployment.contracts.pathMinterAdapter);
+  const adapter = await ethers.getContractAt("PathPulseAdapter", deployment.contracts.pathPulseAdapter);
   const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft);
-  const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter);
 
-  const tokenIdBefore = await minter.nextId();
+  const tokenBase = toBigInt(deployment.config.tokenBase ?? deployment.config.firstPublicId);
+  const epochBase = toBigInt(deployment.config.epochBase ?? "1");
+  const epochBefore = toBigInt(await auction.getEpochIndex());
+  const nextSaleEpoch = epochBefore + 1n;
+  if (nextSaleEpoch < epochBase) {
+    throw new Error(`next sale epoch ${nextSaleEpoch} is below epochBase ${epochBase}`);
+  }
+  const expectedTokenId = tokenBase + (nextSaleEpoch - epochBase);
   const curveActive = await auction.curveActive();
   const k = toBigInt(await auction.curveK());
   const genesisPrice = toBigInt(await auction.genesisPrice());
@@ -46,23 +52,20 @@ async function main() {
 
   const treasuryBefore = await ethers.provider.getBalance(deployment.treasury);
   const authorizedAuction = await adapter.getAuthorizedAuction();
-  const minterTarget = await adapter.getMinterTarget();
+  const pathNftTarget = await adapter.getPathNftTarget();
 
   await provider.send("evm_setNextBlockTimestamp", [Number(plannedTime)]);
   const tx = await auction.connect(buyer).bid(ask, { value: ask });
   const receipt = await tx.wait();
 
   const treasuryAfter = await ethers.provider.getBalance(deployment.treasury);
-  const owner = await nft.ownerOf(tokenIdBefore);
+  const owner = await nft.ownerOf(expectedTokenId);
   const curveActiveAfter = await auction.curveActive();
   const epochIndex = await auction.epochIndex();
-  const tokenIdAfter = await minter.nextId();
-  const tokenBase = toBigInt(deployment.config.tokenBase ?? deployment.config.firstPublicId);
-  const epochBase = toBigInt(deployment.config.epochBase ?? "1");
   const expectedTokenIdByEpoch = tokenBase + (toBigInt(epochIndex) - epochBase);
   const adapterChecks = {
     authorizedAuctionMatches: authorizedAuction.toLowerCase() === deployment.contracts.pulseAuction.toLowerCase(),
-    minterTargetMatches: minterTarget.toLowerCase() === deployment.contracts.pathMinter.toLowerCase()
+    pathNftTargetMatches: pathNftTarget.toLowerCase() === deployment.contracts.pathNft.toLowerCase()
   };
 
   if (!Object.values(adapterChecks).every(Boolean)) {
@@ -76,12 +79,11 @@ async function main() {
     txHash: receipt.hash,
     askWei: ask.toString(),
     treasuryDeltaWei: (treasuryAfter - treasuryBefore).toString(),
-    mintedTokenId: tokenIdBefore.toString(),
+    mintedTokenId: expectedTokenId.toString(),
     mintedOwner: owner,
     couplingExpectedTokenId: expectedTokenIdByEpoch.toString(),
-    couplingMatchesEpoch: tokenIdBefore === expectedTokenIdByEpoch,
-    nextIdAfter: tokenIdAfter.toString(),
-    nextIdIncremented: tokenIdAfter === tokenIdBefore + 1n,
+    couplingMatchesEpoch: expectedTokenId === expectedTokenIdByEpoch,
+    epochBefore: epochBefore.toString(),
     curveActiveBefore: curveActive,
     curveActiveAfter,
     epochIndex: epochIndex.toString(),

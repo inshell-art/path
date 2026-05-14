@@ -113,7 +113,7 @@ def addresses(deployment: dict) -> dict[str, str]:
     contracts = deployment.get("contracts") or {}
     required = {
         "nft": contracts.get("pathNft", ""),
-        "minter": contracts.get("pathMinter", ""),
+        "adapter": contracts.get("pathPulseAdapter", ""),
         "auction": contracts.get("pulseAuction", ""),
         "treasury": deployment.get("treasury", ""),
         "payment_token": deployment.get("paymentToken", ""),
@@ -140,7 +140,12 @@ def write_baseline(args: argparse.Namespace, deployment: dict, addrs: dict[str, 
     buyer_balance = cast_balance(args.buyer, rpc)
     ask = parse_cast_uint(cast_call(addrs["auction"], "getCurrentPrice()(uint256)", rpc))
     epoch = parse_cast_uint(cast_call(addrs["auction"], "epochIndex()(uint256)", rpc))
-    next_id = parse_cast_uint(cast_call(addrs["minter"], "nextId()(uint256)", rpc))
+    token_base = parse_cast_uint(cast_call(addrs["adapter"], "tokenBase()(uint256)", rpc))
+    epoch_base = parse_cast_uint(cast_call(addrs["adapter"], "epochBase()(uint256)", rpc))
+    next_sale_epoch = int(epoch) + 1
+    if next_sale_epoch < int(epoch_base):
+        raise SmokeError("next sale epoch is before adapter epochBase")
+    expected_token_id = str(int(token_base) + (next_sale_epoch - int(epoch_base)))
     treasury = cast_balance(addrs["treasury"], rpc)
     latest = out / "baseline.env"
     stamped = out / f"baseline.{utc_stamp()}.env"
@@ -151,11 +156,14 @@ def write_baseline(args: argparse.Namespace, deployment: dict, addrs: dict[str, 
             f"buyer={args.buyer}",
             f"auction={addrs['auction']}",
             f"nft={addrs['nft']}",
-            f"minter={addrs['minter']}",
+            f"adapter={addrs['adapter']}",
             f"treasury={addrs['treasury']}",
             f"ask_before={ask}",
             f"epoch_before={epoch}",
-            f"next_id_before={next_id}",
+            f"next_sale_epoch_before={next_sale_epoch}",
+            f"expected_token_id_before={expected_token_id}",
+            f"token_base={token_base}",
+            f"epoch_base={epoch_base}",
             f"treasury_before={treasury}",
             f"buyer_balance_before={buyer_balance}",
             f"deployment={deployment_path(args)}",
@@ -232,14 +240,15 @@ HTML_TEMPLATE = (
       const EXPECTED_BUYER = "__BUYER__";
       const CHAIN_ID = "__CHAIN_ID__";
       const NFT = "__NFT__";
-      const MINTER = "__MINTER__";
+      const ADAPTER = "__ADAPTER__";
       const AUCTION = "__AUCTION__";
       const TREASURY = "__TREASURY__";
 
       const SELECTOR_BID = "0x454a2ab3";
       const SELECTOR_GET_CURRENT_PRICE = "0xeb91d37e";
       const SELECTOR_EPOCH_INDEX = "0x06c106f9";
-      const SELECTOR_NEXT_ID = "0x61b8ce8c";
+      const SELECTOR_TOKEN_BASE = "0xb61daaee";
+      const SELECTOR_EPOCH_BASE = "0xde3d3d08";
 
       const statusEl = document.getElementById("status");
       const previewEl = document.getElementById("preview");
@@ -345,7 +354,11 @@ HTML_TEMPLATE = (
 
         const askWei = decodeUint256(await request("eth_call", [{ to: AUCTION, data: SELECTOR_GET_CURRENT_PRICE }, "latest"]));
         const epoch = decodeUint256(await request("eth_call", [{ to: AUCTION, data: SELECTOR_EPOCH_INDEX }, "latest"]));
-        const nextId = decodeUint256(await request("eth_call", [{ to: MINTER, data: SELECTOR_NEXT_ID }, "latest"]));
+        const tokenBase = decodeUint256(await request("eth_call", [{ to: ADAPTER, data: SELECTOR_TOKEN_BASE }, "latest"]));
+        const epochBase = decodeUint256(await request("eth_call", [{ to: ADAPTER, data: SELECTOR_EPOCH_BASE }, "latest"]));
+        const nextSaleEpoch = BigInt(epoch) + 1n;
+        requireCondition(nextSaleEpoch >= BigInt(epochBase), "Next sale epoch is before adapter epochBase.");
+        const expectedTokenId = (BigInt(tokenBase) + (nextSaleEpoch - BigInt(epochBase))).toString(10);
         const data = bidCalldata(askWei);
         const value = quantityHex(askWei);
 
@@ -362,7 +375,19 @@ HTML_TEMPLATE = (
         const simulated = await request("eth_call", [tx, "latest"]);
         const gasEstimate = await request("eth_estimateGas", [tx]);
 
-        prepared = { runId: RUN_ID, network: NETWORK, askWei, epoch, nextId, tx, simulated, gasEstimate };
+        prepared = {
+          runId: RUN_ID,
+          network: NETWORK,
+          askWei,
+          epoch,
+          nextSaleEpoch: nextSaleEpoch.toString(10),
+          expectedTokenId,
+          tokenBase,
+          epochBase,
+          tx,
+          simulated,
+          gasEstimate
+        };
         previewEl.textContent = JSON.stringify(prepared, null, 2);
         log("Simulation passed. Transaction is prepared. Check preview before sending.");
         sendButton.disabled = false;
@@ -416,7 +441,7 @@ def render_page(args: argparse.Namespace, deployment: dict, addrs: dict[str, str
         "__CHAIN_ID__": chain_id_hex(args.network),
         "__BUYER__": args.buyer,
         "__NFT__": addrs["nft"],
-        "__MINTER__": addrs["minter"],
+        "__ADAPTER__": addrs["adapter"],
         "__AUCTION__": addrs["auction"],
         "__TREASURY__": addrs["treasury"],
     }
@@ -472,7 +497,7 @@ def verify_command(args: argparse.Namespace) -> int:
     out.mkdir(parents=True, exist_ok=True)
     rpc = rpc_url(args)
     baseline = read_baseline(out)
-    token_id = args.token_id or baseline.get("next_id_before")
+    token_id = args.token_id or baseline.get("expected_token_id_before") or baseline.get("next_id_before")
     epoch_before = baseline.get("epoch_before")
     treasury_before = baseline.get("treasury_before")
     if not token_id:
@@ -490,7 +515,6 @@ def verify_command(args: argparse.Namespace) -> int:
 
     owner_after = cast_call(addrs["nft"], "ownerOf(uint256)(address)", rpc, token_id).strip()
     epoch_after = parse_cast_uint(cast_call(addrs["auction"], "epochIndex()(uint256)", rpc))
-    next_id_after = parse_cast_uint(cast_call(addrs["minter"], "nextId()(uint256)", rpc))
     treasury_after = cast_balance(addrs["treasury"], rpc)
 
     receipt_status = ""
@@ -528,7 +552,6 @@ def verify_command(args: argparse.Namespace) -> int:
         "owner_after": owner_after,
         "epoch_before": epoch_before or "",
         "epoch_after": epoch_after,
-        "next_id_after": next_id_after,
         "treasury_before": treasury_before or "",
         "treasury_after": treasury_after,
         "status": status,

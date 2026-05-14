@@ -3,8 +3,7 @@
 This walkthrough is a hands-on rehearsal to learn the Solidity stack:
 
 - `PulseAuction` (pricing + sale flow)
-- `PathMinterAdapter` (auction -> minter bridge)
-- `PathMinter` (public mint proxy)
+- `PathPulseAdapter` (auction -> PATH NFT bridge)
 - `PathNFT` (ERC-721 + movement progression)
 
 ## 0) Start from a clean localnet
@@ -67,8 +66,7 @@ const d = JSON.parse(await fs.readFile("deployments/localhost-eth.json", "utf8")
 const [deployer, buyer] = await ethers.getSigners();
 
 const auction = await ethers.getContractAt("PulseAuction", d.contracts.pulseAuction);
-const adapter = await ethers.getContractAt("PathMinterAdapter", d.contracts.pathMinterAdapter);
-const minter = await ethers.getContractAt("PathMinter", d.contracts.pathMinter);
+const adapter = await ethers.getContractAt("PathPulseAdapter", d.contracts.pathPulseAdapter);
 const nft = await ethers.getContractAt("PathNFT", d.contracts.pathNft);
 ```
 
@@ -77,11 +75,11 @@ Read wiring/config:
 ```js
 await auction.getConfig();      // open, genesis, floor, k, pts
 await auction.getState();       // epoch, start, anchor, floor, curveActive
-await adapter.getConfig();      // auction + minter addresses
+await adapter.getConfig();      // auction + PATH NFT addresses
 await adapter.getAuthorizedAuction(); // explicit auction getter
-await adapter.getMinterTarget();      // explicit minter getter
-await minter.pathNft();         // should point at PathNFT
-await minter.nextId();          // next public token id
+await adapter.getPathNftTarget();     // explicit PATH NFT getter
+await adapter.tokenBase();      // public token id base
+await adapter.epochBase();      // auction epoch base
 await nft.name();               // PATH
 await nft.symbol();             // PATH
 ```
@@ -89,20 +87,20 @@ await nft.symbol();             // PATH
 ## 3) Run one live auction sale
 
 ```js
-const expectedTokenId = await minter.nextId();
+const epochBefore = BigInt((await auction.epochIndex()).toString());
+const tokenBase = BigInt((await adapter.tokenBase()).toString());
+const epochBase = BigInt((await adapter.epochBase()).toString());
+const expectedTokenId = tokenBase + ((BigInt(epochBefore) + 1n) - epochBase);
 const ask = await auction.getCurrentPrice();
 const tx = await auction.connect(buyer).bid(ask, { value: ask });
 await tx.wait();
 
-await minter.nextId();          // increments by 1
 await nft.ownerOf(expectedTokenId); // buyer owns latest minted token
 await auction.epochIndex();     // increments by 1
 
 // coupling invariant (configured in adapter):
 // tokenId = tokenBase + (epochIndex - epochBase)
-const tokenBase = BigInt(d.config.tokenBase ?? d.config.firstPublicId);
-const epochBase = BigInt(d.config.epochBase ?? 1);
-const epoch = await auction.epochIndex();
+const epoch = BigInt((await auction.epochIndex()).toString());
 tokenBase + (epoch - epochBase) === expectedTokenId;
 ```
 

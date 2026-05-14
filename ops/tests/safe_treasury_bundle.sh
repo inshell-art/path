@@ -87,6 +87,21 @@ jq -e '.treasury_safe_verified == true' "$BUNDLE_DIR/checks.json" >/dev/null
 jq -e '.treasury_safe_sha256 | type == "string" and length == 64' "$BUNDLE_DIR/intent.json" >/dev/null
 test -f "$BUNDLE_DIR/RUNBOOK.md"
 
+EXPORT_DIR="$TMP_DIR/PATH-RUN-BUNDLE"
+python3 ./ops/tools/export_signing_os_bundle.py \
+  --bundle-dir "$BUNDLE_DIR" \
+  --output-dir "$EXPORT_DIR" \
+  --rpc-url https://ethereum-sepolia-rpc.publicnode.com \
+  --signer-alias SEPOLIA_DEPLOY_SW_A >/dev/null
+
+INTERNAL_BUNDLE_DIR="$EXPORT_DIR/WORKSPACE/bundles/sepolia/$RUN_ID"
+test -f "$INTERNAL_BUNDLE_DIR/RUNBOOK.md"
+test -f "$INTERNAL_BUNDLE_DIR/treasury_safe.json"
+jq -e '.immutable_files[] | select(.path == "RUNBOOK.md")' "$INTERNAL_BUNDLE_DIR/bundle_manifest.json" >/dev/null
+jq -e '.immutable_files[] | select(.path == "treasury_safe.json")' "$INTERNAL_BUNDLE_DIR/bundle_manifest.json" >/dev/null
+test -f "$EXPORT_DIR/MANIFEST.json"
+test -f "$EXPORT_DIR/SHA256SUMS.txt"
+
 NETWORK=sepolia LANE=deploy RUN_ID="$RUN_ID_MISSING" INPUT_FILE="$PARAMS" \
   OUT_DIR="$INPUTS_DIR" PARAMS_SCHEMA=schemas/path.constructor_params.schema.json \
   ./ops/tools/lock_inputs.sh >/dev/null

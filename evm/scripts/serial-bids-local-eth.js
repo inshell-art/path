@@ -56,10 +56,11 @@ async function main() {
   const [, buyer] = await ethers.getSigners();
   const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
   const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft);
-  const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter);
   const k = toBigInt(await auction.curveK());
   const genesisPrice = toBigInt(await auction.genesisPrice());
   const openTime = toBigInt(await auction.openTime());
+  const tokenBase = toBigInt(deployment.config.tokenBase ?? deployment.config.firstPublicId);
+  const epochBase = toBigInt(deployment.config.epochBase ?? "1");
 
   const latestBlock = await ethers.provider.getBlock("latest");
   let saleTime = openTime > toBigInt(latestBlock.timestamp) + 1n
@@ -73,7 +74,12 @@ async function main() {
       saleTime += BigInt(bidWaitSec);
     }
 
-    const tokenIdBefore = await minter.nextId();
+    const epochBefore = toBigInt(await auction.getEpochIndex());
+    const nextSaleEpoch = epochBefore + 1n;
+    if (nextSaleEpoch < epochBase) {
+      throw new Error(`next sale epoch ${nextSaleEpoch} is below epochBase ${epochBase}`);
+    }
+    const expectedTokenId = tokenBase + (nextSaleEpoch - epochBase);
     const curveActiveBefore = await auction.curveActive();
     const stateBefore = await auction.getState();
     const ask = curveActiveBefore
@@ -87,29 +93,28 @@ async function main() {
     const receipt = await tx.wait();
 
     const treasuryAfter = await ethers.provider.getBalance(deployment.treasury);
-    const owner = await nft.ownerOf(tokenIdBefore);
-    const tokenIdAfter = await minter.nextId();
     const epochIndex = await auction.epochIndex();
+    const owner = await nft.ownerOf(expectedTokenId);
 
     records.push({
       step: i + 1,
       txHash: receipt.hash,
       bidWei: ask,
-      tokenId: tokenIdBefore,
+      tokenId: expectedTokenId,
       mintedOwner: owner,
-      nextIdAfter: tokenIdAfter,
-      nextIdIncremented: tokenIdAfter === tokenIdBefore + 1n,
+      epochBefore,
+      epochIndex,
+      epochIncremented: toBigInt(epochIndex) === nextSaleEpoch,
       curveActiveBefore,
       treasuryDeltaWei: treasuryAfter - treasuryBefore,
-      treasuryDeltaMatchesBid: treasuryAfter - treasuryBefore === ask,
-      epochIndex
+      treasuryDeltaMatchesBid: treasuryAfter - treasuryBefore === ask
     });
   }
 
   const allChecksPass = records.every(
     (r) =>
       r.mintedOwner.toLowerCase() === buyer.address.toLowerCase() &&
-      r.nextIdIncremented &&
+      r.epochIncremented &&
       r.treasuryDeltaMatchesBid
   );
 

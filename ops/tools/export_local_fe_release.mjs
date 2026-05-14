@@ -91,8 +91,7 @@ async function main() {
 
   const contracts = {
     path_nft: deploy.contracts.pathNft,
-    path_minter: deploy.contracts.pathMinter,
-    path_minter_adapter: deploy.contracts.pathMinterAdapter,
+    path_pulse_adapter: deploy.contracts.pathPulseAdapter,
     pulse_auction: deploy.contracts.pulseAuction,
   };
   const addresses = {
@@ -109,12 +108,11 @@ async function main() {
 
   const deployBlocks = {
     path_nft: await receiptBlock(provider, "path_nft", deploy.deployTxs.pathNft, contracts.path_nft),
-    path_minter: await receiptBlock(provider, "path_minter", deploy.deployTxs.pathMinter, contracts.path_minter),
-    path_minter_adapter: await receiptBlock(
+    path_pulse_adapter: await receiptBlock(
       provider,
-      "path_minter_adapter",
-      deploy.deployTxs.pathMinterAdapter,
-      contracts.path_minter_adapter
+      "path_pulse_adapter",
+      deploy.deployTxs.pathPulseAdapter,
+      contracts.path_pulse_adapter
     ),
     pulse_auction: await receiptBlock(
       provider,
@@ -132,10 +130,9 @@ async function main() {
 
   mkdirSync(resolve(outDir, "abi"), { recursive: true });
   abiCopy(resolve(root, "evm/artifacts/src/PathNFT.sol/PathNFT.json"), resolve(outDir, "abi/PathNFT.json"));
-  abiCopy(resolve(root, "evm/artifacts/src/PathMinter.sol/PathMinter.json"), resolve(outDir, "abi/PathMinter.json"));
   abiCopy(
-    resolve(root, "evm/artifacts/src/PathMinterAdapter.sol/PathMinterAdapter.json"),
-    resolve(outDir, "abi/PathMinterAdapter.json")
+    resolve(root, "evm/artifacts/src/PathPulseAdapter.sol/PathPulseAdapter.json"),
+    resolve(outDir, "abi/PathPulseAdapter.json")
   );
   abiCopy(resolve(root, "evm/artifacts/src/PulseAuction.sol/PulseAuction.json"), resolve(outDir, "abi/PulseAuction.json"));
 
@@ -154,15 +151,13 @@ async function main() {
     contracts,
     deploy_txs: {
       path_nft: deploy.deployTxs.pathNft,
-      path_minter: deploy.deployTxs.pathMinter,
-      path_minter_adapter: deploy.deployTxs.pathMinterAdapter,
+      path_pulse_adapter: deploy.deployTxs.pathPulseAdapter,
       pulse_auction: deploy.deployTxs.pulseAuction,
     },
     deploy_blocks: deployBlocks,
     code_hashes: {
       path_nft: deploy.codeHashes.pathNft,
-      path_minter: deploy.codeHashes.pathMinter,
-      path_minter_adapter: deploy.codeHashes.pathMinterAdapter,
+      path_pulse_adapter: deploy.codeHashes.pathPulseAdapter,
       pulse_auction: deploy.codeHashes.pulseAuction,
     },
     config: {

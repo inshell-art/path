@@ -57,8 +57,7 @@ print("deployer =", deploy["deployer"])
 print("admin    =", deploy["admin"])
 print("treasury =", deploy["treasury"])
 print("pathNft  =", deploy["contracts"]["pathNft"])
-print("pathMinter =", deploy["contracts"]["pathMinter"])
-print("pathMinterAdapter =", deploy["contracts"]["pathMinterAdapter"])
+print("pathPulseAdapter =", deploy["contracts"]["pathPulseAdapter"])
 print("pulseAuction =", deploy["contracts"]["pulseAuction"])
 print("paymentToken =", deploy["paymentToken"])
 PY
@@ -71,7 +70,7 @@ For this smoke, record the sale state before the live buyer action:
 ```bash
 export SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
 AUCTION=<pulseAuction-address>
-MINTER=<pathMinter-address>
+ADAPTER=<pathPulseAdapter-address>
 NFT=<pathNft-address>
 TREASURY=<treasury-address>
 ```
@@ -79,13 +78,19 @@ TREASURY=<treasury-address>
 ```bash
 ASK_BEFORE=$(cast call "$AUCTION" "getCurrentPrice()(uint256)" --rpc-url "$SEPOLIA_RPC_URL")
 EPOCH_BEFORE=$(cast call "$AUCTION" "epochIndex()(uint256)" --rpc-url "$SEPOLIA_RPC_URL")
-NEXT_ID_BEFORE=$(cast call "$MINTER" "nextId()(uint256)" --rpc-url "$SEPOLIA_RPC_URL")
+TOKEN_BASE=$(cast call "$ADAPTER" "tokenBase()(uint256)" --rpc-url "$SEPOLIA_RPC_URL")
+EPOCH_BASE=$(cast call "$ADAPTER" "epochBase()(uint256)" --rpc-url "$SEPOLIA_RPC_URL")
+NEXT_SALE_EPOCH=$((EPOCH_BEFORE + 1))
+EXPECTED_TOKEN_ID=$((TOKEN_BASE + NEXT_SALE_EPOCH - EPOCH_BASE))
 TREASURY_BEFORE=$(cast balance "$TREASURY" --rpc-url "$SEPOLIA_RPC_URL")
 
 printf '%s\n' \
   "ask_before=$ASK_BEFORE" \
   "epoch_before=$EPOCH_BEFORE" \
-  "next_id_before=$NEXT_ID_BEFORE" \
+  "next_sale_epoch=$NEXT_SALE_EPOCH" \
+  "expected_token_id=$EXPECTED_TOKEN_ID" \
+  "token_base=$TOKEN_BASE" \
+  "epoch_base=$EPOCH_BASE" \
   "treasury_before=$TREASURY_BEFORE" \
   > "output/smoke/sepolia/$RUN_ID/baseline.env"
 ```
@@ -120,7 +125,7 @@ Record at minimum:
 - buyer address
 - tx hash
 - exact ask used
-- expected token id (`NEXT_ID_BEFORE`)
+- expected token id (`EXPECTED_TOKEN_ID`)
 
 Official Rabby/browser-wallet helper:
 
@@ -149,7 +154,7 @@ After the live bid confirms, verify:
 ```bash
 TX_HASH=<smoke-tx-hash>
 BUYER=<disposable-buyer-address>
-TOKEN_ID="$NEXT_ID_BEFORE"
+TOKEN_ID="$EXPECTED_TOKEN_ID"
 RUN_ID=<run-id>
 
 npm run ops:postdeploy:smoke -- verify \

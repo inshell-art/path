@@ -414,7 +414,6 @@ async function main() {
   const [deployer, , defaultTreasurySigner] = await ethers.getSigners();
   const networkInfo = await ethers.provider.getNetwork();
   const minterRole = ethers.id("MINTER_ROLE");
-  const salesRole = ethers.id("SALES_ROLE");
 
   const cliConfig = parseCliConfig(process.argv.slice(2));
   const npmConfig = readNpmConfig(process.env);
@@ -447,19 +446,11 @@ async function main() {
   );
   await nft.waitForDeployment();
 
-  const PathMinter = await ethers.getContractFactory("PathMinter", deployer);
-  const minter = await PathMinter.deploy(
-    deployer.address,
-    await nft.getAddress(),
-    cfg.firstPublicId
-  );
-  await minter.waitForDeployment();
-
-  const PathMinterAdapter = await ethers.getContractFactory("PathMinterAdapter", deployer);
-  const adapter = await PathMinterAdapter.deploy(
+  const PathPulseAdapter = await ethers.getContractFactory("PathPulseAdapter", deployer);
+  const adapter = await PathPulseAdapter.deploy(
     deployer.address,
     ethers.ZeroAddress,
-    await minter.getAddress(),
+    await nft.getAddress(),
     cfg.firstPublicId,
     cfg.epochBase
   );
@@ -494,27 +485,17 @@ async function main() {
   await freezeWiringTx.wait();
   wiringTxs.adapterFreezeWiring = freezeWiringTx.hash;
 
-  const grantNftMinterTx = await nft.grantRole(minterRole, await minter.getAddress());
+  const grantNftMinterTx = await nft.grantRole(minterRole, await adapter.getAddress());
   await grantNftMinterTx.wait();
   wiringTxs.nftGrantMinterRole = grantNftMinterTx.hash;
 
-  const freezePublicMinterTx = await nft.freezePublicMinter(await minter.getAddress());
+  const freezePublicMinterTx = await nft.freezePublicMinter(await adapter.getAddress());
   await freezePublicMinterTx.wait();
   wiringTxs.nftFreezePublicMinter = freezePublicMinterTx.hash;
-
-  const grantMinterSalesTx = await minter.grantRole(salesRole, await adapter.getAddress());
-  await grantMinterSalesTx.wait();
-  wiringTxs.minterGrantSalesRole = grantMinterSalesTx.hash;
-
-  const freezeSalesCallerTx = await minter.freezeSalesCaller(await adapter.getAddress());
-  await freezeSalesCallerTx.wait();
-  wiringTxs.minterFreezeSalesCaller = freezeSalesCallerTx.hash;
 
   const auctionMintAdapter = await auction.mintAdapter();
   const publicMinter = await nft.publicMinter();
   const publicMinterFrozen = await nft.publicMinterFrozen();
-  const salesCaller = await minter.salesCaller();
-  const salesCallerFrozen = await minter.salesCallerFrozen();
   const latestAfterFreezes = await readLatestTimestamp(ethers.provider);
   if (auctionMintAdapter.toLowerCase() === ethers.ZeroAddress.toLowerCase()) {
     throw new Error("UNQUALIFIED_DEPLOYMENT: Pulse mintAdapter is zero");
@@ -524,16 +505,12 @@ async function main() {
       `UNQUALIFIED_DEPLOYMENT: freezes completed after openTime latestBlockTs=${latestAfterFreezes.toString()} openTime=${resolvedLaunch.openTime.toString()}`
     );
   }
-  if (!publicMinterFrozen || publicMinter.toLowerCase() !== (await minter.getAddress()).toLowerCase()) {
-    throw new Error("UNQUALIFIED_DEPLOYMENT: PathNFT public minter is not frozen to PathMinter");
-  }
-  if (!salesCallerFrozen || salesCaller.toLowerCase() !== (await adapter.getAddress()).toLowerCase()) {
-    throw new Error("UNQUALIFIED_DEPLOYMENT: PathMinter sales caller is not frozen to adapter");
+  if (!publicMinterFrozen || publicMinter.toLowerCase() !== (await adapter.getAddress()).toLowerCase()) {
+    throw new Error("UNQUALIFIED_DEPLOYMENT: PathNFT public minter is not frozen to PathPulseAdapter");
   }
 
   const deployerIsFinalAdmin = cfg.admin.toLowerCase() === deployer.address.toLowerCase();
   const defaultAdminRole = await nft.DEFAULT_ADMIN_ROLE();
-  const minterDefaultAdminRole = await minter.DEFAULT_ADMIN_ROLE();
   if (!deployerIsFinalAdmin) {
     const grantNftAdminTx = await nft.grantRole(defaultAdminRole, cfg.admin);
     await grantNftAdminTx.wait();
@@ -543,14 +520,6 @@ async function main() {
     await renounceNftAdminTx.wait();
     authorityTxs.nftRenounceDeployerDefaultAdmin = renounceNftAdminTx.hash;
 
-    const grantMinterAdminTx = await minter.grantRole(minterDefaultAdminRole, cfg.admin);
-    await grantMinterAdminTx.wait();
-    authorityTxs.minterGrantDefaultAdmin = grantMinterAdminTx.hash;
-
-    const renounceMinterAdminTx = await minter.renounceRole(minterDefaultAdminRole, deployer.address);
-    await renounceMinterAdminTx.wait();
-    authorityTxs.minterRenounceDeployerDefaultAdmin = renounceMinterAdminTx.hash;
-
     const transferAdapterOwnerTx = await adapter.transferOwnership(cfg.admin);
     await transferAdapterOwnerTx.wait();
     authorityTxs.adapterTransferOwnership = transferAdapterOwnerTx.hash;
@@ -558,14 +527,12 @@ async function main() {
 
   const contractAddresses = {
     pathNft: await nft.getAddress(),
-    pathMinter: await minter.getAddress(),
-    pathMinterAdapter: await adapter.getAddress(),
+    pathPulseAdapter: await adapter.getAddress(),
     pulseAuction: await auction.getAddress()
   };
   const deployTxs = {
     pathNft: nft.deploymentTransaction()?.hash ?? null,
-    pathMinter: minter.deploymentTransaction()?.hash ?? null,
-    pathMinterAdapter: adapter.deploymentTransaction()?.hash ?? null,
+    pathPulseAdapter: adapter.deploymentTransaction()?.hash ?? null,
     pulseAuction: auction.deploymentTransaction()?.hash ?? null
   };
   const codeHashes = {};
@@ -619,17 +586,14 @@ async function main() {
     },
     roles: {
       defaultAdminRole,
-      minterRole,
-      salesRole
+      minterRole
     },
     freezeStatus: {
       qualifiedBeforeOpen: true,
       checkedAtBlockTimestamp: latestAfterFreezes.toString(),
       pulseMintAdapter: auctionMintAdapter,
       pathPublicMinter: publicMinter,
-      pathPublicMinterFrozen: publicMinterFrozen,
-      salesCaller,
-      salesCallerFrozen
+      pathPublicMinterFrozen: publicMinterFrozen
     }
   };
 

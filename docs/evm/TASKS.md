@@ -4,9 +4,9 @@ Tracking open follow-ups discovered during local rehearsal and contract walkthro
 
 ## Task EVM-001: Adapter API naming cleanup (ethers v6 DX)
 
-- Status: completed
+- Status: completed, superseded for new deployments by `PathPulseAdapter`
 - Priority: medium
-- Area: `evm/src/PathMinterAdapter.sol`, `evm/src/interfaces/IPulseAdapter.sol`, docs
+- Area: legacy `evm/src/PathMinterAdapter.sol`, `evm/src/interfaces/IPulseAdapter.sol`, docs
 
 ### Problem
 
@@ -41,9 +41,9 @@ Tracking open follow-ups discovered during local rehearsal and contract walkthro
 
 ## Task EVM-002: Hard on-chain coupling for `epochIndex` and public `tokenId`
 
-- Status: completed
+- Status: completed, superseded for new deployments by direct `PathPulseAdapter`
 - Priority: medium
-- Area: `evm/src/PathMinterAdapter.sol`, `evm/src/PathMinter.sol`, interfaces, tests/docs
+- Area: legacy `evm/src/PathMinterAdapter.sol`, `evm/src/PathMinter.sol`, current `evm/src/PathPulseAdapter.sol`, interfaces, tests/docs
 
 ### Problem
 
@@ -51,11 +51,11 @@ Tracking open follow-ups discovered during local rehearsal and contract walkthro
 
 ### Implementation summary
 
-1. Kept `PulseAuction` upstream and token-id agnostic; coupling is enforced in `PathMinterAdapter`.
+1. Kept `PulseAuction` upstream and token-id agnostic; coupling is enforced in the settlement adapter.
 2. Added adapter bases: `tokenBase` and `epochBase` with mapping:
    `tokenId = tokenBase + (epochIndex - epochBase)`.
 3. Adapter now derives current settlement epoch via `auction.getEpochIndex() + 1` and verifies the forwarded epoch matches.
-4. Adapter checks `minter.nextId()` against expected token id before mint and checks returned minted id after mint.
+4. New `PathPulseAdapter` mints the expected token id directly into `PathNFT`; legacy `PathMinterAdapter` checked `minter.nextId()`.
 5. Added explicit adapter errors/events for drift detection:
    `EpochMismatch`, `EpochBeforeBase`, `MintIdMismatch`, `EpochMinted`.
 6. Extended tests with a stub auction caller to validate happy path and all coupling failure modes.

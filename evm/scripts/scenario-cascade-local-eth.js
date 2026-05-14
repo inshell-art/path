@@ -34,12 +34,13 @@ async function main() {
 
   const [, buyer] = await ethers.getSigners();
   const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
-  const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter);
   const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft);
 
   const k = toBigInt(deployment.config.k);
   const genesisPrice = toBigInt(deployment.config.genesisPrice);
   const openTime = toBigInt(await auction.openTime());
+  const tokenBase = toBigInt(deployment.config.tokenBase ?? deployment.config.firstPublicId);
+  const epochBase = toBigInt(deployment.config.epochBase ?? "1");
 
   const latestBlock = await ethers.provider.getBlock("latest");
   const baseTime = openTime > toBigInt(latestBlock.timestamp) + 2n
@@ -59,7 +60,11 @@ async function main() {
 
     const curveActiveBefore = await auction.curveActive();
     const stateBefore = await auction.getState();
-    const expectedTokenId = toBigInt(await minter.nextId());
+    const nextSaleEpoch = previousEpoch + 1n;
+    if (nextSaleEpoch < epochBase) {
+      throw new Error(`next sale epoch ${nextSaleEpoch} is below epochBase ${epochBase}`);
+    }
+    const expectedTokenId = tokenBase + (nextSaleEpoch - epochBase);
 
     const expectedAsk = curveActiveBefore
       ? askAt(saleTime, k, toBigInt(stateBefore[2]), toBigInt(stateBefore[3]))

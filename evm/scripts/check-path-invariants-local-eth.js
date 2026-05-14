@@ -14,8 +14,7 @@ const MOVEMENT_MINTER_SYMBOLS = {
   "@admin": "admin",
   "@deployer": "deployer",
   "@pathNft": "pathNft",
-  "@pathMinter": "pathMinter",
-  "@pathMinterAdapter": "pathMinterAdapter",
+  "@pathPulseAdapter": "pathPulseAdapter",
   "@pulseAuction": "pulseAuction",
   "@zero": null
 };
@@ -404,8 +403,9 @@ async function main() {
       requiredChecks,
       pathInvariants: {
         adapter_wiring_frozen: false,
-        sales_caller_frozen_to_adapter: false,
-        epoch_token_coupling_holds: false,
+        public_minter_frozen_to_path_pulse_adapter: false,
+        auction_mint_adapter_set: false,
+        epoch_token_coupling_defined: false,
         role_owner_hygiene_ok: false,
         auction_config_matches: false,
         sale_handshake_ok: false,
@@ -434,13 +434,11 @@ async function main() {
   }
 
   const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft);
-  const adapter = await ethers.getContractAt("PathMinterAdapter", deployment.contracts.pathMinterAdapter);
-  const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter);
+  const adapter = await ethers.getContractAt("PathPulseAdapter", deployment.contracts.pathPulseAdapter);
   const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction);
 
   const deployTxs = deployment.deployTxs ?? {};
   const nftDeployBlock = await resolveDeploymentBlock(provider, deployTxs.pathNft);
-  const minterDeployBlock = await resolveDeploymentBlock(provider, deployTxs.pathMinter);
 
   const expectedCodeHashes = deployment.codeHashes ?? deployment.codehashes ?? {};
   const observedCodeHashes = {};
@@ -474,59 +472,42 @@ async function main() {
 
   const wiringFrozen = await adapter.wiringFrozen();
   const authorizedAuction = await adapter.getAuthorizedAuction();
-  const minterTarget = await adapter.getMinterTarget();
-
-  const salesCallerFrozen = await minter.salesCallerFrozen();
-  const salesCaller = await minter.salesCaller();
+  const pathNftTarget = await adapter.getPathNftTarget();
 
   const epochBefore = toBigInt(await auction.getEpochIndex());
   const nextSaleEpochBefore = epochBefore + 1n;
-  const nextIdBefore = toBigInt(await minter.nextId());
 
   const tokenBase = toBigInt(await adapter.tokenBase());
   const epochBase = toBigInt(await adapter.epochBase());
   const couplingDefined = nextSaleEpochBefore >= epochBase;
   const expectedNextId = couplingDefined ? tokenBase + (nextSaleEpochBefore - epochBase) : null;
-  const couplingMatchesBeforeSale = couplingDefined && expectedNextId === nextIdBefore;
+  const couplingMatchesBeforeSale = couplingDefined && expectedNextId !== null;
 
   // Role / owner hygiene.
   const nftRoleMembers = await collectRoleMembers(nft, nftDeployBlock ?? 0, logQueryMaxBlockRange);
-  const minterRoleMembers = await collectRoleMembers(minter, minterDeployBlock ?? 0, logQueryMaxBlockRange);
   const adapterOwner = await adapter.owner();
   const nftDefaultAdminRole = await nft.DEFAULT_ADMIN_ROLE();
   const nftMinterRole = await nft.MINTER_ROLE();
   const nftFrozenMinterAdminRole = await nft.FROZEN_MINTER_ADMIN_ROLE();
-  const minterDefaultAdminRole = await minter.DEFAULT_ADMIN_ROLE();
-  const salesRole = await minter.SALES_ROLE();
-  const frozenSalesAdminRole = await minter.FROZEN_SALES_ADMIN_ROLE();
   const expectedAdmin = deployment.admin ?? deployment.authority?.admin ?? deployment.deployer;
   const publicMinter = await nft.publicMinter();
   const publicMinterFrozen = await nft.publicMinterFrozen();
 
   const roleExpectations = {
     nftDefaultAdmin: [expectedAdmin],
-    nftMinterRole: [deployment.contracts.pathMinter],
-    nftFrozenMinterAdminRole: [],
-    minterDefaultAdmin: [expectedAdmin],
-    minterSalesRole: [deployment.contracts.pathMinterAdapter],
-    minterFrozenSalesAdminRole: []
+    nftMinterRole: [deployment.contracts.pathPulseAdapter],
+    nftFrozenMinterAdminRole: []
   };
   const roleObservations = {
     nftDefaultAdmin: roleMembers(nftRoleMembers, nftDefaultAdminRole),
     nftMinterRole: roleMembers(nftRoleMembers, nftMinterRole),
-    nftFrozenMinterAdminRole: roleMembers(nftRoleMembers, nftFrozenMinterAdminRole),
-    minterDefaultAdmin: roleMembers(minterRoleMembers, minterDefaultAdminRole),
-    minterSalesRole: roleMembers(minterRoleMembers, salesRole),
-    minterFrozenSalesAdminRole: roleMembers(minterRoleMembers, frozenSalesAdminRole)
+    nftFrozenMinterAdminRole: roleMembers(nftRoleMembers, nftFrozenMinterAdminRole)
   };
   const roleOwnerHygieneOk =
     lower(adapterOwner) === lower(expectedAdmin)
     && sameAddressSet(roleObservations.nftDefaultAdmin, roleExpectations.nftDefaultAdmin)
     && sameAddressSet(roleObservations.nftMinterRole, roleExpectations.nftMinterRole)
-    && sameAddressSet(roleObservations.nftFrozenMinterAdminRole, roleExpectations.nftFrozenMinterAdminRole)
-    && sameAddressSet(roleObservations.minterDefaultAdmin, roleExpectations.minterDefaultAdmin)
-    && sameAddressSet(roleObservations.minterSalesRole, roleExpectations.minterSalesRole)
-    && sameAddressSet(roleObservations.minterFrozenSalesAdminRole, roleExpectations.minterFrozenSalesAdminRole);
+    && sameAddressSet(roleObservations.nftFrozenMinterAdminRole, roleExpectations.nftFrozenMinterAdminRole);
 
   // Auction config consistency.
   const auctionPaymentToken = await auction.paymentToken();
@@ -536,7 +517,7 @@ async function main() {
   const auctionConfigMatches =
     lower(auctionPaymentToken) === lower(deployment.paymentToken)
     && lower(auctionTreasury) === lower(deployment.treasury)
-    && lower(auctionMintAdapter) === lower(deployment.contracts.pathMinterAdapter)
+    && lower(auctionMintAdapter) === lower(deployment.contracts.pathPulseAdapter)
     && toBigInt(genesisPrice) === toBigInt(deployment.config.genesisPrice)
     && toBigInt(genesisFloor) === toBigInt(deployment.config.genesisFloor)
     && toBigInt(curveK) === toBigInt(deployment.config.k)
@@ -615,6 +596,14 @@ async function main() {
         skipped: true,
         reason: "PAYMENT_TOKEN_NOT_ETH"
       };
+    } else if (!couplingDefined || expectedNextId === null) {
+      saleHandshakeObservation = {
+        skipped: true,
+        reason: "EPOCH_BEFORE_BASE",
+        epochBefore: epochBefore.toString(),
+        nextSaleEpoch: nextSaleEpochBefore.toString(),
+        epochBase: epochBase.toString()
+      };
     } else {
       const maxBid = toBigInt(await auction.getCurrentPrice());
       const treasuryBefore = toBigInt(await provider.getBalance(deployment.treasury));
@@ -631,8 +620,7 @@ async function main() {
         receipt.blockNumber
       );
       const epochAfter = toBigInt(await auction.getEpochIndex());
-      const nextIdAfter = toBigInt(await minter.nextId());
-      const ownerAfter = await nft.ownerOf(nextIdBefore);
+      const ownerAfter = await nft.ownerOf(expectedNextId);
       const treasuryAfter = toBigInt(await provider.getBalance(deployment.treasury));
       const sale = saleLogs.length > 0 ? saleLogs[0].args : null;
       const settled = settledLogs.length > 0 ? settledLogs[0].args : null;
@@ -647,12 +635,11 @@ async function main() {
         saleLogs.length === 1
         && settledLogs.length === 1
         && salePrice <= maxBid
-        && saleEpoch === epochBefore + 1n
-        && settledEpoch === epochBefore + 1n
-        && settledTokenId === nextIdBefore
+        && saleEpoch === nextSaleEpochBefore
+        && settledEpoch === nextSaleEpochBefore
+        && settledTokenId === expectedNextId
         && lower(settledTo) === lower(buyer.address)
-        && epochAfter === epochBefore + 1n
-        && nextIdAfter === nextIdBefore + 1n
+        && epochAfter === nextSaleEpochBefore
         && lower(ownerAfter) === lower(buyer.address)
         && treasuryAfter - treasuryBefore === salePrice;
 
@@ -667,12 +654,10 @@ async function main() {
         saleEpoch: saleEpoch.toString(),
         settledEpoch: settledEpoch.toString(),
         settledTokenId: settledTokenId.toString(),
-        expectedTokenId: nextIdBefore.toString(),
+        expectedTokenId: expectedNextId.toString(),
         ownerAfter,
         epochBefore: epochBefore.toString(),
         epochAfter: epochAfter.toString(),
-        nextIdBefore: nextIdBefore.toString(),
-        nextIdAfter: nextIdAfter.toString(),
         treasuryDelta: (treasuryAfter - treasuryBefore).toString()
       };
     }
@@ -690,14 +675,12 @@ async function main() {
     adapter_wiring_frozen:
       wiringFrozen
       && lower(authorizedAuction) === lower(deployment.contracts.pulseAuction)
-      && lower(minterTarget) === lower(deployment.contracts.pathMinter),
-    public_minter_frozen_to_path_minter:
-      publicMinterFrozen && lower(publicMinter) === lower(deployment.contracts.pathMinter),
-    sales_caller_frozen_to_adapter:
-      salesCallerFrozen && lower(salesCaller) === lower(deployment.contracts.pathMinterAdapter),
+      && lower(pathNftTarget) === lower(deployment.contracts.pathNft),
+    public_minter_frozen_to_path_pulse_adapter:
+      publicMinterFrozen && lower(publicMinter) === lower(deployment.contracts.pathPulseAdapter),
     auction_mint_adapter_set:
-      lower(auctionMintAdapter) === lower(deployment.contracts.pathMinterAdapter),
-    epoch_token_coupling_holds: couplingMatchesBeforeSale,
+      lower(auctionMintAdapter) === lower(deployment.contracts.pathPulseAdapter),
+    epoch_token_coupling_defined: couplingMatchesBeforeSale,
     role_owner_hygiene_ok: roleOwnerHygieneOk,
     auction_config_matches: auctionConfigMatches,
     sale_handshake_ok: saleHandshakeOk,
@@ -736,17 +719,12 @@ async function main() {
         wiringFrozen,
         expectedAuction: deployment.contracts.pulseAuction,
         observedAuction: authorizedAuction,
-        expectedMinter: deployment.contracts.pathMinter,
-        observedMinter: minterTarget
-      },
-      salesCaller: {
-        frozen: salesCallerFrozen,
-        expected: deployment.contracts.pathMinterAdapter,
-        observed: salesCaller
+        expectedPathNft: deployment.contracts.pathNft,
+        observedPathNft: pathNftTarget
       },
       publicMinter: {
         frozen: publicMinterFrozen,
-        expected: deployment.contracts.pathMinter,
+        expected: deployment.contracts.pathPulseAdapter,
         observed: publicMinter
       },
       coupling: {
@@ -754,8 +732,7 @@ async function main() {
         epochBase: epochBase.toString(),
         observedEpochIndex: epochBefore.toString(),
         expectedNextSaleEpoch: nextSaleEpochBefore.toString(),
-        expectedNextId: expectedNextId === null ? null : expectedNextId.toString(),
-        observedNextId: nextIdBefore.toString()
+        expectedNextId: expectedNextId === null ? null : expectedNextId.toString()
       },
       roleOwnerHygiene: {
         adapterOwner,
@@ -767,7 +744,7 @@ async function main() {
         expected: {
           paymentToken: deployment.paymentToken,
           treasury: deployment.treasury,
-          mintAdapter: deployment.contracts.pathMinterAdapter,
+          mintAdapter: deployment.contracts.pathPulseAdapter,
           k: String(deployment.config.k),
           genesisPrice: String(deployment.config.genesisPrice),
           genesisFloor: String(deployment.config.genesisFloor),

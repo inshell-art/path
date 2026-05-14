@@ -6,16 +6,14 @@
   "additionalProperties": false,
   "required": [
     "path_nft",
-    "path_minter",
-    "path_minter_adapter",
+    "path_pulse_adapter",
     "pulse_auction",
     "treasury",
     "payment_token"
   ],
   "properties": {
     "path_nft": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
-    "path_minter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
-    "path_minter_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
+    "path_pulse_adapter": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
     "pulse_auction": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
     "treasury": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"},
     "payment_token": {"type": "string", "pattern": "^0x[a-fA-F0-9]{40}$"}

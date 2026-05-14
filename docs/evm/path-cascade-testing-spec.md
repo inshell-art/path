@@ -5,7 +5,7 @@
 Validate that the Solidity PATH stack preserves the critical PATH behavior:
 
 - Auction timing and cascade curve mechanics.
-- Auction-to-adapter-to-minter-to-NFT settlement chain.
+- Auction-to-adapter-to-NFT settlement chain.
 - PATH movement progression constraints.
 
 ## Scope
@@ -23,26 +23,21 @@ Validate that the Solidity PATH stack preserves the critical PATH behavior:
   - movement freeze behavior
 - `tokenURI` returns on-chain JSON data URI metadata with embedded SVG image.
 
-2. `PathMinter` invariants
-
-- `SALES_ROLE` enforcement.
-- Public IDs increment sequentially.
-- Downstream NFT mint revert rolls back `nextId`.
-
-3. `PathMinterAdapter` invariants
+2. `PathPulseAdapter` invariants
 
 - Owner-only config updates.
 - Non-zero config validation.
-- Explicit getters (`getAuthorizedAuction`, `getMinterTarget`) mirror wiring.
+- Explicit getters (`getAuthorizedAuction`, `getPathNftTarget`) mirror wiring.
 - `settle` callable only by registered auction.
-- `settle` forwards buyer/epoch/data and returns minted ID.
+- `settle` derives `tokenId = tokenBase + (epoch - epochBase)`.
+- `settle` calls `PathNFT.safeMint` directly and returns minted ID.
 
-4. Integrated ETH cascade (`PulseAuction`)
+3. Integrated ETH cascade (`PulseAuction`)
 
 - Cannot bid before open time.
 - Genesis bid activates curve and mints token 1.
 - Subsequent bids mint sequential token IDs.
-- Auction remains token-id agnostic; settlement details are adapter/minter responsibilities.
+- Auction remains token-id agnostic; settlement details are adapter responsibilities.
 - Ask price follows hyperbolic model over time.
 - One-bid-per-block guard works.
 - Stress test with 20 sequential bids remains stable.
@@ -50,8 +45,7 @@ Validate that the Solidity PATH stack preserves the critical PATH behavior:
 ## Test Files
 
 - `evm/test/pathNft.behavior.test.js`
-- `evm/test/pathMinter.behavior.test.js`
-- `evm/test/pathMinterAdapter.behavior.test.js`
+- `evm/test/pathPulseAdapter.behavior.test.js`
 - `evm/test/pathPulse.integration.test.js`
 
 ## Local Scenario Validation

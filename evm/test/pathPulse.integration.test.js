@@ -131,31 +131,29 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
     expect(await nft.ownerOf(FIRST_PUBLIC_ID)).to.equal(alice.address);
   });
 
-  it("fixture freezes sales caller to adapter before first sale", async function () {
-    const { auction, adapter, minter, bob, roles } = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
+  it("fixture freezes PATH public minter to direct Pulse adapter before first sale", async function () {
+    const { auction, adapter, nft, bob, roles } = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
 
-    expect(await minter.salesCaller()).to.equal(await adapter.getAddress());
-    expect(await minter.salesCallerFrozen()).to.equal(true);
-    expect(await minter.getRoleAdmin(roles.SALES_ROLE)).to.equal(await minter.FROZEN_SALES_ADMIN_ROLE());
-    expect(await minter.hasRole(roles.SALES_ROLE, await adapter.getAddress())).to.equal(true);
-    await expectAnyRevert(minter.grantRole(roles.SALES_ROLE, bob.address));
+    expect(await nft.publicMinter()).to.equal(await adapter.getAddress());
+    expect(await nft.publicMinterFrozen()).to.equal(true);
+    expect(await nft.getRoleAdmin(roles.MINTER_ROLE)).to.equal(await nft.FROZEN_MINTER_ADMIN_ROLE());
+    expect(await nft.hasRole(roles.MINTER_ROLE, await adapter.getAddress())).to.equal(true);
+    await expectAnyRevert(nft.grantRole(roles.MINTER_ROLE, bob.address));
 
     const ask = await auction.getCurrentPrice();
     await (await auction.bid(ask, { value: ask })).wait();
   });
 
-  it("reverts settlement when sales caller is frozen to a non-adapter address", async function () {
+  it("reverts settlement when PATH public minter is frozen to a non-adapter address", async function () {
     const [deployer] = await ethers.getSigners();
-    const { auction, adapter, minter, alice } = await deployPathPulseEthEnv(ethers, {
+    const { auction, alice } = await deployPathPulseEthEnv(ethers, {
       startDelaySec: 0n,
-      freezeSalesCallerTo: deployer.address
+      freezePublicMinterTo: deployer.address
     });
 
     const ask = await auction.getCurrentPrice();
 
-    await expect(auction.connect(alice).bid(ask, { value: ask }))
-      .to.be.revertedWithCustomError(minter, "BadSalesCaller")
-      .withArgs(await adapter.getAddress(), deployer.address);
+    await expect(auction.connect(alice).bid(ask, { value: ask })).to.be.revertedWith("NOT_PUBLIC_MINTER");
   });
 
   it("second bid in later block mints next token id", async function () {
