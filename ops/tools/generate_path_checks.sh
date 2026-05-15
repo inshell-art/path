@@ -145,10 +145,24 @@ onchain_path_invariants = onchain_report.get("pathInvariants", {})
 phase = onchain_report.get("phase", "unknown")
 deployment_present = onchain_report.get("deploymentPresent") is True
 
+def invariant_ok(*names):
+    return bool(onchain_ok and any(onchain_path_invariants.get(name) is True for name in names))
+
+public_minter_frozen = invariant_ok(
+    "public_minter_frozen_to_path_pulse_adapter",
+    "sales_caller_frozen_to_adapter",
+)
+epoch_token_coupling = invariant_ok(
+    "epoch_token_coupling_defined",
+    "epoch_token_coupling_holds",
+)
+
 invariants = {
     "adapter_wiring_frozen": bool(onchain_ok and onchain_path_invariants.get("adapter_wiring_frozen") is True),
-    "sales_caller_frozen_to_adapter": bool(onchain_ok and onchain_path_invariants.get("sales_caller_frozen_to_adapter") is True),
-    "epoch_token_coupling_holds": bool(onchain_ok and onchain_path_invariants.get("epoch_token_coupling_holds") is True),
+    "sales_caller_frozen_to_adapter": public_minter_frozen,
+    "public_minter_frozen_to_path_pulse_adapter": public_minter_frozen,
+    "epoch_token_coupling_holds": epoch_token_coupling,
+    "epoch_token_coupling_defined": epoch_token_coupling,
     "role_owner_hygiene_ok": bool(onchain_ok and onchain_path_invariants.get("role_owner_hygiene_ok") is True),
     "auction_config_matches": bool(onchain_ok and onchain_path_invariants.get("auction_config_matches") is True),
     "sale_handshake_ok": bool(onchain_ok and onchain_path_invariants.get("sale_handshake_ok") is True),

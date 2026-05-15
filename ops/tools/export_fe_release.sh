@@ -79,12 +79,15 @@ if [[ -z "$OUT_DIR" ]]; then
   OUT_DIR="artifacts/$NETWORK/current/fe-release"
 fi
 ABI_DIR="$OUT_DIR/abi"
-mkdir -p "$ABI_DIR"
 
 if [[ $FORCE -ne 1 && -e "$OUT_DIR/protocol-release.$NETWORK.json" ]]; then
   echo "Refusing to overwrite existing FE release output without --force: $OUT_DIR" >&2
   exit 1
 fi
+if [[ $FORCE -eq 1 && -d "$OUT_DIR" ]]; then
+  rm -rf "$OUT_DIR"
+fi
+mkdir -p "$ABI_DIR"
 
 PATH_NFT_ADDR=$(jq -r '.contracts.pathNft' "$DEPLOY_FILE")
 PATH_PULSE_ADAPTER_ADDR=$(jq -r '.contracts.pathPulseAdapter' "$DEPLOY_FILE")
