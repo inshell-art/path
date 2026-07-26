@@ -14,6 +14,8 @@
     "pts",
     "firstPublicId",
     "epochBase",
+    "reservedCap",
+    "sparkClaimDurationSec",
     "paymentToken",
     "treasury"
   ],
@@ -59,6 +61,12 @@
     },
     "epochBase": {
       "$ref": "#/$defs/nonNegativeUint"
+    },
+    "reservedCap": {
+      "$ref": "#/$defs/nonNegativeUint"
+    },
+    "sparkClaimDurationSec": {
+      "$ref": "#/$defs/positiveUint"
     },
     "paymentToken": {
       "$ref": "#/$defs/address"

@@ -7,6 +7,10 @@ const GENESIS_FLOOR = 900n;
 const PTS = 1n;
 const FIRST_PUBLIC_ID = 1n;
 const EPOCH_BASE = 1n;
+const RESERVED_CAP = BigInt(process.env.DEPLOY_RESERVED_CAP ?? "99");
+const SPARK_CLAIM_DURATION_SEC = BigInt(
+  process.env.DEPLOY_SPARK_CLAIM_DURATION_SEC ?? "604800"
+);
 
 const NAME = "PATH";
 const SYMBOL = "PATH";
@@ -162,7 +166,7 @@ async function estimateDeployments(ethers, deployer) {
   const openTime = await resolveOpenTime(ethers.provider);
 
   const Nft = await ethers.getContractFactory("PathNFT", deployer);
-  const nft = await Nft.deploy(deployer.address, NAME, SYMBOL, BASE_URI);
+  const nft = await Nft.deploy(deployer.address, NAME, SYMBOL, BASE_URI, RESERVED_CAP, SPARK_CLAIM_DURATION_SEC);
   const nftGas = await deploymentGas(nft);
 
   const Adapter = await ethers.getContractFactory("PathPulseAdapter", deployer);
@@ -202,7 +206,7 @@ async function estimateWiringAndAuthorityGas(ethers, deployer, finalAdmin) {
   const openTime = await resolveOpenTime(ethers.provider);
 
   const Nft = await ethers.getContractFactory("PathNFT", deployer);
-  const nft = await Nft.deploy(deployer.address, NAME, SYMBOL, BASE_URI);
+  const nft = await Nft.deploy(deployer.address, NAME, SYMBOL, BASE_URI, RESERVED_CAP, SPARK_CLAIM_DURATION_SEC);
   await nft.waitForDeployment();
 
   const Adapter = await ethers.getContractFactory("PathPulseAdapter", deployer);

@@ -134,63 +134,6 @@ function makeProfiles(thoughtQuota, willQuota, awaQuota) {
   return profiles;
 }
 
-function blankMarkerSvg(slotX, slotY) {
-  const cubeSize = 60;
-  const dotRadius = 1.5;
-  return `<circle id='blank-mark-a' cx='${slotX + cubeSize / 2}' cy='${slotY + cubeSize / 2}' r='${dotRadius}' fill='white'/>`;
-}
-
-function buildPathProgressSvg(state) {
-  const thoughtDisplay = state.thoughtMinted > 0n ? "inline" : "none";
-  const willDisplay = state.willMinted > 0n ? "inline" : "none";
-  const awaDisplay = state.awaMinted > 0n ? "inline" : "none";
-
-  const fillDiameter = (minted, quota) => {
-    if (quota <= 0n || minted <= 0n) return 0n;
-    const diameter = (60n * minted) / quota;
-    return diameter > 60n ? 60n : diameter;
-  };
-  const fillCircle = (id, cx, minted, quota) => {
-    const diameter = fillDiameter(minted, quota);
-    const radius = diameter % 2n === 0n ? String(diameter / 2n) : `${diameter / 2n}.5`;
-    return diameter > 0n
-      ? `<circle id='${id}' cx='${cx}' cy='300' r='${radius}' fill='white' display='inline'/>`
-      : "";
-  };
-
-  const thoughtFillCircle = fillCircle("thought-fill", 210, state.thoughtMinted, state.thoughtQuota);
-  const willFillCircle = fillCircle("will-fill", 300, state.willMinted, state.willQuota);
-  const awaFillCircle = fillCircle("awa-fill", 390, state.awaMinted, state.awaQuota);
-  const blankMarks = [
-    state.thoughtMinted === 0n ? blankMarkerSvg(180, 270) : "",
-    state.willMinted === 0n ? blankMarkerSvg(270, 270) : "",
-    state.awaMinted === 0n ? blankMarkerSvg(360, 270) : ""
-  ].join("");
-
-  return [
-    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600' width='600' height='600' role='img' aria-label='PATH progress'>",
-    "<rect width='600' height='600' fill='black'/>",
-    blankMarks,
-    "<circle id='thought-box' cx='210' cy='300' r='30' fill='none' display='",
-    thoughtDisplay,
-    "'/>",
-    thoughtFillCircle,
-    "<circle id='will-box' cx='300' cy='300' r='30' fill='none' display='",
-    willDisplay,
-    "'/>",
-    willFillCircle,
-    "<circle id='awa-box' cx='390' cy='300' r='30' fill='none' display='",
-    awaDisplay,
-    "'/>",
-    awaFillCircle,
-    "</svg>"
-  ].join("");
-}
-
-function svgToDataUri(svg) {
-  return `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
-}
-
 async function signConsumeAuthorization(ethers, nft, chainId, claimerSigner, executor, tokenId, movement, deadline) {
   const pathNft = await nft.getAddress();
   const typeHash = ethers.id(
@@ -358,25 +301,17 @@ async function main() {
     const metadata = decodeMetadata(tokenUri);
     const attributes = normalizeAttributes(metadata.attributes);
     const attrsByType = new Map(attributes.map((a) => [a.traitType, a.value]));
-    const renderState = {
-      thoughtMinted: profile.thought,
-      willMinted: profile.will,
-      awaMinted: profile.awa,
-      willQuota: willConfig.quota
-    };
-    const image = svgToDataUri(buildPathProgressSvg(renderState));
 
     cards.push({
       tokenId: tokenId.toString(),
       label: profile.label,
       stage: metadata.stage ?? "UNKNOWN",
       attributes,
-      image,
+      image: metadata.image,
       description: metadata.description ?? "",
       thoughtProgress: metadata.thought ?? attrsByType.get("THOUGHT") ?? "n/a",
       willProgress: metadata.will ?? attrsByType.get("WILL") ?? "n/a",
-      awaProgress: metadata.awa ?? attrsByType.get("AWA") ?? "n/a",
-      renderState
+      awaProgress: metadata.awa ?? attrsByType.get("AWA") ?? "n/a"
     });
   }
 

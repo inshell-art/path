@@ -4,6 +4,11 @@ Status:
 - removed from `main`
 - archived for possible future restoration
 
+Current-state note:
+- Spark was later recovered on the active `PathNFT` surface using the same
+  `SPARK_BASE` ID domain, with issuer allowlisting and recipient self-claim.
+  See `docs/evm/TASKS.md` Task EVM-005 for current behavior.
+
 ## What it was
 
 The deprecated spark model was the old reserved-mint branch inside `PathMinter`.

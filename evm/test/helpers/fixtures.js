@@ -7,6 +7,8 @@ import {
   K,
   NAME,
   PTS,
+  RESERVED_CAP,
+  SPARK_CLAIM_DURATION_SEC,
   SYMBOL
 } from "./constants.js";
 
@@ -18,12 +20,15 @@ export function roleId(ethers, label) {
   return ethers.id(label);
 }
 
-export async function deployPathNftEnv(ethers, { admin } = {}) {
+export async function deployPathNftEnv(
+  ethers,
+  { admin, reservedCap = RESERVED_CAP, sparkClaimDurationSec = SPARK_CLAIM_DURATION_SEC } = {}
+) {
   const [deployer] = await ethers.getSigners();
   const owner = admin ?? deployer.address;
 
   const Nft = await ethers.getContractFactory("PathNFT", deployer);
-  const nft = await Nft.deploy(owner, NAME, SYMBOL, BASE_URI);
+  const nft = await Nft.deploy(owner, NAME, SYMBOL, BASE_URI, reservedCap, sparkClaimDurationSec);
   await nft.waitForDeployment();
 
   return {
@@ -32,6 +37,7 @@ export async function deployPathNftEnv(ethers, { admin } = {}) {
     roles: {
       DEFAULT_ADMIN_ROLE: await nft.DEFAULT_ADMIN_ROLE(),
       MINTER_ROLE: roleId(ethers, "MINTER_ROLE"),
+      RESERVED_ROLE: roleId(ethers, "RESERVED_ROLE"),
       FROZEN_MINTER_ADMIN_ROLE: roleId(ethers, "FROZEN_MINTER_ADMIN_ROLE")
     },
     movements: {

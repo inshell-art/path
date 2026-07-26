@@ -1,6 +1,8 @@
 import { expect } from "chai";
 import hre from "hardhat";
+import { RESERVED_CAP, SPARK_BASE, SPARK_CLAIM_DURATION_SEC } from "./helpers/constants.js";
 import { deployPathNftEnv } from "./helpers/fixtures.js";
+import { mineAt, setNextBlockTimestamp } from "./helpers/time.js";
 
 describe("PathNFT (Solidity)", function () {
   let conn;
@@ -18,6 +20,22 @@ describe("PathNFT (Solidity)", function () {
     expect(uri.startsWith(prefix)).to.equal(true);
     const b64 = uri.slice(prefix.length);
     return JSON.parse(Buffer.from(b64, "base64").toString("utf8"));
+  }
+
+  function expectCanonicalTokenSvg(svg) {
+    expect(svg).to.contain("data-renderer='path-text-status'");
+    expect(svg).to.contain("data-family='Inshell Mono 76'");
+    expect(svg).to.contain("data-face='Inshell Mono 76 Regular'");
+    expect(svg).to.contain("data-weight='400'");
+    expect(svg).to.contain(
+      "data-release-commit='6fefbfaf762dce0148fe275baafb8e7dd2077beb'"
+    );
+    expect(svg).to.contain("id='g-T'");
+    expect(svg).to.contain("id='g-W'");
+    expect(svg).to.contain("id='path-title'");
+    expect(svg).to.contain("clip-path='url(#path-progress)'");
+    expect(svg).not.to.contain("<text");
+    expect(svg).not.to.contain("<circle");
   }
 
   async function expectAnyRevert(txPromise) {
@@ -100,6 +118,18 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.name()).to.equal("PATH");
     expect(await nft.symbol()).to.equal("PATH");
     expect(await nft.hasRole(roles.DEFAULT_ADMIN_ROLE, deployer.address)).to.equal(true);
+    expect(await nft.SPARK_BASE()).to.equal(SPARK_BASE);
+    expect(await nft.sparkClaimDuration()).to.equal(SPARK_CLAIM_DURATION_SEC);
+    expect(await nft.getReservedCap()).to.equal(RESERVED_CAP);
+    expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP);
+  });
+
+  it("keeps PathNFT runtime code within the EIP-170 deployment limit", async function () {
+    const { nft } = await deployPathNftEnv(ethers);
+    const runtimeCode = await ethers.provider.getCode(await nft.getAddress());
+    const runtimeBytes = (runtimeCode.length - 2) / 2;
+
+    expect(runtimeBytes).to.be.lessThanOrEqual(24_576);
   });
 
   it("constructor rejects zero admin", async function () {
@@ -107,8 +137,12 @@ describe("PathNFT (Solidity)", function () {
     const Nft = await ethers.getContractFactory("PathNFT", deployer);
 
     await expect(
-      Nft.deploy(ethers.ZeroAddress, "PATH", "PATH", "")
+      Nft.deploy(ethers.ZeroAddress, "PATH", "PATH", "", RESERVED_CAP, SPARK_CLAIM_DURATION_SEC)
     ).to.be.revertedWith("ZERO_ADMIN");
+
+    await expect(
+      Nft.deploy(deployer.address, "PATH", "PATH", "", RESERVED_CAP, 0)
+    ).to.be.revertedWith("ZERO_SPARK_CLAIM_DURATION");
   });
 
   it("safeMint requires a frozen public minter", async function () {
@@ -127,6 +161,189 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.ownerOf(1n)).to.equal(alice.address);
     expect(await nft.getStage(1n)).to.equal(0n);
     expect(await nft.getStageMinted(1n)).to.equal(0n);
+    expect(await nft.isSparker(1n)).to.equal(false);
+  });
+
+  it("safeMint reserves the SPARK_BASE token domain for sparkers", async function () {
+    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+    const [, alice] = await ethers.getSigners();
+
+    await grantAndFreezePublicMinter(nft, roles, deployer.address);
+
+    await (await nft.safeMint(alice.address, SPARK_BASE - 1n, "0x")).wait();
+    expect(await nft.ownerOf(SPARK_BASE - 1n)).to.equal(alice.address);
+
+    await expect(nft.safeMint(alice.address, SPARK_BASE, "0x")).to.be.revertedWith(
+      "PUBLIC_ID_DOMAIN_EXHAUSTED"
+    );
+    await expect(nft.safe_mint(alice.address, SPARK_BASE, "0x")).to.be.revertedWith(
+      "PUBLIC_ID_DOMAIN_EXHAUSTED"
+    );
+  });
+
+  it("allowSparker requires RESERVED_ROLE and a recipient", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers);
+    const [, alice] = await ethers.getSigners();
+
+    await expectAnyRevert(nft.connect(alice).allowSparker(alice.address));
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, alice.address)).wait();
+    await expect(nft.connect(alice).allowSparker(ethers.ZeroAddress)).to.be.revertedWith(
+      "ZERO_SPARK_RECIPIENT"
+    );
+  });
+
+  it("allowSparker lets the recipient self-mint and pay gas", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers);
+    const [, issuer, alice, bob] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await expect(nft.connect(issuer).allowSparker(alice.address))
+      .to.emit(nft, "SparkerAllowed");
+
+    expect(await nft.sparkAllowanceExpiresAt(alice.address)).to.be.greaterThan(0n);
+    await expect(nft.connect(bob).mintSparker("0x")).to.be.revertedWith("SPARK_NOT_ALLOWED");
+
+    const id0 = await nft.connect(alice).mintSparker.staticCall("0x");
+    await expect(nft.connect(alice).mintSparker("0x"))
+      .to.emit(nft, "SparkerMinted")
+      .withArgs(alice.address, id0);
+    expect(id0).to.equal(SPARK_BASE);
+    expect(await nft.ownerOf(id0)).to.equal(alice.address);
+    expect(await nft.isSparker(id0)).to.equal(true);
+    expect(await nft.sparkAllowanceExpiresAt(alice.address)).to.equal(0n);
+    expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP - 1n);
+    await expect(nft.connect(alice).mintSparker("0x")).to.be.revertedWith("SPARK_NOT_ALLOWED");
+  });
+
+  it("allowSparker stores deployment-duration expiry and does not spend quota", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers);
+    const [, issuer, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    const tx = await nft.connect(issuer).allowSparker(alice.address);
+    const receipt = await tx.wait();
+    const block = await ethers.provider.getBlock(receipt.blockNumber);
+    const expectedExpiry = BigInt(block.timestamp) + SPARK_CLAIM_DURATION_SEC;
+
+    expect(await nft.sparkAllowanceExpiresAt(alice.address)).to.equal(expectedExpiry);
+    expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP);
+  });
+
+  it("allowSparker can refresh an unclaimed invite without spending quota", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers);
+    const [, issuer, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
+    const firstExpiry = await nft.sparkAllowanceExpiresAt(alice.address);
+
+    await mineAt(conn.provider, firstExpiry - (SPARK_CLAIM_DURATION_SEC / 2n));
+    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
+    const refreshedExpiry = await nft.sparkAllowanceExpiresAt(alice.address);
+
+    expect(refreshedExpiry).to.be.greaterThan(firstExpiry);
+    expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP);
+
+    await (await nft.connect(alice).mintSparker("0x")).wait();
+    expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP - 1n);
+    expect(await nft.sparkAllowanceExpiresAt(alice.address)).to.equal(0n);
+  });
+
+  it("mintSparker only lets the allowlisted wallet claim for itself", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers);
+    const [, issuer, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
+
+    await expect(nft.connect(issuer).mintSparker("0x")).to.be.revertedWith("SPARK_NOT_ALLOWED");
+    await (await nft.connect(alice).mintSparker("0x")).wait();
+    expect(await nft.ownerOf(SPARK_BASE)).to.equal(alice.address);
+  });
+
+  it("mintSparker counts down reserved quota from SPARK_BASE", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers);
+    const [, issuer, alice, bob, carol, dave] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    for (const recipient of [alice, bob, carol]) {
+      await (await nft.connect(issuer).allowSparker(recipient.address)).wait();
+    }
+
+    const id0 = await nft.connect(alice).mintSparker.staticCall("0x");
+    await (await nft.connect(alice).mintSparker("0x")).wait();
+    expect(id0).to.equal(SPARK_BASE);
+
+    const id1 = await nft.connect(bob).mintSparker.staticCall("0x");
+    await (await nft.connect(bob).mintSparker("0x")).wait();
+    expect(id1).to.equal(id0 + 1n);
+
+    const id2 = await nft.connect(carol).mintSparker.staticCall("0x");
+    await (await nft.connect(carol).mintSparker("0x")).wait();
+    expect(id2).to.equal(id1 + 1n);
+    expect(await nft.getReservedRemaining()).to.equal(0n);
+
+    await (await nft.connect(issuer).allowSparker(dave.address)).wait();
+    await expect(nft.connect(dave).mintSparker("0x")).to.be.revertedWith("NO_RESERVED_LEFT");
+  });
+
+  it("mintSparker accepts a claim in the exact expiry block", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers);
+    const [, issuer, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
+
+    const expiresAt = await nft.sparkAllowanceExpiresAt(alice.address);
+    await setNextBlockTimestamp(conn.provider, expiresAt);
+    await (await nft.connect(alice).mintSparker("0x")).wait();
+
+    expect(await nft.ownerOf(SPARK_BASE)).to.equal(alice.address);
+  });
+
+  it("mintSparker requires the allowlisted recipient to claim before expiry", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers);
+    const [, issuer, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
+
+    const expiresAt = await nft.sparkAllowanceExpiresAt(alice.address);
+    await mineAt(conn.provider, expiresAt + 1n);
+
+    await expect(nft.connect(alice).mintSparker("0x")).to.be.revertedWith(
+      "SPARK_ALLOWANCE_EXPIRED"
+    );
+
+    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
+    await (await nft.connect(alice).mintSparker("0x")).wait();
+    expect(await nft.ownerOf(SPARK_BASE)).to.equal(alice.address);
+  });
+
+  it("allowSparker rejects expiry overflow for oversized deployment duration", async function () {
+    const UINT64_MAX = (1n << 64n) - 1n;
+    const { nft, roles } = await deployPathNftEnv(ethers, { sparkClaimDurationSec: UINT64_MAX });
+    const [, issuer, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+
+    await expect(nft.connect(issuer).allowSparker(alice.address)).to.be.revertedWith(
+      "SPARK_ALLOWANCE_OVERFLOW"
+    );
+  });
+
+  it("self-claimed Spark mint stays available after public minter freeze", async function () {
+    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+    const [, issuer, alice] = await ethers.getSigners();
+
+    await grantAndFreezePublicMinter(nft, roles, deployer.address);
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
+    await (await nft.connect(alice).mintSparker("0x1234")).wait();
+
+    expect(await nft.ownerOf(SPARK_BASE)).to.equal(alice.address);
+    expect(await nft.isSparker(SPARK_BASE)).to.equal(true);
   });
 
   it("freezePublicMinter makes the selected minter exclusive and freezes MINTER_ROLE admin", async function () {
@@ -244,10 +461,16 @@ describe("PathNFT (Solidity)", function () {
 
     const svg0 = Buffer.from(m0.image.split(",")[1], "base64").toString("utf8");
     expect(svg0).to.contain("<svg");
-    expect(svg0).to.contain("id='will-box'");
-    expect(svg0).to.contain("id='blank-mark-thought'");
-    expect(svg0).to.contain("id='blank-mark-will'");
-    expect(svg0).to.contain("id='blank-mark-awa'");
+    expectCanonicalTokenSvg(svg0);
+    expect(svg0).to.contain(
+      "id='thought-progress' x='0' y='-240' width='0' height='1000'"
+    );
+    expect(svg0).to.contain(
+      "id='will-progress' x='4800' y='-240' width='0' height='1000'"
+    );
+    expect(svg0).to.contain(
+      "id='awa-progress' x='7800' y='-240' width='0' height='1000'"
+    );
 
     await (await consumeViaMover(mover, alice, nft, 5n, movements.THOUGHT, alice)).wait();
     await (await consumeViaMover(mover, alice, nft, 5n, movements.WILL, alice)).wait();
@@ -259,16 +482,19 @@ describe("PathNFT (Solidity)", function () {
 
     const willTrait1 = m1.attributes.find((x) => x.trait_type === "WILL");
     expect(willTrait1.value).to.equal("Minted(1/4)");
-    expect(m1.image_data).to.contain("<circle id='thought-box' cx='210' cy='300' r='30'");
-    expect(m1.image_data).to.contain("id='thought-fill' cx='210' cy='300' r='30'");
-    expect(m1.image_data).to.contain("id='will-fill' cx='300' cy='300' r='7.5'");
-    expect(m1.image_data).not.to.contain("clip-path");
-    expect(m1.image_data).not.to.contain("id='blank-mark-thought'");
-    expect(m1.image_data).not.to.contain("id='blank-mark-will'");
-    expect(m1.image_data).to.contain("id='blank-mark-awa'");
+    expectCanonicalTokenSvg(m1.image_data);
+    expect(m1.image_data).to.contain(
+      "id='thought-progress' x='0' y='-240' width='4200' height='1000'"
+    );
+    expect(m1.image_data).to.contain(
+      "id='will-progress' x='4800' y='-240' width='600' height='1000'"
+    );
+    expect(m1.image_data).to.contain(
+      "id='awa-progress' x='7800' y='-240' width='0' height='1000'"
+    );
   });
 
-  it("token image fills each movement slot proportionally to quota progress", async function () {
+  it("token image clips each movement word proportionally to quota progress", async function () {
     const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
     const [, alice] = await ethers.getSigners();
 
@@ -288,11 +514,16 @@ describe("PathNFT (Solidity)", function () {
     const thoughtInProgress = decodeMetadata(await nft.tokenURI(6n));
     expect(thoughtInProgress.stage).to.equal("THOUGHT");
     expect(thoughtInProgress.thought).to.equal("Minted(2/3)");
-    expect(thoughtInProgress.image_data).to.contain("<circle id='thought-box' cx='210' cy='300' r='30'");
-    expect(thoughtInProgress.image_data).to.contain("id='thought-fill' cx='210' cy='300' r='20'");
-    expect(thoughtInProgress.image_data).not.to.contain("clip-path");
-    expect(thoughtInProgress.image_data).not.to.contain("id='will-fill'");
-    expect(thoughtInProgress.image_data).not.to.contain("id='awa-fill'");
+    expectCanonicalTokenSvg(thoughtInProgress.image_data);
+    expect(thoughtInProgress.image_data).to.contain(
+      "id='thought-progress' x='0' y='-240' width='2800' height='1000'"
+    );
+    expect(thoughtInProgress.image_data).to.contain(
+      "id='will-progress' x='4800' y='-240' width='0' height='1000'"
+    );
+    expect(thoughtInProgress.image_data).to.contain(
+      "id='awa-progress' x='7800' y='-240' width='0' height='1000'"
+    );
 
     await (await consumeViaMover(mover, alice, nft, 6n, movements.THOUGHT, alice)).wait();
     await (await consumeViaMover(mover, alice, nft, 6n, movements.WILL, alice)).wait();
@@ -304,10 +535,16 @@ describe("PathNFT (Solidity)", function () {
     expect(awaInProgress.thought).to.equal("Minted(3/3)");
     expect(awaInProgress.will).to.equal("Minted(2/2)");
     expect(awaInProgress.awa).to.equal("Minted(1/2)");
-    expect(awaInProgress.image_data).to.contain("id='thought-fill' cx='210' cy='300' r='30'");
-    expect(awaInProgress.image_data).to.contain("id='will-fill' cx='300' cy='300' r='30'");
-    expect(awaInProgress.image_data).to.contain("id='awa-fill' cx='390' cy='300' r='15'");
-    expect(awaInProgress.image_data).not.to.contain("clip-path");
+    expectCanonicalTokenSvg(awaInProgress.image_data);
+    expect(awaInProgress.image_data).to.contain(
+      "id='thought-progress' x='0' y='-240' width='4200' height='1000'"
+    );
+    expect(awaInProgress.image_data).to.contain(
+      "id='will-progress' x='4800' y='-240' width='2400' height='1000'"
+    );
+    expect(awaInProgress.image_data).to.contain(
+      "id='awa-progress' x='7800' y='-240' width='900' height='1000'"
+    );
   });
 
   it("contractURI returns on-chain collection metadata", async function () {
@@ -336,7 +573,8 @@ describe("PathNFT (Solidity)", function () {
     expect(metadata.image.startsWith("data:image/svg+xml;base64,")).to.equal(true);
     expect(metadata.image_data).to.equal(decodedImage);
     expect(metadata.image_data).to.contain("<svg");
-    expect(metadata.image_data).to.contain("<rect width='600' height='600' fill='black'/>");
+    expectCanonicalTokenSvg(metadata.image_data);
+    expect(metadata.image_data).to.contain("<rect width='600' height='600' fill='#000000'/>");
     expect(metadata.attributes.map((x) => x.trait_type)).to.deep.equal([
       "Stage",
       "THOUGHT",

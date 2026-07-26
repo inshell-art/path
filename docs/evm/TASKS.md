@@ -84,3 +84,29 @@ Remove `burn()` from the EVM `PathNFT` public interface and contract implementat
 
 - PATH NFTs can no longer be burned via `PathNFT`.
 - `approve` / `balanceOf` remain standard inherited ERC-721 behavior.
+
+## Task EVM-005: Recover Spark pass minting on `PathNFT`
+
+- Status: completed
+- Priority: high
+- Area: `evm/src/PathNFT.sol`, `evm/src/interfaces/IPathNFT.sol`, deploy/export scripts, tests/docs
+
+### Decision
+
+Recover Spark using the later `SPARK_BASE` model, not the original `type(uint256).max - 1`
+descending token-ID model.
+
+### Applied changes
+
+1. Added `PathNFT.SPARK_BASE = 1_000_000_000_000_000`.
+2. Added deploy-time `reservedCap`, deploy-time `sparkClaimDurationSec`, `getReservedCap()`, and `getReservedRemaining()`.
+3. Added `RESERVED_ROLE`-gated `allowSparker(address)`, which gives a recipient a time-limited self-claim window.
+4. Added recipient-paid `mintSparker(bytes)`, minting IDs as `SPARK_BASE + serial`.
+5. Added `isSparker(tokenId)` so downstream clients do not need to classify Spark by a raw high-ID threshold.
+6. Reinstated the public token-ID boundary: `safeMint` and `safe_mint` reject IDs at or above `SPARK_BASE`.
+
+### Result
+
+- Spark quota is deployment calldata, so the historical quota `99` can be supplied per deploy.
+- Public PATH issuance remains `PathPulseAdapter -> PathNFT.safeMint`.
+- Spark issuance is separate from `MINTER_ROLE`; issuers allowlist recipients, recipients self-claim and pay gas, claims expire after the deploy-time duration, and total mints remain bounded by the deploy-time reserved cap.

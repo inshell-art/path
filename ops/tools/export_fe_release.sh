@@ -286,6 +286,8 @@ manifest = {
         "pts": str(deploy["config"]["pts"]),
         "token_base": int(deploy["config"]["tokenBase"]),
         "epoch_base": int(deploy["config"]["epochBase"]),
+        "reserved_cap": str(deploy["config"].get("reservedCap", "0")),
+        "spark_claim_duration_sec": str(deploy["config"]["sparkClaimDurationSec"]),
     },
     "status": {
         "postconditions": post["status"],

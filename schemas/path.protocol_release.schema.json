@@ -80,7 +80,7 @@
     "config": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "symbol", "open_time", "open_time_iso", "start_delay_sec", "k", "genesis_price", "genesis_floor", "pts", "token_base", "epoch_base"],
+      "required": ["name", "symbol", "open_time", "open_time_iso", "start_delay_sec", "k", "genesis_price", "genesis_floor", "pts", "token_base", "epoch_base", "reserved_cap", "spark_claim_duration_sec"],
       "properties": {
         "name": {"type": "string"},
         "symbol": {"type": "string"},
@@ -93,7 +93,9 @@
         "genesis_floor": {"type": "string"},
         "pts": {"type": "string"},
         "token_base": {"type": "integer", "minimum": 0},
-        "epoch_base": {"type": "integer", "minimum": 0}
+        "epoch_base": {"type": "integer", "minimum": 0},
+        "reserved_cap": {"type": "string", "pattern": "^[0-9]+$"},
+        "spark_claim_duration_sec": {"type": "string", "pattern": "^[1-9][0-9]*$"}
       }
     },
     "status": {

@@ -79,6 +79,9 @@ Examples:
 # Override by env vars
 DEPLOY_FIRST_PUBLIC_ID=7 DEPLOY_EPOCH_BASE=7 npm run deploy:local:eth
 
+# Include a Spark pass quota in deploy calldata
+DEPLOY_RESERVED_CAP=99 DEPLOY_SPARK_CLAIM_DURATION_SEC=604800 npm run deploy:local:eth
+
 # Override by npm args
 npm run deploy:local:eth --deploy-first-public-id=7 --deploy-epoch-base=7 --deploy-name="PATH"
 
@@ -93,6 +96,8 @@ cat > /tmp/path.deploy.local.json <<'JSON'
   "openTime": "1767225600",
   "firstPublicId": "1",
   "epochBase": "1",
+  "reservedCap": "99",
+  "sparkClaimDurationSec": "604800",
   "genesisPrice": "1000",
   "genesisFloor": "900",
   "k": "600",
@@ -112,8 +117,10 @@ Outputs:
 ## Notes
 
 - `PathNFT.tokenURI` returns on-chain metadata as a data URL: `data:application/json;base64,<...>`, with embedded image at `image = data:image/svg+xml;base64,<...>`.
+- The token image is the canonical centered `THOUGHT WILL AWA` status line. It uses exact Inshell Mono 76 Regular `400` v0.1.0 native SVG paths, fills remaining progress with `#ffffff`, and clips consumed progress left-to-right with `#00ff35`.
 - `PathNFT` emits EIP-4906 `MetadataUpdate(tokenId)` on progression (`consumeUnit`) so indexers can refresh metadata.
 - `PathNFT.contractURI` is available for optional contract-level collection metadata.
+- `PathNFT.allowSparker` lets a `RESERVED_ROLE` holder add a recipient to the Spark allowlist, and `PathNFT.mintSparker` lets that recipient self-mint from `SPARK_BASE = 1_000_000_000_000_000` upward before the deploy-time claim duration expires.
 - This EVM stack has no separate renderer contract.
 
 ## Publish-Ready Invariants
@@ -122,6 +129,8 @@ Constructor params:
 
 - `name` / `symbol`: marketplace-facing collection identity. The contract uses `PATH`; UI copy may render `$PATH`.
 - `baseUri`: optional fallback base URI. The current marketplace path relies on on-chain data URLs.
+- `reservedCap`: deploy-time Spark pass quota. Use `99` for the historical Spark quota when preparing that launch calldata.
+- `sparkClaimDurationSec`: mandatory deploy-time Spark claim window in seconds. The current example uses `604800` (7 days).
 - `admin`: direct Ledger-backed admin authority. On Sepolia this is `SEPOLIA_ADMIN_HW_A`.
 - `openTime`: preferred formal launch input, unix seconds UTC. Do not combine with `startDelaySec`.
 - `startDelaySec`: rehearsal convenience input that scripts convert to `openTime`.
@@ -134,6 +143,9 @@ Constructor params:
 Role and freeze model:
 
 - `PathNFT.freezePublicMinter(expectedMinter)` is one-way and locks public minting to `PathPulseAdapter`.
+- `PathNFT.safeMint` / `safe_mint` only mint public token IDs below `SPARK_BASE`.
+- `PathNFT.RESERVED_ROLE` can call `allowSparker(recipient)`, which sets `sparkAllowanceExpiresAt(recipient) = block.timestamp + sparkClaimDuration`.
+- An allowlisted recipient calls `mintSparker(data)` from the recipient wallet to mint and pay gas. The mint uses `SPARK_BASE + serial` and decrements `getReservedRemaining()`.
 - `PathPulseAdapter.freezeWiring()` is one-way and locks its `PulseAuction` / `PathNFT` endpoints.
 - `PulseAuction.mintAdapter` is the only public sale settlement caller and must point at `PathPulseAdapter`.
 - Movement config is one-way per movement. A movement can be explicitly frozen by admin or implicitly frozen on first successful consume.
@@ -141,14 +153,18 @@ Role and freeze model:
 Irreversible actions:
 
 - Public PATH mint creates an ERC-721 token and cannot be undone by protocol code.
+- Spark PATH self-claim creates an ERC-721 token and cannot be undone by protocol code; the Spark quota is bounded by `reservedCap`, and unclaimed allowlist entries expire.
 - `consumeUnit` consumes one movement unit, advances movement progress/stage, increments the claimer nonce, emits `MetadataUpdate`, and cannot be replayed.
 - Public minter, adapter wiring, and frozen movement configs cannot be changed after freeze.
 
 Metadata and indexer expectations:
 
 - `tokenURI` is self-contained JSON with embedded SVG.
+- The token SVG contains no browser-font dependency, `<text>`, external image, or off-chain renderer call.
+- Rendering remains movement-agnostic beyond the three fixed PATH movements: each word's clip width is derived from its on-chain `minted / quota` state.
 - `contractURI` is self-contained collection metadata.
 - `attributes` keep stable trait names: `Stage`, `THOUGHT`, `WILL`, and `AWA`.
+- Frontends should use `PathNFT.isSparker(tokenId)` to identify Spark tokens instead of hard-coding a token-ID threshold.
 - `MetadataUpdate(tokenId)` is emitted on every movement consume. Marketplaces that do not honor EIP-4906 may require manual metadata refresh.
 - `MovementConsumed(pathId,movement,claimer,serial)` is the canonical movement-consumption event.
 

@@ -123,6 +123,8 @@ rows = [
     ("pts", pick("pts")),
     ("firstPublicId", pick("firstPublicId")),
     ("epochBase", pick("epochBase")),
+    ("reservedCap", pick("reservedCap")),
+    ("sparkClaimDurationSec", pick("sparkClaimDurationSec")),
 ]
 
 for key, value in rows:

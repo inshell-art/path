@@ -6,6 +6,20 @@ interface IPathNFT {
 
     function safe_mint(address recipient, uint256 tokenId, bytes calldata data) external;
 
+    function getReservedCap() external view returns (uint64);
+
+    function getReservedRemaining() external view returns (uint64);
+
+    function isSparker(uint256 tokenId) external view returns (bool);
+
+    function sparkClaimDuration() external view returns (uint64);
+
+    function sparkAllowanceExpiresAt(address recipient) external view returns (uint64);
+
+    function allowSparker(address recipient) external returns (uint64);
+
+    function mintSparker(bytes calldata data) external returns (uint256);
+
     function freezePublicMinter(address expectedMinter) external;
 
     function setMovementConfig(bytes32 movement, address minter, uint32 quota) external;

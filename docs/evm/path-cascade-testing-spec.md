@@ -14,6 +14,14 @@ Validate that the Solidity PATH stack preserves the critical PATH behavior:
 
 - Role gates (`MINTER_ROLE`, admin-only config).
 - Mint/approval behavior.
+- Spark pass behavior:
+  - deploy-time `reservedCap`
+  - deploy-time `sparkClaimDurationSec`
+  - `RESERVED_ROLE` gate
+  - recipient allowlist and expiry checks
+  - recipient self-claim gas payment
+  - `SPARK_BASE` token domain
+  - `isSparker(tokenId)` classification
 - Movement consumption rules:
   - authorized minter only
   - claimer checks
@@ -21,7 +29,11 @@ Validate that the Solidity PATH stack preserves the critical PATH behavior:
   - movement order (`THOUGHT -> WILL -> AWA`)
   - quota progression and stage transitions
   - movement freeze behavior
-- `tokenURI` returns on-chain JSON data URI metadata with embedded SVG image.
+- `tokenURI` returns on-chain JSON data URI metadata with the canonical
+  Inshell Mono 76 native-path SVG image.
+- Movement progress changes only the `#00ff35` consumed clip widths over the
+  centered `THOUGHT WILL AWA` line; no browser font or off-chain renderer is
+  required.
 
 2. `PathPulseAdapter` invariants
 

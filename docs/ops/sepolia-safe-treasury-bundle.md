@@ -13,7 +13,7 @@ This note defines the Dev OS side of the Sepolia PATH deploy bundle when the tre
 - Treasury signer ref: `SEPOLIA_TREASURY_SAFE_1OF1`
 - Treasury Safe owner ref: `SEPOLIA_TREASURY_HW_A`
 
-The constructor params example uses `startDelaySec=600` for a Sepolia rehearsal-style deploy. For a scheduled launch, OPS should copy the params file and replace `startDelaySec` with the final absolute UTC `openTime` before locking inputs.
+The constructor params example uses `startDelaySec=600` for a Sepolia rehearsal-style deploy, `reservedCap=99` for the Spark pass quota, and `sparkClaimDurationSec=604800` for a 7-day recipient self-claim window. For a scheduled launch, OPS should copy the params file and replace `startDelaySec` with the final absolute UTC `openTime` before locking inputs.
 
 ## Bundle Commands
 

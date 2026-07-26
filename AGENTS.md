@@ -34,13 +34,13 @@
 
 ## Publish-Ready Contract Invariants
 - `PathNFT` on-chain collection name and symbol are `PATH`. UI copy may show `$PATH`, but contract metadata should stay marketplace-compatible.
-- Public mint authority is one-way frozen with `freezePublicMinter`; after freeze, only the selected public minter can mint and `MINTER_ROLE` administration is locked.
+- Public mint authority is one-way frozen with `freezePublicMinter`; after freeze, only the selected public minter can mint public IDs and `MINTER_ROLE` administration is locked.
 - The active public minter is `PathPulseAdapter`, which settles Pulse epochs directly into `PathNFT.safeMint`.
 - `PathMinter` / `PathMinterAdapter` are legacy compatibility surfaces only; do not use them in deploy bundles or public issuance paths.
+- Spark pass minting lives on `PathNFT`: deploy calldata sets `reservedCap` and `sparkClaimDurationSec`, Spark IDs start at `SPARK_BASE = 1_000_000_000_000_000`, `RESERVED_ROLE` can allowlist recipients with `allowSparker`, and allowlisted recipients self-mint with `mintSparker` before expiry.
+- Public mint IDs must remain below `SPARK_BASE`; frontends should use `PathNFT.isSparker(tokenId)` for Spark classification instead of raw token-ID thresholds.
 - Sepolia deploy bundles must use Safe-backed treasury custody: constructor `treasury` is the Safe address, `treasurySignerRef` is `SEPOLIA_TREASURY_SAFE_1OF1`, the Safe owner ref is `SEPOLIA_TREASURY_HW_A`, and `ADMIN` remains the direct Ledger-backed `SEPOLIA_ADMIN_HW_A`.
 - Safe-backed deploy bundles must include a verified `treasury_safe.json` artifact in the immutable bundle manifest.
-- There must be no assumptions about `reservedCap`, `reserved_cap`, `RESERVED_ROLE`, `SPARK_BASE`, `mintSparker`, `getReservedCap`, or `getReservedRemaining`.
-- Frontends must not classify "spark" or special tokens by high token id.
 - Movement order is fixed: `THOUGHT`, then `WILL`, then `AWA`.
 - Movement config is one-way frozen per movement, either explicitly by admin or implicitly on first successful consume.
 - `consumeUnit` must require owner/approved authorization, a valid consume signature, the configured movement minter, and available quota.

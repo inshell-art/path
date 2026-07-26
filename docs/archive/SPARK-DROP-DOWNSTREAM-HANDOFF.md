@@ -2,11 +2,15 @@
 
 ## Status
 
-Spark/reserved mint logic has been removed from the active `path/` repo surface.
+Historical status: Spark/reserved mint logic was removed from the active `path/` repo surface.
 
 - Removal commit: `070ee8342833a4249027146d3ed61cf555e4762f`
 - Archive tag: `archive/path-minter-spark-v1`
 - Archive note: [DEPRECATED-SPARK.md](/Users/bigu/Projects/path/docs/archive/DEPRECATED-SPARK.md)
+
+Current-state note: Spark was later recovered on the active `PathNFT` surface using the same
+`SPARK_BASE` ID domain, with issuer allowlisting and recipient self-claim. See
+`docs/evm/TASKS.md` Task EVM-005 for current behavior.
 
 The archive tag is the exact restoration source. This handoff note is only the downstream update map.
 

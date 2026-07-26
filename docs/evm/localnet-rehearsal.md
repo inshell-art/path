@@ -82,6 +82,10 @@ await adapter.tokenBase();      // public token id base
 await adapter.epochBase();      // auction epoch base
 await nft.name();               // PATH
 await nft.symbol();             // PATH
+await nft.SPARK_BASE();         // 1000000000000000
+await nft.getReservedCap();     // Spark quota supplied in deploy calldata
+await nft.getReservedRemaining();
+await nft.sparkClaimDuration(); // Spark self-claim window in seconds
 ```
 
 ## 3) Run one live auction sale
@@ -120,6 +124,21 @@ await auction.getState();       // check new anchor/floor/epoch
 ```
 
 You should see `epochIndex` keep increasing and price/floor evolve after each sale.
+
+## 4.5) Optional Spark pass mint check
+
+If the deployment used a non-zero Spark quota, grant the reserved role, allowlist the recipient, then have the recipient self-mint one Spark PATH:
+
+```js
+const RESERVED_ROLE = await nft.RESERVED_ROLE();
+await (await nft.grantRole(RESERVED_ROLE, deployer.address)).wait();
+await (await nft.allowSparker(buyer.address)).wait();
+await nft.sparkAllowanceExpiresAt(buyer.address);
+const sparkId = await nft.connect(buyer).mintSparker.staticCall("0x");
+await (await nft.connect(buyer).mintSparker("0x")).wait();
+await nft.ownerOf(sparkId);
+await nft.isSparker(sparkId);   // true
+```
 
 ## 5) Exercise movement progression in PathNFT
 

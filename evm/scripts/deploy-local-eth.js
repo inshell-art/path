@@ -13,6 +13,7 @@ const DEFAULTS = {
   pts: 1n,
   firstPublicId: 1n,
   epochBase: 1n,
+  reservedCap: 0n,
   paymentToken: null
 };
 const DEFAULT_LOCAL_START_DELAY_SEC = 60n;
@@ -32,6 +33,9 @@ const CLI_FLAG_MAP = {
   pts: "pts",
   "first-public-id": "firstPublicId",
   "epoch-base": "epochBase",
+  "reserved-cap": "reservedCap",
+  "spark-cap": "reservedCap",
+  "spark-claim-duration-sec": "sparkClaimDurationSec",
   "payment-token": "paymentToken",
   treasury: "treasury",
   "treasury-signer-ref": "treasurySignerRef"
@@ -52,6 +56,9 @@ const ENV_KEY_MAP = {
   DEPLOY_PTS: "pts",
   DEPLOY_FIRST_PUBLIC_ID: "firstPublicId",
   DEPLOY_EPOCH_BASE: "epochBase",
+  DEPLOY_RESERVED_CAP: "reservedCap",
+  DEPLOY_SPARK_CAP: "reservedCap",
+  DEPLOY_SPARK_CLAIM_DURATION_SEC: "sparkClaimDurationSec",
   DEPLOY_PAYMENT_TOKEN: "paymentToken",
   DEPLOY_TREASURY: "treasury",
   DEPLOY_TREASURY_SIGNER_REF: "treasurySignerRef"
@@ -72,6 +79,9 @@ const NPM_CONFIG_KEY_MAP = {
   npm_config_deploy_pts: "pts",
   npm_config_deploy_first_public_id: "firstPublicId",
   npm_config_deploy_epoch_base: "epochBase",
+  npm_config_deploy_reserved_cap: "reservedCap",
+  npm_config_deploy_spark_cap: "reservedCap",
+  npm_config_deploy_spark_claim_duration_sec: "sparkClaimDurationSec",
   npm_config_deploy_payment_token: "paymentToken",
   npm_config_deploy_treasury: "treasury",
   npm_config_deploy_treasury_signer_ref: "treasurySignerRef"
@@ -166,6 +176,8 @@ function normalizeFileConfig(raw) {
     pts: pickValue(source, ["pts"]),
     firstPublicId: pickValue(source, ["firstPublicId", "first_public_id", "first-public-id", "tokenBase", "token_base", "token-base"]),
     epochBase: pickValue(source, ["epochBase", "epoch_base", "epoch-base"]),
+    reservedCap: pickValue(source, ["reservedCap", "reserved_cap", "reserved-cap", "sparkCap", "spark_cap", "spark-cap"]),
+    sparkClaimDurationSec: pickValue(source, ["sparkClaimDurationSec", "spark_claim_duration_sec", "spark-claim-duration-sec", "sparkClaimDuration", "spark_claim_duration", "spark-claim-duration"]),
     paymentToken: pickValue(source, ["paymentToken", "payment_token", "payment-token"]),
     treasury: pickValue(source, ["treasury"]),
     treasurySignerRef: pickValue(source, ["treasurySignerRef", "treasury_signer_ref", "treasury-signer-ref"])
@@ -242,6 +254,16 @@ function resolveDeployConfig({
   networkName,
   chainId
 }) {
+  const sparkClaimDurationSecInput = coalesce(
+    cliConfig.sparkClaimDurationSec,
+    npmConfig.sparkClaimDurationSec,
+    envConfig.sparkClaimDurationSec,
+    fileConfig.sparkClaimDurationSec
+  );
+  if (sparkClaimDurationSecInput === undefined || sparkClaimDurationSecInput === null || String(sparkClaimDurationSecInput).trim() === "") {
+    throw new Error("SPARK_CLAIM_DURATION_REQUIRED: provide sparkClaimDurationSec");
+  }
+
   const merged = {
     name: coalesce(cliConfig.name, npmConfig.name, envConfig.name, fileConfig.name, DEFAULTS.name),
     symbol: coalesce(cliConfig.symbol, npmConfig.symbol, envConfig.symbol, fileConfig.symbol, DEFAULTS.symbol),
@@ -251,7 +273,9 @@ function resolveDeployConfig({
     genesisFloor: parseUint(coalesce(cliConfig.genesisFloor, npmConfig.genesisFloor, envConfig.genesisFloor, fileConfig.genesisFloor, DEFAULTS.genesisFloor), "genesisFloor"),
     pts: parseUint(coalesce(cliConfig.pts, npmConfig.pts, envConfig.pts, fileConfig.pts, DEFAULTS.pts), "pts"),
     firstPublicId: parseUint(coalesce(cliConfig.firstPublicId, npmConfig.firstPublicId, envConfig.firstPublicId, fileConfig.firstPublicId, DEFAULTS.firstPublicId), "firstPublicId"),
-    epochBase: parseUint(coalesce(cliConfig.epochBase, npmConfig.epochBase, envConfig.epochBase, fileConfig.epochBase, DEFAULTS.epochBase), "epochBase")
+    epochBase: parseUint(coalesce(cliConfig.epochBase, npmConfig.epochBase, envConfig.epochBase, fileConfig.epochBase, DEFAULTS.epochBase), "epochBase"),
+    reservedCap: parseUint(coalesce(cliConfig.reservedCap, npmConfig.reservedCap, envConfig.reservedCap, fileConfig.reservedCap, DEFAULTS.reservedCap), "reservedCap"),
+    sparkClaimDurationSec: parseUint(sparkClaimDurationSecInput, "sparkClaimDurationSec")
   };
 
   if (typeof merged.name !== "string" || merged.name.length === 0) {
@@ -262,6 +286,15 @@ function resolveDeployConfig({
   }
   if (typeof merged.baseUri !== "string") {
     throw new Error("baseUri must be a string");
+  }
+  if (merged.reservedCap > U64_MAX) {
+    throw new Error(`reservedCap exceeds uint64 max: ${merged.reservedCap.toString()}`);
+  }
+  if (merged.sparkClaimDurationSec === 0n) {
+    throw new Error("sparkClaimDurationSec must be > 0");
+  }
+  if (merged.sparkClaimDurationSec > U64_MAX) {
+    throw new Error(`sparkClaimDurationSec exceeds uint64 max: ${merged.sparkClaimDurationSec.toString()}`);
   }
 
   const paymentTokenInput = coalesce(
@@ -442,7 +475,9 @@ async function main() {
     deployer.address,
     cfg.name,
     cfg.symbol,
-    cfg.baseUri
+    cfg.baseUri,
+    cfg.reservedCap,
+    cfg.sparkClaimDurationSec
   );
   await nft.waitForDeployment();
 
@@ -576,7 +611,9 @@ async function main() {
       pts: cfg.pts.toString(),
       firstPublicId: cfg.firstPublicId.toString(),
       tokenBase: cfg.firstPublicId.toString(),
-      epochBase: cfg.epochBase.toString()
+      epochBase: cfg.epochBase.toString(),
+      reservedCap: cfg.reservedCap.toString(),
+      sparkClaimDurationSec: cfg.sparkClaimDurationSec.toString()
     },
     inputs: {
       paramsFile: fileConfig.paramsFile ?? null,
@@ -586,7 +623,8 @@ async function main() {
     },
     roles: {
       defaultAdminRole,
-      minterRole
+      minterRole,
+      reservedRole: ethers.id("RESERVED_ROLE")
     },
     freezeStatus: {
       qualifiedBeforeOpen: true,

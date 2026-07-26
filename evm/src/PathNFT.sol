@@ -10,13 +10,16 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {IPathNFT} from "./interfaces/IPathNFT.sol";
+import {PathSvgRenderer} from "./PathSvgRenderer.sol";
 
 /// @notice ERC-721 PATH NFT with staged movement progression.
 /// @dev Current canonical implementation for the PATH NFT.
 contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant RESERVED_ROLE = keccak256("RESERVED_ROLE");
     bytes32 public constant FROZEN_MINTER_ADMIN_ROLE = keccak256("FROZEN_MINTER_ADMIN_ROLE");
     bytes4 private constant _INTERFACE_ID_ERC4906 = 0x49064906;
+    uint256 public constant SPARK_BASE = 1_000_000_000_000_000;
 
     bytes32 public constant MOVEMENT_THOUGHT = bytes32("THOUGHT");
     bytes32 public constant MOVEMENT_WILL = bytes32("WILL");
@@ -34,9 +37,14 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
     mapping(bytes32 movement => bool frozen) private _movementFrozen;
     mapping(bytes32 movement => address minter) private _authorizedMinter;
     mapping(address claimer => uint256 nonce) private _consumeNonce;
+    mapping(uint256 tokenId => bool sparker) private _sparker;
+    mapping(address recipient => uint64 expiresAt) public sparkAllowanceExpiresAt;
 
     address public publicMinter;
     bool public publicMinterFrozen;
+    uint64 public immutable sparkClaimDuration;
+    uint64 private immutable _reservedCap;
+    uint64 private _reservedRemaining;
 
     struct RenderState {
         uint8 stage;
@@ -51,33 +59,90 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
     event MovementConsumed(uint256 indexed pathId, bytes32 indexed movement, address indexed claimer, uint32 serial);
     event MovementFrozen(bytes32 indexed movement);
     event PublicMinterFrozen(address indexed publicMinter);
+    event SparkerAllowed(address indexed recipient, uint64 expiresAt);
+    event SparkerMinted(address indexed to, uint256 indexed tokenId);
 
     constructor(
         address initialAdmin,
         string memory name_,
         string memory symbol_,
-        string memory baseUri_
+        string memory baseUri_,
+        uint64 reservedCap_,
+        uint64 sparkClaimDuration_
     ) ERC721(name_, symbol_) {
         require(initialAdmin != address(0), "ZERO_ADMIN");
+        require(sparkClaimDuration_ != 0, "ZERO_SPARK_CLAIM_DURATION");
 
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
         _setRoleAdmin(FROZEN_MINTER_ADMIN_ROLE, FROZEN_MINTER_ADMIN_ROLE);
         _baseTokenUri = baseUri_;
+        sparkClaimDuration = sparkClaimDuration_;
+        _reservedCap = reservedCap_;
+        _reservedRemaining = reservedCap_;
     }
 
     function safeMint(address recipient, uint256 tokenId, bytes calldata data) external override onlyRole(MINTER_ROLE) {
         _assertPublicMinter();
-        _safeMint(recipient, tokenId, data);
-        _stage[tokenId] = 0;
-        _stageMinted[tokenId] = 0;
+        _assertPublicTokenId(tokenId);
+        _mintPath(recipient, tokenId, data);
     }
 
     /// @notice Snake-case alias kept for backward compatibility with older integrations.
     function safe_mint(address recipient, uint256 tokenId, bytes calldata data) external override onlyRole(MINTER_ROLE) {
         _assertPublicMinter();
-        _safeMint(recipient, tokenId, data);
-        _stage[tokenId] = 0;
-        _stageMinted[tokenId] = 0;
+        _assertPublicTokenId(tokenId);
+        _mintPath(recipient, tokenId, data);
+    }
+
+    function getReservedCap() external view override returns (uint64) {
+        return _reservedCap;
+    }
+
+    function getReservedRemaining() external view override returns (uint64) {
+        return _reservedRemaining;
+    }
+
+    function isSparker(uint256 tokenId) external view override returns (bool) {
+        return _sparker[tokenId];
+    }
+
+    function allowSparker(address recipient)
+        external
+        override
+        onlyRole(RESERVED_ROLE)
+        returns (uint64 expiresAt)
+    {
+        require(recipient != address(0), "ZERO_SPARK_RECIPIENT");
+        uint256 expiry = block.timestamp + uint256(sparkClaimDuration);
+        require(expiry <= type(uint64).max, "SPARK_ALLOWANCE_OVERFLOW");
+
+        expiresAt = uint64(expiry);
+        sparkAllowanceExpiresAt[recipient] = expiresAt;
+
+        emit SparkerAllowed(recipient, expiresAt);
+    }
+
+    function mintSparker(bytes calldata data)
+        external
+        override
+        returns (uint256 id)
+    {
+        address recipient = _msgSender();
+        uint64 expiresAt = sparkAllowanceExpiresAt[recipient];
+        require(expiresAt != 0, "SPARK_NOT_ALLOWED");
+        require(block.timestamp <= uint256(expiresAt), "SPARK_ALLOWANCE_EXPIRED");
+
+        uint64 remaining = _reservedRemaining;
+        require(remaining > 0, "NO_RESERVED_LEFT");
+
+        uint64 mintedSoFar = _reservedCap - remaining;
+        id = SPARK_BASE + uint256(mintedSoFar);
+        _reservedRemaining = remaining - 1;
+        sparkAllowanceExpiresAt[recipient] = 0;
+        _sparker[id] = true;
+
+        _mintPath(recipient, id, data);
+        emit SparkerMinted(recipient, id);
     }
 
     function freezePublicMinter(address expectedMinter) external override onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -215,6 +280,16 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
     function _assertPublicMinter() internal view {
         require(publicMinterFrozen, "PUBLIC_MINTER_NOT_FROZEN");
         require(_msgSender() == publicMinter, "NOT_PUBLIC_MINTER");
+    }
+
+    function _assertPublicTokenId(uint256 tokenId) internal pure {
+        require(tokenId < SPARK_BASE, "PUBLIC_ID_DOMAIN_EXHAUSTED");
+    }
+
+    function _mintPath(address recipient, uint256 tokenId, bytes calldata data) internal {
+        _safeMint(recipient, tokenId, data);
+        _stage[tokenId] = 0;
+        _stageMinted[tokenId] = 0;
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
@@ -453,82 +528,13 @@ contract PathNFT is ERC721, AccessControl, IPathNFT, IERC4906 {
         uint32 awaMinted,
         uint32 awaQuota
     ) internal pure returns (string memory) {
-        string memory thoughtDisplay = thoughtMinted > 0 ? "inline" : "none";
-        string memory willDisplay = willMinted > 0 ? "inline" : "none";
-        string memory awaDisplay = awaMinted > 0 ? "inline" : "none";
-        string memory blankThought = thoughtMinted == 0
-            ? "<circle id='blank-mark-thought' cx='210' cy='300' r='1.5' fill='white'/>"
-            : "";
-        string memory blankWill = willMinted == 0
-            ? "<circle id='blank-mark-will' cx='300' cy='300' r='1.5' fill='white'/>"
-            : "";
-        string memory blankAwa = awaMinted == 0
-            ? "<circle id='blank-mark-awa' cx='390' cy='300' r='1.5' fill='white'/>"
-            : "";
-
-        string memory thoughtFillCircle = _slotFillCircle("thought-fill", 210, thoughtMinted, thoughtQuota);
-        string memory willFillCircle = _slotFillCircle("will-fill", 300, willMinted, willQuota);
-        string memory awaFillCircle = _slotFillCircle("awa-fill", 390, awaMinted, awaQuota);
-
-        return string.concat(
-            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600' width='600' height='600' role='img' aria-label='PATH progress'>",
-            "<rect width='600' height='600' fill='black'/>",
-            blankThought,
-            blankWill,
-            blankAwa,
-            "<circle id='thought-box' cx='210' cy='300' r='30' fill='none' display='",
-            thoughtDisplay,
-            "'/>",
-            thoughtFillCircle,
-            "<circle id='will-box' cx='300' cy='300' r='30' fill='none' display='",
-            willDisplay,
-            "'/>",
-            willFillCircle,
-            "<circle id='awa-box' cx='390' cy='300' r='30' fill='none' display='",
-            awaDisplay,
-            "'/>",
-            awaFillCircle,
-            "</svg>"
+        return PathSvgRenderer.render(
+            thoughtMinted,
+            thoughtQuota,
+            willMinted,
+            willQuota,
+            awaMinted,
+            awaQuota
         );
-    }
-
-    function _slotFillCircle(
-        string memory id,
-        uint256 cx,
-        uint32 minted,
-        uint32 quota
-    ) internal pure returns (string memory) {
-        uint256 diameter = _slotFillDiameter(minted, quota);
-        if (diameter == 0) {
-            return "";
-        }
-        return string.concat(
-            "<circle id='",
-            id,
-            "' cx='",
-            Strings.toString(cx),
-            "' cy='300' r='",
-            _slotRadius(diameter),
-            "' fill='white' display='inline'/>"
-        );
-    }
-
-    function _slotRadius(uint256 diameter) internal pure returns (string memory) {
-        uint256 whole = diameter / 2;
-        if (diameter % 2 == 0) {
-            return Strings.toString(whole);
-        }
-        return string.concat(Strings.toString(whole), ".5");
-    }
-
-    function _slotFillDiameter(uint32 minted, uint32 quota) internal pure returns (uint256) {
-        if (quota == 0 || minted == 0) {
-            return 0;
-        }
-        uint256 diameter = (60 * uint256(minted)) / uint256(quota);
-        if (diameter > 60) {
-            return 60;
-        }
-        return diameter;
     }
 }

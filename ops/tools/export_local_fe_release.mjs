@@ -105,6 +105,9 @@ async function main() {
     const code = await provider.getCode(address);
     if (!code || code === "0x") throw new Error(`No on-chain code for ${key}: ${address}`);
   }
+  if (deploy.config?.sparkClaimDurationSec === undefined || deploy.config?.sparkClaimDurationSec === null) {
+    throw new Error("Missing deployment config sparkClaimDurationSec");
+  }
 
   const deployBlocks = {
     path_nft: await receiptBlock(provider, "path_nft", deploy.deployTxs.pathNft, contracts.path_nft),
@@ -173,6 +176,8 @@ async function main() {
       pts: String(deploy.config.pts),
       token_base: Number(deploy.config.tokenBase),
       epoch_base: Number(deploy.config.epochBase),
+      reserved_cap: String(deploy.config.reservedCap ?? "0"),
+      spark_claim_duration_sec: String(deploy.config.sparkClaimDurationSec),
     },
     status: {
       postconditions: "pass",

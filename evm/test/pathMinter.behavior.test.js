@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { FIRST_PUBLIC_ID } from "./helpers/constants.js";
+import { FIRST_PUBLIC_ID, SPARK_BASE } from "./helpers/constants.js";
 import { deployPathMinterEnv } from "./helpers/fixtures.js";
 
 describe("PathMinter (Solidity)", function () {
@@ -159,9 +159,8 @@ describe("PathMinter (Solidity)", function () {
     expect(await minter.nextId()).to.equal(FIRST_PUBLIC_ID);
   });
 
-  it("mintPublic has no legacy domain cap and can continue from a high token id", async function () {
-    const HIGH_START = 1_000_000_000_000_000n;
-    const { minter, nft, roles } = await deployPathMinterEnv(ethers, { firstPublicId: HIGH_START });
+  it("mintPublic stops at the SPARK_BASE boundary reserved by PathNFT", async function () {
+    const { minter, nft, roles } = await deployPathMinterEnv(ethers, { firstPublicId: SPARK_BASE - 1n });
     const [, alice] = await ethers.getSigners();
 
     await grantAndFreezePathMinter(nft, roles, minter);
@@ -169,7 +168,12 @@ describe("PathMinter (Solidity)", function () {
     await (await minter.freezeSalesCaller(alice.address)).wait();
 
     await (await minter.connect(alice).mintPublic(alice.address, "0x")).wait();
-    expect(await minter.nextId()).to.equal(HIGH_START + 1n);
-    expect(await nft.ownerOf(HIGH_START)).to.equal(alice.address);
+    expect(await minter.nextId()).to.equal(SPARK_BASE);
+    expect(await nft.ownerOf(SPARK_BASE - 1n)).to.equal(alice.address);
+
+    await expect(minter.connect(alice).mintPublic(alice.address, "0x")).to.be.revertedWith(
+      "PUBLIC_ID_DOMAIN_EXHAUSTED"
+    );
+    expect(await minter.nextId()).to.equal(SPARK_BASE);
   });
 });

@@ -34,6 +34,8 @@ cat > "$PARAMS" <<'JSON'
   "pts": "100000000000000",
   "firstPublicId": "1",
   "epochBase": "1",
+  "reservedCap": "99",
+  "sparkClaimDurationSec": "604800",
   "paymentToken": "0x0000000000000000000000000000000000000000",
   "treasury": "0xE524EDf82c2D0d8243eE4fF21FB020Bd8b45D47F",
   "treasurySignerRef": "SEPOLIA_TREASURY_SAFE_1OF1"
