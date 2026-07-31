@@ -8,8 +8,13 @@ const DEFAULT_DEPLOY_FILE = path.resolve(here, "../deployments/localhost-eth.jso
 const DEFAULT_OUT_FILE = path.resolve(here, "../deployments/reports/localhost-token-look-gallery.html");
 
 const TARGET_THOUGHT_QUOTA = 1n;
-const TARGET_WILL_QUOTA = 4n;
+const TARGET_WILL_QUOTA = 10n;
 const TARGET_AWA_QUOTA = 1n;
+
+function askAt(now, k, anchor, floorPrice) {
+  if (now <= anchor) return floorPrice + k;
+  return floorPrice + k / (now - anchor);
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -162,17 +167,25 @@ async function consumeUnits(ethers, nft, signer, chainId, tokenId, movement, cou
   }
 }
 
-async function firstUnmintedTokenId(nft, fromTokenId) {
-  let tokenId = fromTokenId;
-  // Local preview mints only a small set, so a linear probe is fine.
-  for (;;) {
-    try {
-      await nft.ownerOf(tokenId);
-      tokenId += 1n;
-    } catch {
-      return tokenId;
-    }
-  }
+async function mintViaAuction(ethers, provider, auction, deployment, buyer) {
+  const epochBefore = BigInt(await auction.getEpochIndex());
+  const epochBase = BigInt(deployment.config.epochBase ?? "1");
+  const tokenBase = BigInt(deployment.config.tokenBase ?? deployment.config.firstPublicId);
+  const nextEpoch = epochBefore + 1n;
+  const tokenId = tokenBase + (nextEpoch - epochBase);
+  const openTime = BigInt(await auction.openTime());
+  const latestBlock = await ethers.provider.getBlock("latest");
+  const plannedTime = openTime > BigInt(latestBlock.timestamp) + 1n
+    ? openTime
+    : BigInt(latestBlock.timestamp) + 1n;
+  const state = await auction.getState();
+  const ask = await auction.curveActive()
+    ? askAt(plannedTime, BigInt(await auction.curveK()), BigInt(state[2]), BigInt(state[3]))
+    : BigInt(await auction.genesisPrice());
+
+  await provider.send("evm_setNextBlockTimestamp", [Number(plannedTime)]);
+  await (await auction.connect(buyer).bid(ask, { value: ask })).wait();
+  return tokenId;
 }
 
 async function main() {
@@ -182,20 +195,18 @@ async function main() {
 
   const deployment = JSON.parse(await fs.readFile(deployFile, "utf8"));
   const conn = await hre.network.connect();
-  const { ethers } = conn;
+  const { ethers, provider } = conn;
   const signers = await ethers.getSigners();
   const admin = signers[0];
 
   const signerByAddress = new Map(signers.map((s) => [s.address.toLowerCase(), s]));
   const nft = await ethers.getContractAt("PathNFT", deployment.contracts.pathNft, admin);
-  const minter = await ethers.getContractAt("PathMinter", deployment.contracts.pathMinter, admin);
+  const auction = await ethers.getContractAt("PulseAuction", deployment.contracts.pulseAuction, admin);
   const chainId = (await ethers.provider.getNetwork()).chainId;
 
   const MOVEMENT_THOUGHT = ethers.encodeBytes32String("THOUGHT");
   const MOVEMENT_WILL = ethers.encodeBytes32String("WILL");
   const MOVEMENT_AWA = ethers.encodeBytes32String("AWA");
-  const SALES_ROLE = ethers.id("SALES_ROLE");
-  const MINTER_ROLE = await nft.MINTER_ROLE();
 
   let thoughtConfig;
   let willConfig;
@@ -242,54 +253,13 @@ async function main() {
     ownerSigner = admin;
   }
 
-  let mintSigner = admin;
-  let mintMode = "minter";
-  let fallbackNextTokenId = await minter.nextId();
-  const salesFrozen = await minter.salesCallerFrozen();
-  if (salesFrozen) {
-    const salesCaller = await minter.salesCaller();
-    const callerSigner = signerByAddress.get(salesCaller.toLowerCase());
-    if (callerSigner) {
-      mintSigner = callerSigner;
-    } else {
-      // Local signer list does not include the frozen caller (for example adapter).
-      // Fall back to direct NFT minting only when this isolated preview deploy
-      // can freeze or has already frozen the NFT public minter to the admin.
-      mintMode = "nft";
-      const publicMinterFrozen = await nft.publicMinterFrozen();
-      const publicMinter = publicMinterFrozen ? await nft.publicMinter() : ethers.ZeroAddress;
-      if (publicMinterFrozen && publicMinter.toLowerCase() !== admin.address.toLowerCase()) {
-        throw new Error("Cannot use direct NFT preview minting after public minter is frozen to another address");
-      }
-      if (!publicMinterFrozen && !(await nft.hasRole(MINTER_ROLE, admin.address))) {
-        await (await nft.grantRole(MINTER_ROLE, admin.address)).wait();
-      }
-      if (!publicMinterFrozen) {
-        await (await nft.freezePublicMinter(admin.address)).wait();
-      }
-      fallbackNextTokenId = await firstUnmintedTokenId(nft, fallbackNextTokenId);
-    }
-  } else {
-    await (await minter.grantRole(SALES_ROLE, admin.address)).wait();
-    await (await minter.freezeSalesCaller(admin.address)).wait();
-    mintSigner = admin;
-  }
-
   const profiles = bootstrapMovements
     ? makeProfiles(thoughtConfig.quota, willConfig.quota, awaConfig.quota)
     : [{ label: "Unconfigured", thought: 0n, will: 0n, awa: 0n }];
   const cards = [];
 
   for (const profile of profiles) {
-    let tokenId;
-    if (mintMode === "minter") {
-      tokenId = await minter.nextId();
-      await (await minter.connect(mintSigner).mintPublic(ownerSigner.address, "0x")).wait();
-    } else {
-      tokenId = fallbackNextTokenId;
-      await (await nft.connect(admin).safe_mint(ownerSigner.address, tokenId, "0x")).wait();
-      fallbackNextTokenId = tokenId + 1n;
-    }
+    const tokenId = await mintViaAuction(ethers, provider, auction, deployment, ownerSigner);
 
     if (bootstrapMovements) {
       await consumeUnits(ethers, nft, thoughtSigner, chainId, tokenId, MOVEMENT_THOUGHT, profile.thought);
@@ -534,8 +504,13 @@ ${valueRows}
         border-bottom: 1px solid var(--line);
         display: flex;
         gap: 24px;
+        max-width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
       }
+      .tabs::-webkit-scrollbar { display: none; }
       .tab {
+        flex: 0 0 auto;
         color: #9fb0cb;
         text-decoration: none;
         padding: 12px 0;

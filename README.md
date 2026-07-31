@@ -8,6 +8,7 @@ Quickstart:
 
 ```bash
 npm run evm:install
+npm run evm:glyphs:check
 npm run evm:compile
 npm run evm:test
 npm run evm:estimate:deploy:cost
@@ -42,6 +43,11 @@ npm run evm:local:eth
 ```
 
 EVM details live in `evm/README.md`.
+
+The on-chain PATH image embeds a pinned nine-glyph Inshell Mono 76 subset for
+`THOUGHT WILL AWA`; it does not install or load a browser font. The subset,
+generator, hashes, and license notices are documented in
+`docs/licenses/inshell-mono-76/`.
 
 ## Ops Lanes (Ethereum)
 

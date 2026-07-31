@@ -255,8 +255,10 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
   });
 
   it("pump component gets larger when waiting longer between sales", async function () {
-    const shortEnv = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
-    const longEnv = await deployPathPulseEthEnv(ethers, { startDelaySec: 0n });
+    // Two full deployments can span wall-clock seconds on slower runners.
+    // Keep both constructor open times safely ahead of their deployment blocks.
+    const shortEnv = await deployPathPulseEthEnv(ethers, { startDelaySec: 60n });
+    const longEnv = await deployPathPulseEthEnv(ethers, { startDelaySec: 60n });
 
     const t1Short = (await shortEnv.auction.openTime()) + 1_000n;
     const t1Long = (await longEnv.auction.openTime()) + 2_000n;

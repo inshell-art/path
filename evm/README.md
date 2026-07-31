@@ -118,6 +118,8 @@ Outputs:
 
 - `PathNFT.tokenURI` returns on-chain metadata as a data URL: `data:application/json;base64,<...>`, with embedded image at `image = data:image/svg+xml;base64,<...>`.
 - The token image is the canonical centered `THOUGHT WILL AWA` status line. It uses exact Inshell Mono 76 Regular `400` v0.1.0 native SVG paths, fills remaining progress with `#ffffff`, and clips consumed progress left-to-right with `#00ff35`.
+- Only the nine required glyphs are embedded. `glyphs/inshell-mono-76-path-400.json` is the pinned source slice and `src/InshellMono76PathGlyphs.sol` is generated from it; `npm run glyphs:check` rejects path or provenance drift before compile/test.
+- The root SVG records the font release commit, package manifest hash, source glyph JSON hash, and PATH glyph-slice hash. No full font file or runtime font dependency is deployed.
 - `PathNFT` emits EIP-4906 `MetadataUpdate(tokenId)` on progression (`consumeUnit`) so indexers can refresh metadata.
 - `PathNFT.contractURI` is available for optional contract-level collection metadata.
 - `PathNFT.allowSparker` lets a `RESERVED_ROLE` holder add a recipient to the Spark allowlist, and `PathNFT.mintSparker` lets that recipient self-mint from `SPARK_BASE = 1_000_000_000_000_000` upward before the deploy-time claim duration expires.

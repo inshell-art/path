@@ -46,6 +46,8 @@
 - `consumeUnit` must require owner/approved authorization, a valid consume signature, the configured movement minter, and available quota.
 - `consumeUnit` must emit `MetadataUpdate(tokenId)` and `MovementConsumed` so marketplaces/indexers can refresh token metadata.
 - `tokenURI` and `contractURI` must remain self-contained data URLs with embedded SVG. Do not depend on an off-chain renderer for marketplace display.
+- PATH token artwork must use the generated nine-glyph Inshell Mono 76 subset in `evm/glyphs/inshell-mono-76-path-400.json`; do not add a full font or hand-edit generated glyph paths.
+- `npm run evm:glyphs:check` must pass before renderer releases.
 - `attributes` must keep stable trait names: `Stage`, `THOUGHT`, `WILL`, and `AWA`.
 - ABI/type snapshots and downstream FE releases must match the current `PathPulseAdapter` / `PathNFT` / `PulseAuction` surface before Sepolia or Mainnet handoff.
 

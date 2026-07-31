@@ -3,7 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "glyphs:generate": "node scripts/generate-path-glyphs.mjs",
+    "glyphs:check": "node scripts/generate-path-glyphs.mjs --check",
+    "precompile": "npm run glyphs:check",
     "compile": "hardhat compile",
+    "pretest": "npm run glyphs:check",
     "test": "hardhat test",
     "node": "hardhat node --hostname 127.0.0.1 --port 8546 --chain-id 31338",
     "estimate:deploy:cost": "hardhat run scripts/estimate-deploy-cost.js",

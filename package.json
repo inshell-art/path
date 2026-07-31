@@ -8,6 +8,8 @@
     "smoke": "npm run evm:smoke:local:eth",
     "scenario": "npm run evm:scenario:local:eth",
     "evm:install": "npm --prefix evm install",
+    "evm:glyphs:generate": "npm --prefix evm run glyphs:generate",
+    "evm:glyphs:check": "npm --prefix evm run glyphs:check",
     "evm:compile": "npm --prefix evm run compile",
     "evm:test": "npm --prefix evm test",
     "evm:estimate:deploy:cost": "npm --prefix evm run estimate:deploy:cost",

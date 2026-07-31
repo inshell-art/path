@@ -1,8 +1,16 @@
 import { expect } from "chai";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import hre from "hardhat";
 import { RESERVED_CAP, SPARK_BASE, SPARK_CLAIM_DURATION_SEC } from "./helpers/constants.js";
 import { deployPathNftEnv } from "./helpers/fixtures.js";
 import { mineAt, setNextBlockTimestamp } from "./helpers/time.js";
+
+const pathGlyphSliceBytes = readFileSync(
+  new URL("../glyphs/inshell-mono-76-path-400.json", import.meta.url)
+);
+const pathGlyphSlice = JSON.parse(pathGlyphSliceBytes.toString("utf8"));
+const pathGlyphSliceSha256 = createHash("sha256").update(pathGlyphSliceBytes).digest("hex");
 
 describe("PathNFT (Solidity)", function () {
   let conn;
@@ -24,16 +32,25 @@ describe("PathNFT (Solidity)", function () {
 
   function expectCanonicalTokenSvg(svg) {
     expect(svg).to.contain("data-renderer='path-text-status'");
+    expect(svg).to.contain("data-rendering='native-svg-paths'");
+    expect(svg).to.contain("data-progress-model='text'");
     expect(svg).to.contain("data-family='Inshell Mono 76'");
     expect(svg).to.contain("data-face='Inshell Mono 76 Regular'");
     expect(svg).to.contain("data-weight='400'");
     expect(svg).to.contain(
       "data-release-commit='6fefbfaf762dce0148fe275baafb8e7dd2077beb'"
     );
-    expect(svg).to.contain("id='g-T'");
-    expect(svg).to.contain("id='g-W'");
+    expect(svg).to.contain(`data-manifest-sha256='${pathGlyphSlice.source.manifestSha256}'`);
+    expect(svg).to.contain(`data-glyph-json-sha256='${pathGlyphSlice.source.glyphJsonSha256}'`);
+    expect(svg).to.contain(`data-glyph-slice-sha256='${pathGlyphSliceSha256}'`);
+    expect(svg).to.contain("data-center-x='300' data-center-y='300'");
     expect(svg).to.contain("id='path-title'");
+    expect(svg).to.contain("data-text-layout='centered-group'");
     expect(svg).to.contain("clip-path='url(#path-progress)'");
+    expect(svg.match(/<path id='g-/g)).to.have.length(9);
+    for (const glyph of pathGlyphSlice.glyphs) {
+      expect(svg).to.contain(`<path id='g-${glyph.character}' d='${glyph.d}'/>`);
+    }
     expect(svg).not.to.contain("<text");
     expect(svg).not.to.contain("<circle");
   }

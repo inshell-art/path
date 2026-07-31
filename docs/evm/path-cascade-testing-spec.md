@@ -31,6 +31,9 @@ Validate that the Solidity PATH stack preserves the critical PATH behavior:
   - movement freeze behavior
 - `tokenURI` returns on-chain JSON data URI metadata with the canonical
   Inshell Mono 76 native-path SVG image.
+- The renderer contains exactly the nine pinned glyphs required by
+  `THOUGHT WILL AWA`; each path and the generated Solidity source must match
+  `evm/glyphs/inshell-mono-76-path-400.json`.
 - Movement progress changes only the `#00ff35` consumed clip widths over the
   centered `THOUGHT WILL AWA` line; no browser font or off-chain renderer is
   required.
