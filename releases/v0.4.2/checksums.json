@@ -1,0 +1,10 @@
+{
+  "DOWNSTREAM_HANDOFF.md": "257da7a4f547f3fb01698cd440ca9606101af38ef4ff0c4ccaa4455c68527670",
+  "abi/PathNFT.json": "cf91b546154e6c69a6ea664ce3fcdc01bebb2c9f930d994fa9711068f701ea3c",
+  "abi/PathPulseAdapter.json": "d248fbff3b9f429f4627bcaa65ac47f1df468bd00abd7b53efca08a8ea72c031",
+  "abi/PulseAuction.json": "26cfa9162b98b3c6f43f943403b2697e9ded310df647377a0de6105a97ff086a",
+  "hardhat/PathNFT.json": "d22d1f41f4621b36cabc4768f9139a5a9ed11b935537523b31baee28e61e9d1f",
+  "hardhat/PathPulseAdapter.json": "91d344bb7f38c2e49d457090429a5c1a4c8aa80e147652ad53f082070a179671",
+  "hardhat/PulseAuction.json": "b7ec12760ffbb0c9baa1d6e80d37d26bee599a9d5589cd21be31826366709081",
+  "manifest.json": "41cd0bc56398fe6823a3bd40a7497851b8ec132a8002a4f0a15bc5b284a29393"
+}

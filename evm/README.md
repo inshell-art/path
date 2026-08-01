@@ -35,6 +35,28 @@ Override pricing assumptions if needed:
 GAS_PRICE_GWEI=20 ETH_USD=3000 npm run estimate:deploy:cost
 ```
 
+## PATH Artifact Preview
+
+Generate and verify exact token artwork snapshots from the current contracts:
+
+```bash
+npm run preview:generate
+npm run preview:verify
+```
+
+Then open `preview/index.html`. The static viewer renders embedded
+`PathNFT.tokenURI` images and needs no live RPC or frontend font.
+
+Build and verify an address-free downstream release bundle:
+
+```bash
+npm run artifacts:downstream -- --tag v0.4.2
+npm run artifacts:verify -- --tag v0.4.2
+```
+
+Versioned bundles are written under `../releases/<tag>/`. Network addresses
+must come from a separately verified deployment release.
+
 ## Local Devnet (ETH Payment)
 
 The local scripts deploy a full ETH-settled stack:

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>PATH Artifact Preview</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./preview.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="identity">
+        <span class="mark" aria-hidden="true">P</span>
+        <div>
+          <strong>PATH</strong>
+          <span>Artifact preview</span>
+        </div>
+      </div>
+      <div class="build-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="runtime-status">Loading snapshot</span>
+      </div>
+    </header>
+
+    <section class="provenance" aria-label="Artifact provenance">
+      <dl>
+        <div><dt>Source</dt><dd id="source-commit">-</dd></div>
+        <div><dt>Runtime</dt><dd id="runtime-hash">-</dd></div>
+        <div><dt>Renderer</dt><dd id="renderer-release">-</dd></div>
+        <div><dt>Quotas</dt><dd id="quota-summary">-</dd></div>
+      </dl>
+    </section>
+
+    <main>
+      <div class="toolbar">
+        <label class="search-control">
+          <span>Find</span>
+          <input id="search" type="search" placeholder="Token, state, or trait" autocomplete="off" />
+        </label>
+        <label class="select-control">
+          <span>Stage</span>
+          <select id="stage-filter">
+            <option value="ALL">All stages</option>
+            <option value="THOUGHT">THOUGHT</option>
+            <option value="WILL">WILL</option>
+            <option value="AWA">AWA</option>
+            <option value="COMPLETE">COMPLETE</option>
+          </select>
+        </label>
+        <div class="view-control" role="group" aria-label="Preview scale">
+          <button type="button" data-view="gallery" aria-pressed="true">Gallery</button>
+          <button type="button" data-view="grid" aria-pressed="false">Grid</button>
+          <button type="button" data-view="thumb" aria-pressed="false">Thumb</button>
+        </div>
+      </div>
+
+      <div class="results-line">
+        <span id="result-count">0 tokens</span>
+        <span>Exact <code>PathNFT.tokenURI</code> output</span>
+      </div>
+
+      <section id="token-grid" class="token-grid" data-view="gallery" aria-live="polite"></section>
+      <p id="empty-state" class="empty-state" hidden>No matching PATH tokens.</p>
+    </main>
+
+    <dialog id="token-detail" class="token-detail">
+      <div class="detail-header">
+        <div>
+          <span id="detail-label" class="eyebrow"></span>
+          <h2 id="detail-title"></h2>
+        </div>
+        <button id="detail-close" class="icon-button" type="button" aria-label="Close detail" title="Close">&times;</button>
+      </div>
+      <div class="detail-body">
+        <figure>
+          <img id="detail-image" alt="" />
+        </figure>
+        <div class="detail-data">
+          <section>
+            <h3>Traits</h3>
+            <dl id="detail-traits" class="trait-list"></dl>
+          </section>
+          <section>
+            <h3>Artifact</h3>
+            <dl id="detail-artifact" class="artifact-list"></dl>
+          </section>
+          <a id="detail-download" class="download-link" download>Download SVG</a>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="./tokens.generated.js"></script>
+    <script src="./preview.js"></script>
+  </body>
+</html>

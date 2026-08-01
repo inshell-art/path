@@ -5,6 +5,10 @@
   "scripts": {
     "glyphs:generate": "node scripts/generate-path-glyphs.mjs",
     "glyphs:check": "node scripts/generate-path-glyphs.mjs --check",
+    "preview:generate": "npm run glyphs:check && hardhat run scripts/generate-artifact-preview.js",
+    "preview:verify": "node scripts/verify-artifact-preview.mjs",
+    "artifacts:downstream": "npm run glyphs:check && hardhat compile && node scripts/build-downstream-artifacts.mjs",
+    "artifacts:verify": "node scripts/verify-downstream-artifacts.mjs",
     "precompile": "npm run glyphs:check",
     "compile": "hardhat compile",
     "pretest": "npm run glyphs:check",

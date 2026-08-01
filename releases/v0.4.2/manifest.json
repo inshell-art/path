@@ -1,0 +1,69 @@
+{
+  "schema": "path.downstream-artifacts.v1",
+  "releaseTag": "v0.4.2",
+  "contractSourceCommit": "1c846e1cfcd761a8e7b7e908edfa655204b62036",
+  "compiler": {
+    "solidity": "0.8.24",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "viaIR": true
+  },
+  "canonicalContracts": [
+    "PathNFT",
+    "PathPulseAdapter",
+    "PulseAuction"
+  ],
+  "contracts": {
+    "PathNFT": {
+      "sourceName": "src/PathNFT.sol",
+      "abi": "abi/PathNFT.json",
+      "hardhatArtifact": "hardhat/PathNFT.json",
+      "hardhatArtifactSha256": "d22d1f41f4621b36cabc4768f9139a5a9ed11b935537523b31baee28e61e9d1f",
+      "abiEntries": 62,
+      "creationBytecodeBytes": 23651,
+      "runtimeBytecodeBytes": 21936,
+      "creationBytecodeKeccak256": "0xd3427bd204c97a3eba8811b1d67b3855c721b70f48ed17b64f4f14fe101f2325",
+      "runtimeBytecodeKeccak256": "0x8f8bdfadd6c6ea22d55193e8c4d6166e3f3728bc8a17ae84137588317b972a0a"
+    },
+    "PathPulseAdapter": {
+      "sourceName": "src/PathPulseAdapter.sol",
+      "abi": "abi/PathPulseAdapter.json",
+      "hardhatArtifact": "hardhat/PathPulseAdapter.json",
+      "hardhatArtifactSha256": "91d344bb7f38c2e49d457090429a5c1a4c8aa80e147652ad53f082070a179671",
+      "abiEntries": 29,
+      "creationBytecodeBytes": 2813,
+      "runtimeBytecodeBytes": 2317,
+      "creationBytecodeKeccak256": "0xfff6a5ef60a7b66779598c2afe0761e035e6c9c8fe10bddbb9512dbc7a9a6070",
+      "runtimeBytecodeKeccak256": "0x73a3e456e301e38c08d33198cae96cfb73996239ebab6c2df25dcfb230e401e4"
+    },
+    "PulseAuction": {
+      "sourceName": "src/PulseAuction.sol",
+      "abi": "abi/PulseAuction.json",
+      "hardhatArtifact": "hardhat/PulseAuction.json",
+      "hardhatArtifactSha256": "b7ec12760ffbb0c9baa1d6e80d37d26bee599a9d5589cd21be31826366709081",
+      "abiEntries": 25,
+      "creationBytecodeBytes": 5029,
+      "runtimeBytecodeBytes": 3538,
+      "creationBytecodeKeccak256": "0x5c730223333a5760af7c94110667291b943d30d3a4f3774413a2a3c40f9229d6",
+      "runtimeBytecodeKeccak256": "0xe7124a32e09285d2460a7d8a00a227fc6fc8e8ec91c42ffc8aa7d066b217d576"
+    }
+  },
+  "renderer": {
+    "previewPath": "evm/preview/index.html",
+    "snapshotSchema": "path.artifact-preview.v1",
+    "previewArtifactSha256": "d22d1f41f4621b36cabc4768f9139a5a9ed11b935537523b31baee28e61e9d1f",
+    "previewDeployedRuntimeCodeHash": "0xf547ec0b9305d626df2c6afd3dd876623bceb5baf6bd6d35102da23495ad4dd6",
+    "previewDeployedRuntimeCodeBytes": 21936,
+    "rendering": "native-svg-paths",
+    "glyphSliceSha256": "8f484b8c50307139630fab8c0289c0a6a642fa1aee5fb31ebd8966f574b02060",
+    "fontFamily": "Inshell Mono 76",
+    "fontWeight": 400
+  },
+  "compatibility": {
+    "contractAbiAndBytecodeUnchangedFrom": "v0.4.1",
+    "networkAddressesIncluded": false,
+    "legacyMintContractsIncluded": false
+  }
+}
