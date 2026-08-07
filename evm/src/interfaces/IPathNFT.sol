@@ -10,15 +10,23 @@ interface IPathNFT {
 
     function getReservedRemaining() external view returns (uint64);
 
+    function getReservedPending() external view returns (uint64);
+
     function isSparker(uint256 tokenId) external view returns (bool);
 
     function sparkClaimDuration() external view returns (uint64);
 
-    function sparkAllowanceExpiresAt(address recipient) external view returns (uint64);
+    function getSparkInvitation(address recipient) external view returns (uint64 expiresAt, string memory name);
 
-    function allowSparker(address recipient) external returns (uint64);
+    function sparkName(uint256 tokenId) external view returns (string memory);
 
-    function mintSparker(bytes calldata data) external returns (uint256);
+    function allowSparker(address recipient, string calldata name) external returns (uint64);
+
+    function revokeSparker(address recipient) external;
+
+    function releaseExpiredSparker(address recipient) external;
+
+    function mintSparker(bytes32 expectedNameHash, bytes calldata data) external returns (uint256);
 
     function freezePublicMinter(address expectedMinter) external;
 
@@ -37,6 +45,8 @@ interface IPathNFT {
     function getMovementQuota(bytes32 movement) external view returns (uint32);
 
     function getConsumeNonce(address claimer) external view returns (uint256);
+
+    function getPermissionEpoch(uint256 pathId) external view returns (uint256);
 
     function consumeUnit(
         uint256 pathId,

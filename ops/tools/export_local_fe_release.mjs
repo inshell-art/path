@@ -178,6 +178,7 @@ async function main() {
       epoch_base: Number(deploy.config.epochBase),
       reserved_cap: String(deploy.config.reservedCap ?? "0"),
       spark_claim_duration_sec: String(deploy.config.sparkClaimDurationSec),
+      movement_config: deploy.config.movementConfig ?? {},
     },
     status: {
       postconditions: "pass",

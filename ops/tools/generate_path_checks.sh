@@ -102,7 +102,7 @@ SIGNED_CMD=(
   npm --prefix "$ROOT/evm" run test --
   test/pathNft.behavior.test.js
   --grep
-  "consumeUnit enforces signed authorization and owner/approval checks|consumeUnit uses nonce-based auth and rejects signature replay|consumeUnit accepts ERC-1271 contract-wallet signatures"
+  "consumeUnit enforces signed authorization and current-owner checks|permission epoch prevents stale signatures from reviving after a transfer round trip|consumeUnit uses nonce-based auth and rejects signature replay|consumeUnit accepts ERC-1271 contract-wallet signatures"
 )
 if "${SIGNED_CMD[@]}" >"$SIGNED_LOG" 2>&1; then
   SIGNED_OK=1

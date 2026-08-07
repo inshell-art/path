@@ -171,9 +171,8 @@ describe("PathMinter (Solidity)", function () {
     expect(await minter.nextId()).to.equal(SPARK_BASE);
     expect(await nft.ownerOf(SPARK_BASE - 1n)).to.equal(alice.address);
 
-    await expect(minter.connect(alice).mintPublic(alice.address, "0x")).to.be.revertedWith(
-      "PUBLIC_ID_DOMAIN_EXHAUSTED"
-    );
+    await expect(minter.connect(alice).mintPublic(alice.address, "0x"))
+      .to.be.revertedWithCustomError(nft, "PublicTokenIdDomainExhausted");
     expect(await minter.nextId()).to.equal(SPARK_BASE);
   });
 });

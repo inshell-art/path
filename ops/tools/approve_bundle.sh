@@ -125,6 +125,9 @@ rows = [
     ("epochBase", pick("epochBase")),
     ("reservedCap", pick("reservedCap")),
     ("sparkClaimDurationSec", pick("sparkClaimDurationSec")),
+    ("thoughtMinter", pick("thoughtMinter")),
+    ("willMinter", pick("willMinter")),
+    ("awaMinter", pick("awaMinter")),
 ]
 
 for key, value in rows:

@@ -1,11 +1,11 @@
 window.PATH_ARTIFACT_PREVIEW = Object.freeze({
   "schema": "path.artifact-preview.v1",
-  "generatedAt": "2026-08-01T03:25:51.106Z",
+  "generatedAt": "2026-08-07T09:37:28.489Z",
   "source": {
-    "repoCommit": "1c846e1cfcd761a8e7b7e908edfa655204b62036",
-    "artifactSha256": "d22d1f41f4621b36cabc4768f9139a5a9ed11b935537523b31baee28e61e9d1f",
+    "repoCommit": "8a8e4fe91857fdff8c54e9d4cc918b1e1f08cd76",
+    "artifactSha256": "c7e136539f94d6b5a4e3068c6afc1eaed26dea6c465d5716e83e2fc101d5583e",
     "files": {
-      "evm/src/PathNFT.sol": "a2e115243e09da42b03a5bddf53ac45595fcccb447861ee0090fb6881fb72633",
+      "evm/src/PathNFT.sol": "9056944bc530e59e4bdcb469be9fe54cebe3ca12b65ec0f998886fb19c3b054e",
       "evm/src/PathSvgRenderer.sol": "701a2bd8e32c79c202a0caf6b71b25b8125801630892edc664a58aa6b32ef2e6",
       "evm/src/InshellMono76PathGlyphs.sol": "a938f8436db393d84ba6222471462cb1ff00b76e4592919baf3b02e5cf29b9a4",
       "evm/glyphs/inshell-mono-76-path-400.json": "8f484b8c50307139630fab8c0289c0a6a642fa1aee5fb31ebd8966f574b02060"
@@ -17,8 +17,8 @@ window.PATH_ARTIFACT_PREVIEW = Object.freeze({
     "pathNft": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
     "pathPulseAdapter": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
     "pulseAuction": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-    "runtimeCodeBytes": 21936,
-    "runtimeCodeHash": "0xf547ec0b9305d626df2c6afd3dd876623bceb5baf6bd6d35102da23495ad4dd6"
+    "runtimeCodeBytes": 23677,
+    "runtimeCodeHash": "0xda8c51b2265357715412e50016f2574ee6e3f4434e110ae3da5dac2ac84d1018"
   },
   "renderer": {
     "rendering": "native-svg-paths",

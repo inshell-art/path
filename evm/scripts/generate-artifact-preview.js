@@ -54,11 +54,23 @@ function askAt(now, k, anchor, floorPrice) {
 
 async function signConsumeAuthorization(ethers, nft, signer, chainId, tokenId, movement, deadline) {
   const typeHash = ethers.id(
-    "ConsumeAuthorization(address pathNft,uint256 chainId,uint256 pathId,bytes32 movement,address claimer,address executor,uint256 nonce,uint256 deadline)"
+    "ConsumeAuthorization(address pathNft,uint256 chainId,uint256 pathId,bytes32 movement,address claimer,address executor,uint256 permissionEpoch,uint256 nonce,uint256 deadline)"
   );
+  const permissionEpoch = await nft.getPermissionEpoch(tokenId);
   const nonce = await nft.getConsumeNonce(signer.address);
   const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
-    ["bytes32", "address", "uint256", "uint256", "bytes32", "address", "address", "uint256", "uint256"],
+    [
+      "bytes32",
+      "address",
+      "uint256",
+      "uint256",
+      "bytes32",
+      "address",
+      "address",
+      "uint256",
+      "uint256",
+      "uint256"
+    ],
     [
       typeHash,
       await nft.getAddress(),
@@ -67,6 +79,7 @@ async function signConsumeAuthorization(ethers, nft, signer, chainId, tokenId, m
       movement,
       signer.address,
       signer.address,
+      permissionEpoch,
       nonce,
       deadline
     ]

@@ -146,14 +146,15 @@ describe("Path + Pulse ETH Integration (Solidity)", function () {
 
   it("reverts settlement when PATH public minter is frozen to a non-adapter address", async function () {
     const [deployer] = await ethers.getSigners();
-    const { auction, alice } = await deployPathPulseEthEnv(ethers, {
+    const { auction, nft, alice } = await deployPathPulseEthEnv(ethers, {
       startDelaySec: 0n,
       freezePublicMinterTo: deployer.address
     });
 
     const ask = await auction.getCurrentPrice();
 
-    await expect(auction.connect(alice).bid(ask, { value: ask })).to.be.revertedWith("NOT_PUBLIC_MINTER");
+    await expect(auction.connect(alice).bid(ask, { value: ask }))
+      .to.be.revertedWithCustomError(nft, "NotPublicMinter");
   });
 
   it("second bid in later block mints next token id", async function () {

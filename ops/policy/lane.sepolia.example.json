@@ -15,7 +15,7 @@
   },
   "path": {
     "movement_config": {
-      "mode": "allow_unset",
+      "mode": "require_deployment",
       "expected": {}
     },
     "sale_handshake": {

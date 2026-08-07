@@ -17,6 +17,11 @@ const DEFAULTS = {
   paymentToken: null
 };
 const DEFAULT_LOCAL_START_DELAY_SEC = 60n;
+const MOVEMENT_QUOTAS = {
+  THOUGHT: 1n,
+  WILL: 10n,
+  AWA: 1n
+};
 
 const CLI_FLAG_MAP = {
   "params-file": "paramsFile",
@@ -36,6 +41,9 @@ const CLI_FLAG_MAP = {
   "reserved-cap": "reservedCap",
   "spark-cap": "reservedCap",
   "spark-claim-duration-sec": "sparkClaimDurationSec",
+  "thought-minter": "thoughtMinter",
+  "will-minter": "willMinter",
+  "awa-minter": "awaMinter",
   "payment-token": "paymentToken",
   treasury: "treasury",
   "treasury-signer-ref": "treasurySignerRef"
@@ -59,6 +67,9 @@ const ENV_KEY_MAP = {
   DEPLOY_RESERVED_CAP: "reservedCap",
   DEPLOY_SPARK_CAP: "reservedCap",
   DEPLOY_SPARK_CLAIM_DURATION_SEC: "sparkClaimDurationSec",
+  DEPLOY_THOUGHT_MINTER: "thoughtMinter",
+  DEPLOY_WILL_MINTER: "willMinter",
+  DEPLOY_AWA_MINTER: "awaMinter",
   DEPLOY_PAYMENT_TOKEN: "paymentToken",
   DEPLOY_TREASURY: "treasury",
   DEPLOY_TREASURY_SIGNER_REF: "treasurySignerRef"
@@ -82,6 +93,9 @@ const NPM_CONFIG_KEY_MAP = {
   npm_config_deploy_reserved_cap: "reservedCap",
   npm_config_deploy_spark_cap: "reservedCap",
   npm_config_deploy_spark_claim_duration_sec: "sparkClaimDurationSec",
+  npm_config_deploy_thought_minter: "thoughtMinter",
+  npm_config_deploy_will_minter: "willMinter",
+  npm_config_deploy_awa_minter: "awaMinter",
   npm_config_deploy_payment_token: "paymentToken",
   npm_config_deploy_treasury: "treasury",
   npm_config_deploy_treasury_signer_ref: "treasurySignerRef"
@@ -178,6 +192,9 @@ function normalizeFileConfig(raw) {
     epochBase: pickValue(source, ["epochBase", "epoch_base", "epoch-base"]),
     reservedCap: pickValue(source, ["reservedCap", "reserved_cap", "reserved-cap", "sparkCap", "spark_cap", "spark-cap"]),
     sparkClaimDurationSec: pickValue(source, ["sparkClaimDurationSec", "spark_claim_duration_sec", "spark-claim-duration-sec", "sparkClaimDuration", "spark_claim_duration", "spark-claim-duration"]),
+    thoughtMinter: pickValue(source, ["thoughtMinter", "thought_minter", "thought-minter"]),
+    willMinter: pickValue(source, ["willMinter", "will_minter", "will-minter"]),
+    awaMinter: pickValue(source, ["awaMinter", "awa_minter", "awa-minter"]),
     paymentToken: pickValue(source, ["paymentToken", "payment_token", "payment-token"]),
     treasury: pickValue(source, ["treasury"]),
     treasurySignerRef: pickValue(source, ["treasurySignerRef", "treasury_signer_ref", "treasury-signer-ref"])
@@ -327,6 +344,42 @@ function resolveDeployConfig({
     throw new Error("ADMIN_REQUIRED: provide admin for contract authority");
   }
   merged.admin = parseAddress(String(adminInput), "admin", ethers, { allowZero: false });
+
+  const movementMinterFallback = isLocalLikeNetwork(networkName, chainId) ? fallbackAdmin : undefined;
+  const movementMinterInputs = {
+    THOUGHT: coalesce(
+      cliConfig.thoughtMinter,
+      npmConfig.thoughtMinter,
+      envConfig.thoughtMinter,
+      fileConfig.thoughtMinter,
+      movementMinterFallback
+    ),
+    WILL: coalesce(
+      cliConfig.willMinter,
+      npmConfig.willMinter,
+      envConfig.willMinter,
+      fileConfig.willMinter,
+      movementMinterFallback
+    ),
+    AWA: coalesce(
+      cliConfig.awaMinter,
+      npmConfig.awaMinter,
+      envConfig.awaMinter,
+      fileConfig.awaMinter,
+      movementMinterFallback
+    )
+  };
+  merged.movementConfig = {};
+  for (const label of Object.keys(MOVEMENT_QUOTAS)) {
+    const input = movementMinterInputs[label];
+    if (input === undefined || input === null || String(input).trim() === "") {
+      throw new Error(`${label}_MINTER_REQUIRED: provide ${label.toLowerCase()}Minter`);
+    }
+    merged.movementConfig[label] = {
+      minter: parseAddress(String(input), `${label.toLowerCase()}Minter`, ethers, { allowZero: false }),
+      quota: MOVEMENT_QUOTAS[label]
+    };
+  }
 
   const adminSignerRefInput = coalesce(
     cliConfig.adminSignerRef,
@@ -481,6 +534,35 @@ async function main() {
   );
   await nft.waitForDeployment();
 
+  const movementConfigTxs = {};
+  const movementDefinitions = [
+    ["THOUGHT", await nft.MOVEMENT_THOUGHT()],
+    ["WILL", await nft.MOVEMENT_WILL()],
+    ["AWA", await nft.MOVEMENT_AWA()]
+  ];
+  for (const [label, movement] of movementDefinitions) {
+    const expected = cfg.movementConfig[label];
+    const setTx = await nft.setMovementConfig(movement, expected.minter, expected.quota);
+    await setTx.wait();
+    const freezeTx = await nft.freezeMovementConfig(movement);
+    await freezeTx.wait();
+    movementConfigTxs[label] = {
+      set: setTx.hash,
+      freeze: freezeTx.hash
+    };
+
+    const observedMinter = await nft.getAuthorizedMinter(movement);
+    const observedQuota = await nft.getMovementQuota(movement);
+    const observedFrozen = await nft.isMovementFrozen(movement);
+    if (
+      observedMinter.toLowerCase() !== expected.minter.toLowerCase()
+      || observedQuota !== expected.quota
+      || !observedFrozen
+    ) {
+      throw new Error(`UNQUALIFIED_DEPLOYMENT: ${label} movement configuration mismatch`);
+    }
+  }
+
   const PathPulseAdapter = await ethers.getContractFactory("PathPulseAdapter", deployer);
   const adapter = await PathPulseAdapter.deploy(
     deployer.address,
@@ -587,6 +669,7 @@ async function main() {
     contracts: contractAddresses,
     deployTxs,
     wiringTxs,
+    movementConfigTxs,
     authorityTxs,
     codeHashes,
     authority: {
@@ -613,7 +696,17 @@ async function main() {
       tokenBase: cfg.firstPublicId.toString(),
       epochBase: cfg.epochBase.toString(),
       reservedCap: cfg.reservedCap.toString(),
-      sparkClaimDurationSec: cfg.sparkClaimDurationSec.toString()
+      sparkClaimDurationSec: cfg.sparkClaimDurationSec.toString(),
+      movementConfig: Object.fromEntries(
+        Object.entries(cfg.movementConfig).map(([label, value]) => [
+          label,
+          {
+            minter: value.minter,
+            quota: value.quota.toString(),
+            frozen: true
+          }
+        ])
+      )
     },
     inputs: {
       paramsFile: fileConfig.paramsFile ?? null,
@@ -631,7 +724,8 @@ async function main() {
       checkedAtBlockTimestamp: latestAfterFreezes.toString(),
       pulseMintAdapter: auctionMintAdapter,
       pathPublicMinter: publicMinter,
-      pathPublicMinterFrozen: publicMinterFrozen
+      pathPublicMinterFrozen: publicMinterFrozen,
+      movementsConfiguredAndFrozen: true
     }
   };
 

@@ -30,7 +30,16 @@ const sumLines = (await readFile(path.join(releaseDir, "SHA256SUMS.txt"), "utf8"
 
 assert.equal(manifest.schema, "path.downstream-artifacts.v1");
 assert.equal(manifest.releaseTag, tag);
+assert.deepEqual(manifest.compiler.optimizer, { enabled: true, runs: 1 });
 assert.deepEqual(manifest.canonicalContracts, ["PathNFT", "PathPulseAdapter", "PulseAuction"]);
+assert.equal(manifest.compatibility.breakingFrom, "v0.4.2");
+assert.equal(manifest.compatibility.pathNftRedeploymentRequired, true);
+assert.equal(manifest.compatibility.consumeAuthorizationSchema, "permission-epoch-v1");
+assert.equal(manifest.compatibility.sparkInvitationSchema, "reserved-name-hash-v1");
+assert.equal(manifest.compatibility.sparkTransferPolicy, "erc5192-locked");
+assert.equal(manifest.compatibility.pathErrorSchema, "custom-errors-v1");
+assert.equal(manifest.compatibility.movementDeploymentPolicy, "configured-frozen-1-10-1");
+assert.equal(manifest.compatibility.erc5192MintEvents, true);
 assert.equal(manifest.compatibility.networkAddressesIncluded, false);
 assert.equal(manifest.compatibility.legacyMintContractsIncluded, false);
 assert.equal(sumLines.length, Object.keys(checksums).length);

@@ -526,7 +526,9 @@ async function main() {
   // Movement configuration policy.
   const movementPolicy = policy?.path?.movement_config ?? null;
   const movementPolicyMode = typeof movementPolicy?.mode === "string" ? movementPolicy.mode : "unspecified";
-  const expectedMovementPolicy = movementPolicy?.expected ?? {};
+  const expectedMovementPolicy = movementPolicyMode === "require_deployment"
+    ? deployment.config?.movementConfig ?? {}
+    : movementPolicy?.expected ?? {};
   const movementConstants = {
     THOUGHT: await nft.MOVEMENT_THOUGHT(),
     WILL: await nft.MOVEMENT_WILL(),
@@ -571,9 +573,13 @@ async function main() {
       expectedMovementMatches = false;
       break;
     }
+    if (!movementObserved[label].frozen) {
+      expectedMovementMatches = false;
+      break;
+    }
   }
 
-  const movementConfigPolicyOk = movementPolicyMode === "require_expected"
+  const movementConfigPolicyOk = movementPolicyMode === "require_expected" || movementPolicyMode === "require_deployment"
     ? expectedMovementForAll && expectedMovementMatches
     : movementPolicyMode === "allow_unset"
       ? allMovementsUnset || (expectedMovementForAll && expectedMovementMatches)

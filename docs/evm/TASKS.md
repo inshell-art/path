@@ -99,14 +99,19 @@ descending token-ID model.
 ### Applied changes
 
 1. Added `PathNFT.SPARK_BASE = 1_000_000_000_000_000`.
-2. Added deploy-time `reservedCap`, deploy-time `sparkClaimDurationSec`, `getReservedCap()`, and `getReservedRemaining()`.
-3. Added `RESERVED_ROLE`-gated `allowSparker(address)`, which gives a recipient a time-limited self-claim window.
-4. Added recipient-paid `mintSparker(bytes)`, minting IDs as `SPARK_BASE + serial`.
+2. Added deploy-time `reservedCap`, deploy-time `sparkClaimDurationSec`, `getReservedCap()`, `getReservedRemaining()`, and `getReservedPending()`.
+3. Added `RESERVED_ROLE`-gated `allowSparker(address,string)`, which reserves one slot and immutable name for a recipient's time-limited self-claim window.
+4. Added recipient-paid `mintSparker(bytes32,bytes)`, binding the claim to the displayed name and minting IDs as `SPARK_BASE + serial`.
 5. Added `isSparker(tokenId)` so downstream clients do not need to classify Spark by a raw high-ID threshold.
 6. Reinstated the public token-ID boundary: `safeMint` and `safe_mint` reject IDs at or above `SPARK_BASE`.
+7. Added revoke and permissionless expired-invitation cleanup so pending capacity returns to the reserved pool without overbooking.
+8. Added permanent ERC-5192 locking for Spark while keeping regular PATH transferable.
+9. Added ERC-5192 `Locked` / `Unlocked` mint signaling and a Spark-specific acknowledgment and invitation-to-create metadata description.
+10. Canonical deployment now configures and explicitly freezes `THOUGHT=1`, `WILL=10`, and `AWA=1` before auction wiring.
+11. Movement configuration emits collection-wide ERC-4906 `BatchMetadataUpdate` for indexer refresh.
 
 ### Result
 
 - Spark quota is deployment calldata, so the historical quota `99` can be supplied per deploy.
 - Public PATH issuance remains `PathPulseAdapter -> PathNFT.safeMint`.
-- Spark issuance is separate from `MINTER_ROLE`; issuers allowlist recipients, recipients self-claim and pay gas, claims expire after the deploy-time duration, and total mints remain bounded by the deploy-time reserved cap.
+- Spark issuance is separate from `MINTER_ROLE`; issuers reserve named invitations, recipients confirm the name and self-claim while paying gas, and available plus pending plus minted supply remains equal to the deploy-time reserved cap.

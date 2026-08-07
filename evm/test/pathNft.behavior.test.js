@@ -81,8 +81,9 @@ describe("PathNFT (Solidity)", function () {
     const chainId = (await signer.provider.getNetwork()).chainId;
     const pathNft = await nft.getAddress();
     const typeHash = ethers.id(
-      "ConsumeAuthorization(address pathNft,uint256 chainId,uint256 pathId,bytes32 movement,address claimer,address executor,uint256 nonce,uint256 deadline)"
+      "ConsumeAuthorization(address pathNft,uint256 chainId,uint256 pathId,bytes32 movement,address claimer,address executor,uint256 permissionEpoch,uint256 nonce,uint256 deadline)"
     );
+    const permissionEpoch = await nft.getPermissionEpoch(pathId);
     const nonce = await nft.getConsumeNonce(claimer);
     const now = BigInt((await signer.provider.getBlock("latest")).timestamp);
     const deadline = now + deadlineOffset;
@@ -96,13 +97,14 @@ describe("PathNFT (Solidity)", function () {
         "address",
         "address",
         "uint256",
+        "uint256",
         "uint256"
       ],
-      [typeHash, pathNft, chainId, pathId, movement, claimer, executor, nonce, deadline]
+      [typeHash, pathNft, chainId, pathId, movement, claimer, executor, permissionEpoch, nonce, deadline]
     );
     const structHash = ethers.keccak256(encoded);
     const signature = await signer.signMessage(ethers.getBytes(structHash));
-    return { deadline, signature, nonce };
+    return { deadline, signature, permissionEpoch, nonce };
   }
 
   async function consumeViaMover(mover, callerSigner, nft, pathId, movement, claimerSigner) {
@@ -118,6 +120,18 @@ describe("PathNFT (Solidity)", function () {
     return mover
       .connect(callerSigner)
       .consume(await nft.getAddress(), pathId, movement, claimerSigner.address, deadline, signature);
+  }
+
+  function sparkNameHash(name) {
+    return ethers.keccak256(ethers.toUtf8Bytes(name));
+  }
+
+  async function allowSpark(nft, issuer, recipient, name) {
+    return nft.connect(issuer).allowSparker(recipient, name);
+  }
+
+  async function claimSpark(nft, recipient, name, data = "0x") {
+    return nft.connect(recipient).mintSparker(sparkNameHash(name), data);
   }
 
   beforeEach(async function () {
@@ -139,14 +153,15 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.sparkClaimDuration()).to.equal(SPARK_CLAIM_DURATION_SEC);
     expect(await nft.getReservedCap()).to.equal(RESERVED_CAP);
     expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP);
+    expect(await nft.getReservedPending()).to.equal(0n);
   });
 
-  it("keeps PathNFT runtime code within the EIP-170 deployment limit", async function () {
+  it("keeps at least 512 bytes of PathNFT runtime headroom under EIP-170", async function () {
     const { nft } = await deployPathNftEnv(ethers);
     const runtimeCode = await ethers.provider.getCode(await nft.getAddress());
     const runtimeBytes = (runtimeCode.length - 2) / 2;
 
-    expect(runtimeBytes).to.be.lessThanOrEqual(24_576);
+    expect(runtimeBytes).to.be.lessThanOrEqual(24_064);
   });
 
   it("constructor rejects zero admin", async function () {
@@ -155,11 +170,11 @@ describe("PathNFT (Solidity)", function () {
 
     await expect(
       Nft.deploy(ethers.ZeroAddress, "PATH", "PATH", "", RESERVED_CAP, SPARK_CLAIM_DURATION_SEC)
-    ).to.be.revertedWith("ZERO_ADMIN");
+    ).to.be.revertedWithCustomError(Nft, "ZeroAdmin");
 
     await expect(
       Nft.deploy(deployer.address, "PATH", "PATH", "", RESERVED_CAP, 0)
-    ).to.be.revertedWith("ZERO_SPARK_CLAIM_DURATION");
+    ).to.be.revertedWithCustomError(Nft, "ZeroSparkClaimDuration");
   });
 
   it("safeMint requires a frozen public minter", async function () {
@@ -169,15 +184,19 @@ describe("PathNFT (Solidity)", function () {
     await expectAnyRevert(nft.connect(alice).safeMint(alice.address, 1n, "0x"));
 
     await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
-    await expect(nft.safeMint(alice.address, 1n, "0x")).to.be.revertedWith("PUBLIC_MINTER_NOT_FROZEN");
+    await expect(nft.safeMint(alice.address, 1n, "0x"))
+      .to.be.revertedWithCustomError(nft, "PublicMinterNotFrozen");
     await expect(nft.freezePublicMinter(deployer.address))
       .to.emit(nft, "PublicMinterFrozen")
       .withArgs(deployer.address);
-    await (await nft.safeMint(alice.address, 1n, "0x")).wait();
+    await expect(nft.safeMint(alice.address, 1n, "0x"))
+      .to.emit(nft, "Unlocked")
+      .withArgs(1n);
 
     expect(await nft.ownerOf(1n)).to.equal(alice.address);
     expect(await nft.getStage(1n)).to.equal(0n);
     expect(await nft.getStageMinted(1n)).to.equal(0n);
+    expect(await nft.getPermissionEpoch(1n)).to.equal(0n);
     expect(await nft.isSparker(1n)).to.equal(false);
   });
 
@@ -190,152 +209,307 @@ describe("PathNFT (Solidity)", function () {
     await (await nft.safeMint(alice.address, SPARK_BASE - 1n, "0x")).wait();
     expect(await nft.ownerOf(SPARK_BASE - 1n)).to.equal(alice.address);
 
-    await expect(nft.safeMint(alice.address, SPARK_BASE, "0x")).to.be.revertedWith(
-      "PUBLIC_ID_DOMAIN_EXHAUSTED"
-    );
-    await expect(nft.safe_mint(alice.address, SPARK_BASE, "0x")).to.be.revertedWith(
-      "PUBLIC_ID_DOMAIN_EXHAUSTED"
-    );
+    await expect(nft.safeMint(alice.address, SPARK_BASE, "0x"))
+      .to.be.revertedWithCustomError(nft, "PublicTokenIdDomainExhausted");
+    await expect(nft.safe_mint(alice.address, SPARK_BASE, "0x"))
+      .to.be.revertedWithCustomError(nft, "PublicTokenIdDomainExhausted");
   });
 
-  it("allowSparker requires RESERVED_ROLE and a recipient", async function () {
-    const { nft, roles } = await deployPathNftEnv(ethers);
-    const [, alice] = await ethers.getSigners();
-
-    await expectAnyRevert(nft.connect(alice).allowSparker(alice.address));
-
-    await (await nft.grantRole(roles.RESERVED_ROLE, alice.address)).wait();
-    await expect(nft.connect(alice).allowSparker(ethers.ZeroAddress)).to.be.revertedWith(
-      "ZERO_SPARK_RECIPIENT"
-    );
-  });
-
-  it("allowSparker lets the recipient self-mint and pay gas", async function () {
+  it("allowSparker enforces role, recipient, and JSON-safe short names", async function () {
     const { nft, roles } = await deployPathNftEnv(ethers);
     const [, issuer, alice, bob] = await ethers.getSigners();
 
+    await expectAnyRevert(allowSpark(nft, issuer, alice.address, "Alice"));
     await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
-    await expect(nft.connect(issuer).allowSparker(alice.address))
+
+    await expect(allowSpark(nft, issuer, ethers.ZeroAddress, "Alice"))
+      .to.be.revertedWithCustomError(nft, "ZeroSparkRecipient");
+    for (const invalidName of ["", " Alice", "Alice ", "A".repeat(32), "Alice \"Ace\"", "Alice\\Bob", "Alice\nBob", "Alíce"]) {
+      await expect(allowSpark(nft, issuer, alice.address, invalidName))
+        .to.be.revertedWithCustomError(nft, "InvalidSparkName");
+    }
+
+    await expect(allowSpark(nft, issuer, alice.address, "Alice O'Neil"))
       .to.emit(nft, "SparkerAllowed");
 
-    expect(await nft.sparkAllowanceExpiresAt(alice.address)).to.be.greaterThan(0n);
-    await expect(nft.connect(bob).mintSparker("0x")).to.be.revertedWith("SPARK_NOT_ALLOWED");
-
-    const id0 = await nft.connect(alice).mintSparker.staticCall("0x");
-    await expect(nft.connect(alice).mintSparker("0x"))
-      .to.emit(nft, "SparkerMinted")
-      .withArgs(alice.address, id0);
-    expect(id0).to.equal(SPARK_BASE);
-    expect(await nft.ownerOf(id0)).to.equal(alice.address);
-    expect(await nft.isSparker(id0)).to.equal(true);
-    expect(await nft.sparkAllowanceExpiresAt(alice.address)).to.equal(0n);
-    expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP - 1n);
-    await expect(nft.connect(alice).mintSparker("0x")).to.be.revertedWith("SPARK_NOT_ALLOWED");
+    const maxName = "A".repeat(31);
+    await (await allowSpark(nft, issuer, bob.address, maxName)).wait();
+    await (await claimSpark(nft, bob, maxName)).wait();
+    expect(await nft.sparkName(SPARK_BASE)).to.equal(maxName);
   });
 
-  it("allowSparker stores deployment-duration expiry and does not spend quota", async function () {
+  it("allowSparker reserves one guaranteed slot and stores the issuer name", async function () {
     const { nft, roles } = await deployPathNftEnv(ethers);
     const [, issuer, alice] = await ethers.getSigners();
 
     await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
-    const tx = await nft.connect(issuer).allowSparker(alice.address);
+    const tx = await allowSpark(nft, issuer, alice.address, "Alice");
     const receipt = await tx.wait();
     const block = await ethers.provider.getBlock(receipt.blockNumber);
     const expectedExpiry = BigInt(block.timestamp) + SPARK_CLAIM_DURATION_SEC;
+    const [expiresAt, name] = await nft.getSparkInvitation(alice.address);
 
-    expect(await nft.sparkAllowanceExpiresAt(alice.address)).to.equal(expectedExpiry);
-    expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP);
+    expect(expiresAt).to.equal(expectedExpiry);
+    expect(name).to.equal("Alice");
+    expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP - 1n);
+    expect(await nft.getReservedPending()).to.equal(1n);
   });
 
-  it("allowSparker can refresh an unclaimed invite without spending quota", async function () {
+  it("allowSparker prevents invitation overbooking", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers, { reservedCap: 1n });
+    const [, issuer, alice, bob] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
+
+    expect(await nft.getReservedRemaining()).to.equal(0n);
+    expect(await nft.getReservedPending()).to.equal(1n);
+    await expect(allowSpark(nft, issuer, bob.address, "Bob"))
+      .to.be.revertedWithCustomError(nft, "NoReservedSparkAvailable");
+  });
+
+  it("allowSparker refreshes only the same active name without reserving twice", async function () {
     const { nft, roles } = await deployPathNftEnv(ethers);
     const [, issuer, alice] = await ethers.getSigners();
 
     await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
-    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
-    const firstExpiry = await nft.sparkAllowanceExpiresAt(alice.address);
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
+    const [firstExpiry] = await nft.getSparkInvitation(alice.address);
 
     await mineAt(conn.provider, firstExpiry - (SPARK_CLAIM_DURATION_SEC / 2n));
-    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
-    const refreshedExpiry = await nft.sparkAllowanceExpiresAt(alice.address);
+    await expect(allowSpark(nft, issuer, alice.address, "Alice Two"))
+      .to.be.revertedWithCustomError(nft, "SparkNameMismatch");
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
 
+    const [refreshedExpiry, name] = await nft.getSparkInvitation(alice.address);
     expect(refreshedExpiry).to.be.greaterThan(firstExpiry);
-    expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP);
-
-    await (await nft.connect(alice).mintSparker("0x")).wait();
+    expect(name).to.equal("Alice");
     expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP - 1n);
-    expect(await nft.sparkAllowanceExpiresAt(alice.address)).to.equal(0n);
+    expect(await nft.getReservedPending()).to.equal(1n);
   });
 
-  it("mintSparker only lets the allowlisted wallet claim for itself", async function () {
+  it("mintSparker binds the displayed name and creates named ERC-5192 metadata", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers);
+    const [, issuer, alice, bob] = await ethers.getSigners();
+    const name = "Alice O'Neil";
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await allowSpark(nft, issuer, alice.address, name)).wait();
+
+    await expect(claimSpark(nft, bob, name))
+      .to.be.revertedWithCustomError(nft, "SparkInvitationMissing");
+    await expect(claimSpark(nft, alice, "Different Name"))
+      .to.be.revertedWithCustomError(nft, "SparkNameMismatch");
+
+    const id = await nft.connect(alice).mintSparker.staticCall(sparkNameHash(name), "0x");
+    const claim = nft.connect(alice).mintSparker(sparkNameHash(name), "0x");
+    await expect(claim).to.emit(nft, "SparkerMinted").withArgs(alice.address, id);
+    await expect(claim).to.emit(nft, "Locked").withArgs(id);
+
+    expect(id).to.equal(SPARK_BASE);
+    expect(await nft.ownerOf(id)).to.equal(alice.address);
+    expect(await nft.isSparker(id)).to.equal(true);
+    expect(await nft.locked(id)).to.equal(true);
+    expect(await nft.sparkName(id)).to.equal(name);
+    expect(await nft.getSparkInvitation(alice.address)).to.deep.equal([0n, ""]);
+    expect(await nft.getReservedRemaining()).to.equal(RESERVED_CAP - 1n);
+    expect(await nft.getReservedPending()).to.equal(0n);
+
+    const metadata = decodeMetadata(await nft.tokenURI(id));
+    expect(metadata.name).to.equal(`PATH Spark #1: ${name}`);
+    expect(metadata.description).to.equal(
+      "Spark is a permanent acknowledgment by Inshell of those who resonate with Inshell's artistic vision, inviting them to participate in the unfolding journey of a movement. This soulbound PATH carries movement permission in order: THOUGHT, WILL, then AWA."
+    );
+    expect(metadata.token).to.equal(id.toString());
+    expect(metadata.attributes.map((attribute) => attribute.trait_type)).to.deep.equal([
+      "Stage",
+      "THOUGHT",
+      "WILL",
+      "AWA"
+    ]);
+  });
+
+  it("uses unpadded Spark numbers beyond 99 without changing ERC-721 token IDs", async function () {
+    this.timeout(120_000);
+    const { nft, roles } = await deployPathNftEnv(ethers, { reservedCap: 100n });
+    const [, issuer, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    for (let serial = 1; serial <= 100; serial += 1) {
+      const name = `Recipient ${serial}`;
+      await (await allowSpark(nft, issuer, alice.address, name)).wait();
+      await (await claimSpark(nft, alice, name)).wait();
+    }
+
+    const tokenId = SPARK_BASE + 99n;
+    const metadata = decodeMetadata(await nft.tokenURI(tokenId));
+    expect(await nft.ownerOf(tokenId)).to.equal(alice.address);
+    expect(metadata.name).to.equal("PATH Spark #100: Recipient 100");
+    expect(metadata.name).not.to.contain("#0100");
+    expect(metadata.token).to.equal(tokenId.toString());
+  });
+
+  it("mintSparker accepts the exact expiry block", async function () {
     const { nft, roles } = await deployPathNftEnv(ethers);
     const [, issuer, alice] = await ethers.getSigners();
 
     await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
-    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
+    const [expiresAt] = await nft.getSparkInvitation(alice.address);
 
-    await expect(nft.connect(issuer).mintSparker("0x")).to.be.revertedWith("SPARK_NOT_ALLOWED");
-    await (await nft.connect(alice).mintSparker("0x")).wait();
+    await setNextBlockTimestamp(conn.provider, expiresAt);
+    await (await claimSpark(nft, alice, "Alice")).wait();
     expect(await nft.ownerOf(SPARK_BASE)).to.equal(alice.address);
   });
 
-  it("mintSparker counts down reserved quota from SPARK_BASE", async function () {
+  it("releaseExpiredSparker is permissionless after expiry and returns the slot", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers, { reservedCap: 1n });
+    const [, issuer, alice, bob] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
+    const [expiresAt] = await nft.getSparkInvitation(alice.address);
+
+    await expect(nft.connect(bob).releaseExpiredSparker(alice.address))
+      .to.be.revertedWithCustomError(nft, "SparkInvitationActive");
+    await mineAt(conn.provider, expiresAt + 1n);
+    await expect(claimSpark(nft, alice, "Alice"))
+      .to.be.revertedWithCustomError(nft, "SparkInvitationExpired");
+    await expect(nft.connect(bob).releaseExpiredSparker(alice.address))
+      .to.emit(nft, "SparkerInvitationReleased")
+      .withArgs(alice.address);
+
+    expect(await nft.getReservedRemaining()).to.equal(1n);
+    expect(await nft.getReservedPending()).to.equal(0n);
+    expect(await nft.getSparkInvitation(alice.address)).to.deep.equal([0n, ""]);
+    await expect(nft.connect(bob).releaseExpiredSparker(alice.address))
+      .to.be.revertedWithCustomError(nft, "SparkInvitationMissing");
+  });
+
+  it("revokeSparker lets only RESERVED_ROLE return an active slot", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers, { reservedCap: 1n });
+    const [, issuer, alice, bob] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
+
+    await expectAnyRevert(nft.connect(bob).revokeSparker(alice.address));
+    await expect(nft.connect(issuer).revokeSparker(alice.address))
+      .to.emit(nft, "SparkerInvitationReleased")
+      .withArgs(alice.address);
+    expect(await nft.getReservedRemaining()).to.equal(1n);
+    expect(await nft.getReservedPending()).to.equal(0n);
+  });
+
+  it("allowSparker atomically recycles an expired invitation with a new name", async function () {
+    const { nft, roles } = await deployPathNftEnv(ethers, { reservedCap: 1n });
+    const [, issuer, alice] = await ethers.getSigners();
+
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
+    const [expiresAt] = await nft.getSparkInvitation(alice.address);
+    await mineAt(conn.provider, expiresAt + 1n);
+
+    await (await allowSpark(nft, issuer, alice.address, "Alice Two")).wait();
+    const [replacementExpiry, replacementName] = await nft.getSparkInvitation(alice.address);
+    expect(replacementExpiry).to.be.greaterThan(expiresAt);
+    expect(replacementName).to.equal("Alice Two");
+    expect(await nft.getReservedRemaining()).to.equal(0n);
+    expect(await nft.getReservedPending()).to.equal(1n);
+    await expect(claimSpark(nft, alice, "Alice"))
+      .to.be.revertedWithCustomError(nft, "SparkNameMismatch");
+    await (await claimSpark(nft, alice, "Alice Two")).wait();
+    expect(await nft.sparkName(SPARK_BASE)).to.equal("Alice Two");
+    await expect(claimSpark(nft, alice, "Alice Two"))
+      .to.be.revertedWithCustomError(nft, "SparkInvitationMissing");
+  });
+
+  it("Spark slot accounting preserves sequential IDs across revocations", async function () {
     const { nft, roles } = await deployPathNftEnv(ethers);
     const [, issuer, alice, bob, carol, dave] = await ethers.getSigners();
 
     await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
-    for (const recipient of [alice, bob, carol]) {
-      await (await nft.connect(issuer).allowSparker(recipient.address)).wait();
-    }
-
-    const id0 = await nft.connect(alice).mintSparker.staticCall("0x");
-    await (await nft.connect(alice).mintSparker("0x")).wait();
-    expect(id0).to.equal(SPARK_BASE);
-
-    const id1 = await nft.connect(bob).mintSparker.staticCall("0x");
-    await (await nft.connect(bob).mintSparker("0x")).wait();
-    expect(id1).to.equal(id0 + 1n);
-
-    const id2 = await nft.connect(carol).mintSparker.staticCall("0x");
-    await (await nft.connect(carol).mintSparker("0x")).wait();
-    expect(id2).to.equal(id1 + 1n);
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
+    await (await allowSpark(nft, issuer, bob.address, "Bob")).wait();
+    await (await allowSpark(nft, issuer, carol.address, "Carol")).wait();
     expect(await nft.getReservedRemaining()).to.equal(0n);
+    expect(await nft.getReservedPending()).to.equal(3n);
+    await expect(allowSpark(nft, issuer, dave.address, "Dave"))
+      .to.be.revertedWithCustomError(nft, "NoReservedSparkAvailable");
 
-    await (await nft.connect(issuer).allowSparker(dave.address)).wait();
-    await expect(nft.connect(dave).mintSparker("0x")).to.be.revertedWith("NO_RESERVED_LEFT");
-  });
-
-  it("mintSparker accepts a claim in the exact expiry block", async function () {
-    const { nft, roles } = await deployPathNftEnv(ethers);
-    const [, issuer, alice] = await ethers.getSigners();
-
-    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
-    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
-
-    const expiresAt = await nft.sparkAllowanceExpiresAt(alice.address);
-    await setNextBlockTimestamp(conn.provider, expiresAt);
-    await (await nft.connect(alice).mintSparker("0x")).wait();
+    await (await claimSpark(nft, alice, "Alice")).wait();
+    await (await nft.connect(issuer).revokeSparker(bob.address)).wait();
+    await (await claimSpark(nft, carol, "Carol")).wait();
+    await (await allowSpark(nft, issuer, dave.address, "Dave")).wait();
+    await (await claimSpark(nft, dave, "Dave")).wait();
 
     expect(await nft.ownerOf(SPARK_BASE)).to.equal(alice.address);
+    expect(await nft.ownerOf(SPARK_BASE + 1n)).to.equal(carol.address);
+    expect(await nft.ownerOf(SPARK_BASE + 2n)).to.equal(dave.address);
+    expect(await nft.getReservedRemaining()).to.equal(0n);
+    expect(await nft.getReservedPending()).to.equal(0n);
   });
 
-  it("mintSparker requires the allowlisted recipient to claim before expiry", async function () {
-    const { nft, roles } = await deployPathNftEnv(ethers);
-    const [, issuer, alice] = await ethers.getSigners();
+  it("Spark is ERC-5192 locked while regular PATH remains transferable", async function () {
+    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+    const [, issuer, alice, bob] = await ethers.getSigners();
 
+    await grantAndFreezePublicMinter(nft, roles, deployer.address);
+    await (await nft.safeMint(alice.address, 1n, "0x")).wait();
     await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
-    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
+    await (await claimSpark(nft, alice, "Alice")).wait();
 
-    const expiresAt = await nft.sparkAllowanceExpiresAt(alice.address);
-    await mineAt(conn.provider, expiresAt + 1n);
+    expect(await nft.supportsInterface("0xb45a3c0e")).to.equal(true);
+    expect(await nft.locked(1n)).to.equal(false);
+    expect(await nft.sparkName(1n)).to.equal("");
+    expect(await nft.locked(SPARK_BASE)).to.equal(true);
+    await expect(nft.locked(999n)).to.be.revertedWith("ERC721: invalid token ID");
 
-    await expect(nft.connect(alice).mintSparker("0x")).to.be.revertedWith(
-      "SPARK_ALLOWANCE_EXPIRED"
-    );
+    await (await nft.connect(alice).approve(bob.address, SPARK_BASE)).wait();
+    await expect(nft.connect(bob).transferFrom(alice.address, bob.address, SPARK_BASE))
+      .to.be.revertedWithCustomError(nft, "SparkSoulbound");
+    await (await nft.connect(alice).setApprovalForAll(bob.address, true)).wait();
+    await expect(
+      nft.connect(bob)["safeTransferFrom(address,address,uint256)"](
+        alice.address,
+        bob.address,
+        SPARK_BASE
+      )
+    ).to.be.revertedWithCustomError(nft, "SparkSoulbound");
+    await expect(
+      nft.connect(alice)["safeTransferFrom(address,address,uint256,bytes)"](
+        alice.address,
+        bob.address,
+        SPARK_BASE,
+        "0x1234"
+      )
+    ).to.be.revertedWithCustomError(nft, "SparkSoulbound");
+    await expect(nft.connect(alice).transferFrom(alice.address, alice.address, SPARK_BASE))
+      .to.be.revertedWithCustomError(nft, "SparkSoulbound");
 
-    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
-    await (await nft.connect(alice).mintSparker("0x")).wait();
     expect(await nft.ownerOf(SPARK_BASE)).to.equal(alice.address);
+    expect(await nft.getPermissionEpoch(SPARK_BASE)).to.equal(0n);
+    await (await nft.connect(alice).transferFrom(alice.address, bob.address, 1n)).wait();
+    expect(await nft.ownerOf(1n)).to.equal(bob.address);
+    expect(await nft.getPermissionEpoch(1n)).to.equal(1n);
+  });
+
+  it("Spark keeps normal PATH movement entitlement and named metadata", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, issuer, alice] = await ethers.getSigners();
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 1)).wait();
+    await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
+    await (await claimSpark(nft, alice, "Alice")).wait();
+    await (await consumeViaMover(mover, alice, nft, SPARK_BASE, movements.THOUGHT, alice)).wait();
+
+    expect(await nft.getStage(SPARK_BASE)).to.equal(1n);
+    expect(decodeMetadata(await nft.tokenURI(SPARK_BASE)).name).to.equal("PATH Spark #1: Alice");
   });
 
   it("allowSparker rejects expiry overflow for oversized deployment duration", async function () {
@@ -344,10 +518,8 @@ describe("PathNFT (Solidity)", function () {
     const [, issuer, alice] = await ethers.getSigners();
 
     await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
-
-    await expect(nft.connect(issuer).allowSparker(alice.address)).to.be.revertedWith(
-      "SPARK_ALLOWANCE_OVERFLOW"
-    );
+    await expect(allowSpark(nft, issuer, alice.address, "Alice"))
+      .to.be.revertedWithCustomError(nft, "SparkAllowanceOverflow");
   });
 
   it("self-claimed Spark mint stays available after public minter freeze", async function () {
@@ -356,8 +528,8 @@ describe("PathNFT (Solidity)", function () {
 
     await grantAndFreezePublicMinter(nft, roles, deployer.address);
     await (await nft.grantRole(roles.RESERVED_ROLE, issuer.address)).wait();
-    await (await nft.connect(issuer).allowSparker(alice.address)).wait();
-    await (await nft.connect(alice).mintSparker("0x1234")).wait();
+    await (await allowSpark(nft, issuer, alice.address, "Alice")).wait();
+    await (await claimSpark(nft, alice, "Alice", "0x1234")).wait();
 
     expect(await nft.ownerOf(SPARK_BASE)).to.equal(alice.address);
     expect(await nft.isSparker(SPARK_BASE)).to.equal(true);
@@ -368,8 +540,10 @@ describe("PathNFT (Solidity)", function () {
     const [, alice, bob, carol] = await ethers.getSigners();
 
     await expectAnyRevert(nft.connect(alice).freezePublicMinter(alice.address));
-    await expect(nft.freezePublicMinter(ethers.ZeroAddress)).to.be.revertedWith("ZERO_PUBLIC_MINTER");
-    await expect(nft.freezePublicMinter(alice.address)).to.be.revertedWith("MISSING_MINTER_ROLE");
+    await expect(nft.freezePublicMinter(ethers.ZeroAddress))
+      .to.be.revertedWithCustomError(nft, "ZeroPublicMinter");
+    await expect(nft.freezePublicMinter(alice.address))
+      .to.be.revertedWithCustomError(nft, "MissingMinterRole");
 
     await (await nft.grantRole(roles.MINTER_ROLE, deployer.address)).wait();
     await (await nft.grantRole(roles.MINTER_ROLE, bob.address)).wait();
@@ -380,8 +554,10 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.getRoleAdmin(roles.MINTER_ROLE)).to.equal(roles.FROZEN_MINTER_ADMIN_ROLE);
     expect(await nft.hasRole(roles.FROZEN_MINTER_ADMIN_ROLE, deployer.address)).to.equal(false);
 
-    await expect(nft.freezePublicMinter(bob.address)).to.be.revertedWith("PUBLIC_MINTER_FROZEN");
-    await expect(nft.connect(bob).safeMint(bob.address, 3n, "0x")).to.be.revertedWith("NOT_PUBLIC_MINTER");
+    await expect(nft.freezePublicMinter(bob.address))
+      .to.be.revertedWithCustomError(nft, "PublicMinterAlreadyFrozen");
+    await expect(nft.connect(bob).safeMint(bob.address, 3n, "0x"))
+      .to.be.revertedWithCustomError(nft, "NotPublicMinter");
     await expectAnyRevert(nft.grantRole(roles.MINTER_ROLE, carol.address));
     await expectAnyRevert(nft.revokeRole(roles.MINTER_ROLE, deployer.address));
     expect(await nft.hasRole(roles.MINTER_ROLE, deployer.address)).to.equal(true);
@@ -412,11 +588,16 @@ describe("PathNFT (Solidity)", function () {
     const [, alice, bob] = await ethers.getSigners();
 
     await expectAnyRevert(nft.connect(alice).setMovementConfig(movements.THOUGHT, bob.address, 1));
-    await expect(nft.setMovementConfig(movements.DREAM, bob.address, 1)).to.be.revertedWith("BAD_MOVEMENT");
-    await expect(nft.setMovementConfig(movements.THOUGHT, ethers.ZeroAddress, 1)).to.be.revertedWith("ZERO_MINTER");
-    await expect(nft.setMovementConfig(movements.THOUGHT, bob.address, 0)).to.be.revertedWith("ZERO_QUOTA");
+    await expect(nft.setMovementConfig(movements.DREAM, bob.address, 1))
+      .to.be.revertedWithCustomError(nft, "BadMovement");
+    await expect(nft.setMovementConfig(movements.THOUGHT, ethers.ZeroAddress, 1))
+      .to.be.revertedWithCustomError(nft, "ZeroMinter");
+    await expect(nft.setMovementConfig(movements.THOUGHT, bob.address, 0))
+      .to.be.revertedWithCustomError(nft, "ZeroQuota");
 
-    await (await nft.setMovementConfig(movements.THOUGHT, bob.address, 2)).wait();
+    await expect(nft.setMovementConfig(movements.THOUGHT, bob.address, 2))
+      .to.emit(nft, "BatchMetadataUpdate")
+      .withArgs(0n, ethers.MaxUint256);
     expect(await nft.getAuthorizedMinter(movements.THOUGHT)).to.equal(bob.address);
     expect(await nft.getMovementQuota(movements.THOUGHT)).to.equal(2n);
   });
@@ -426,9 +607,12 @@ describe("PathNFT (Solidity)", function () {
     const [, alice, bob] = await ethers.getSigners();
 
     await expectAnyRevert(nft.connect(alice).freezeMovementConfig(movements.THOUGHT));
-    await expect(nft.freezeMovementConfig(movements.DREAM)).to.be.revertedWith("BAD_MOVEMENT");
-    await expect(nft.isMovementFrozen(movements.DREAM)).to.be.revertedWith("BAD_MOVEMENT");
-    await expect(nft.freezeMovementConfig(movements.THOUGHT)).to.be.revertedWith("MOVEMENT_NOT_CONFIGURED");
+    await expect(nft.freezeMovementConfig(movements.DREAM))
+      .to.be.revertedWithCustomError(nft, "BadMovement");
+    await expect(nft.isMovementFrozen(movements.DREAM))
+      .to.be.revertedWithCustomError(nft, "BadMovement");
+    await expect(nft.freezeMovementConfig(movements.THOUGHT))
+      .to.be.revertedWithCustomError(nft, "MovementNotConfigured");
 
     expect(await nft.isMovementFrozen(movements.THOUGHT)).to.equal(false);
     await (await nft.setMovementConfig(movements.THOUGHT, bob.address, 1)).wait();
@@ -438,8 +622,10 @@ describe("PathNFT (Solidity)", function () {
       .withArgs(movements.THOUGHT);
 
     expect(await nft.isMovementFrozen(movements.THOUGHT)).to.equal(true);
-    await expect(nft.setMovementConfig(movements.THOUGHT, alice.address, 2)).to.be.revertedWith("MOVEMENT_FROZEN");
-    await expect(nft.freezeMovementConfig(movements.THOUGHT)).to.be.revertedWith("MOVEMENT_FROZEN");
+    await expect(nft.setMovementConfig(movements.THOUGHT, alice.address, 2))
+      .to.be.revertedWithCustomError(nft, "MovementConfigFrozen");
+    await expect(nft.freezeMovementConfig(movements.THOUGHT))
+      .to.be.revertedWithCustomError(nft, "MovementConfigFrozen");
   });
 
   it("tokenURI returns base64 metadata with conventional keys and movement progress", async function () {
@@ -641,11 +827,11 @@ describe("PathNFT (Solidity)", function () {
 
     await expect(
       nft.connect(bob).consumeUnit(21n, movements.THOUGHT, bob.address, 2n ** 255n, "0x")
-    ).to.be.revertedWith("ERR_UNAUTHORIZED_MINTER");
+    ).to.be.revertedWithCustomError(nft, "UnauthorizedMovementMinter");
 
     await expect(
       mover.connect(alice).consume(await nft.getAddress(), 21n, movements.DREAM, alice.address, 2n ** 255n, "0x")
-    ).to.be.revertedWith("BAD_MOVEMENT");
+    ).to.be.revertedWithCustomError(nft, "BadMovement");
   });
 
   it("consumeUnit rejects nonexistent token ids", async function () {
@@ -659,24 +845,15 @@ describe("PathNFT (Solidity)", function () {
     await grantAndFreezePublicMinter(nft, roles, deployer.address);
     await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 1)).wait();
 
-    const executor = await mover.getAddress();
-    const auth = await signConsumeAuthorization(
-      nft,
-      alice,
-      alice.address,
-      executor,
-      999n,
-      movements.THOUGHT
-    );
-
     await expect(
       mover
         .connect(alice)
-        .consume(await nft.getAddress(), 999n, movements.THOUGHT, alice.address, auth.deadline, auth.signature)
+        .consume(await nft.getAddress(), 999n, movements.THOUGHT, alice.address, 2n ** 255n, "0x")
     ).to.be.revertedWith("ERC721: invalid token ID");
+    await expect(nft.getPermissionEpoch(999n)).to.be.revertedWith("ERC721: invalid token ID");
   });
 
-  it("consumeUnit enforces signed authorization and owner/approval checks", async function () {
+  it("consumeUnit enforces signed authorization and current-owner checks", async function () {
     const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
     const [, alice, bob, carol] = await ethers.getSigners();
 
@@ -701,12 +878,12 @@ describe("PathNFT (Solidity)", function () {
       mover
         .connect(bob)
         .consume(await nft.getAddress(), 22n, movements.THOUGHT, bob.address, bobAuth.deadline, bobAuth.signature)
-    ).to.be.revertedWith("ERR_NOT_OWNER");
+    ).to.be.revertedWithCustomError(nft, "NotOwner");
 
     const badSignerAuth = await signConsumeAuthorization(
       nft,
       carol,
-      bob.address,
+      alice.address,
       executor,
       22n,
       movements.THOUGHT
@@ -714,13 +891,13 @@ describe("PathNFT (Solidity)", function () {
     await expect(
       mover
         .connect(bob)
-        .consume(await nft.getAddress(), 22n, movements.THOUGHT, bob.address, badSignerAuth.deadline, badSignerAuth.signature)
-    ).to.be.revertedWith("BAD_CONSUME_AUTH");
+        .consume(await nft.getAddress(), 22n, movements.THOUGHT, alice.address, badSignerAuth.deadline, badSignerAuth.signature)
+    ).to.be.revertedWithCustomError(nft, "BadConsumeAuthorization");
 
     const wrongExecutorAuth = await signConsumeAuthorization(
       nft,
-      bob,
-      bob.address,
+      alice,
+      alice.address,
       alice.address,
       22n,
       movements.THOUGHT
@@ -732,16 +909,16 @@ describe("PathNFT (Solidity)", function () {
           await nft.getAddress(),
           22n,
           movements.THOUGHT,
-          bob.address,
+          alice.address,
           wrongExecutorAuth.deadline,
           wrongExecutorAuth.signature
         )
-    ).to.be.revertedWith("BAD_CONSUME_AUTH");
+    ).to.be.revertedWithCustomError(nft, "BadConsumeAuthorization");
 
     const expiringAuth = await signConsumeAuthorization(
       nft,
-      bob,
-      bob.address,
+      alice,
+      alice.address,
       executor,
       22n,
       movements.THOUGHT,
@@ -753,17 +930,21 @@ describe("PathNFT (Solidity)", function () {
     await expect(
       mover
         .connect(bob)
-        .consume(await nft.getAddress(), 22n, movements.THOUGHT, bob.address, expiringAuth.deadline, expiringAuth.signature)
-    ).to.be.revertedWith("CONSUME_AUTH_EXPIRED");
+        .consume(await nft.getAddress(), 22n, movements.THOUGHT, alice.address, expiringAuth.deadline, expiringAuth.signature)
+    ).to.be.revertedWithCustomError(nft, "ConsumeAuthorizationExpired");
 
     await (await nft.connect(alice).approve(bob.address, 22n)).wait();
-    await (await consumeViaMover(mover, bob, nft, 22n, movements.THOUGHT, bob)).wait();
+    await expect(
+      consumeViaMover(mover, bob, nft, 22n, movements.THOUGHT, bob)
+    ).to.be.revertedWithCustomError(nft, "NotOwner");
+
+    await (await consumeViaMover(mover, bob, nft, 22n, movements.THOUGHT, alice)).wait();
 
     expect(await nft.getStage(22n)).to.equal(1n);
     expect(await nft.getStageMinted(22n)).to.equal(0n);
   });
 
-  it("consumeUnit accepts operator approval via setApprovalForAll", async function () {
+  it("consumeUnit denies semantic rights to setApprovalForAll operators", async function () {
     const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
     const [, alice, bob] = await ethers.getSigners();
 
@@ -776,10 +957,169 @@ describe("PathNFT (Solidity)", function () {
     await (await nft.safeMint(alice.address, 23n, "0x")).wait();
 
     await (await nft.connect(alice).setApprovalForAll(bob.address, true)).wait();
-    await (await consumeViaMover(mover, bob, nft, 23n, movements.THOUGHT, bob)).wait();
+    await expect(
+      consumeViaMover(mover, bob, nft, 23n, movements.THOUGHT, bob)
+    ).to.be.revertedWithCustomError(nft, "NotOwner");
 
-    expect(await nft.getStage(23n)).to.equal(1n);
+    expect(await nft.getStage(23n)).to.equal(0n);
     expect(await nft.getStageMinted(23n)).to.equal(0n);
+    expect(await nft.getConsumeNonce(bob.address)).to.equal(0n);
+  });
+
+  it("secondary transfer advances the epoch and preserves remaining entitlement", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, alice, bob, carol] = await ethers.getSigners();
+
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
+    await grantAndFreezePublicMinter(nft, roles, deployer.address);
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 1)).wait();
+    await (await nft.setMovementConfig(movements.WILL, await mover.getAddress(), 3)).wait();
+    await (await nft.setMovementConfig(movements.AWA, await mover.getAddress(), 1)).wait();
+    await (await nft.safeMint(alice.address, 26n, "0x")).wait();
+
+    await (await consumeViaMover(mover, alice, nft, 26n, movements.THOUGHT, alice)).wait();
+    await (await consumeViaMover(mover, alice, nft, 26n, movements.WILL, alice)).wait();
+    expect(await nft.getStage(26n)).to.equal(1n);
+    expect(await nft.getStageMinted(26n)).to.equal(1n);
+    expect(await nft.getPermissionEpoch(26n)).to.equal(0n);
+
+    await (await nft.connect(alice).approve(bob.address, 26n)).wait();
+    await expect(nft.connect(bob).transferFrom(alice.address, carol.address, 26n))
+      .to.emit(nft, "PermissionEpochAdvanced")
+      .withArgs(26n, 1n, alice.address, carol.address);
+
+    expect(await nft.ownerOf(26n)).to.equal(carol.address);
+    expect(await nft.getPermissionEpoch(26n)).to.equal(1n);
+    expect(await nft.getStage(26n)).to.equal(1n);
+    expect(await nft.getStageMinted(26n)).to.equal(1n);
+
+    const transferredMetadata = decodeMetadata(await nft.tokenURI(26n));
+    expect(transferredMetadata.thought).to.equal("Minted(1/1)");
+    expect(transferredMetadata.will).to.equal("Minted(1/3)");
+    expect(transferredMetadata.awa).to.equal("Minted(0/1)");
+
+    await expect(
+      consumeViaMover(mover, alice, nft, 26n, movements.WILL, alice)
+    ).to.be.revertedWithCustomError(nft, "NotOwner");
+    await (await consumeViaMover(mover, bob, nft, 26n, movements.WILL, carol)).wait();
+
+    expect(await nft.getStage(26n)).to.equal(1n);
+    expect(await nft.getStageMinted(26n)).to.equal(2n);
+  });
+
+  it("permission epoch prevents stale signatures from reviving after a transfer round trip", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, alice, bob] = await ethers.getSigners();
+
+    const Mover = await ethers.getContractFactory("MockMovementMinter", deployer);
+    const mover = await Mover.deploy();
+    await mover.waitForDeployment();
+
+    await grantAndFreezePublicMinter(nft, roles, deployer.address);
+    await (await nft.setMovementConfig(movements.THOUGHT, await mover.getAddress(), 2)).wait();
+    await (await nft.safeMint(alice.address, 27n, "0x")).wait();
+
+    const executor = await mover.getAddress();
+    const stale = await signConsumeAuthorization(
+      nft,
+      alice,
+      alice.address,
+      executor,
+      27n,
+      movements.THOUGHT
+    );
+    expect(stale.permissionEpoch).to.equal(0n);
+
+    await (await nft.connect(alice).transferFrom(alice.address, bob.address, 27n)).wait();
+    expect(await nft.getPermissionEpoch(27n)).to.equal(1n);
+    await expect(
+      mover
+        .connect(alice)
+        .consume(await nft.getAddress(), 27n, movements.THOUGHT, alice.address, stale.deadline, stale.signature)
+    ).to.be.revertedWithCustomError(nft, "NotOwner");
+
+    await (await nft.connect(bob).transferFrom(bob.address, alice.address, 27n)).wait();
+    expect(await nft.getPermissionEpoch(27n)).to.equal(2n);
+    await expect(
+      mover
+        .connect(alice)
+        .consume(await nft.getAddress(), 27n, movements.THOUGHT, alice.address, stale.deadline, stale.signature)
+    ).to.be.revertedWithCustomError(nft, "BadConsumeAuthorization");
+
+    expect(await nft.getConsumeNonce(alice.address)).to.equal(0n);
+    await (await consumeViaMover(mover, bob, nft, 27n, movements.THOUGHT, alice)).wait();
+    expect(await nft.getStageMinted(27n)).to.equal(1n);
+    expect(await nft.getConsumeNonce(alice.address)).to.equal(1n);
+  });
+
+  it("self-transfer advances the permission epoch without changing ownership or progress", async function () {
+    const { deployer, nft, roles } = await deployPathNftEnv(ethers);
+    const [, alice] = await ethers.getSigners();
+
+    await grantAndFreezePublicMinter(nft, roles, deployer.address);
+    await (await nft.safeMint(alice.address, 28n, "0x")).wait();
+
+    await expect(nft.connect(alice).transferFrom(alice.address, alice.address, 28n))
+      .to.emit(nft, "PermissionEpochAdvanced")
+      .withArgs(28n, 1n, alice.address, alice.address);
+
+    expect(await nft.ownerOf(28n)).to.equal(alice.address);
+    expect(await nft.getPermissionEpoch(28n)).to.equal(1n);
+    expect(await nft.getStage(28n)).to.equal(0n);
+    expect(await nft.getStageMinted(28n)).to.equal(0n);
+  });
+
+  it("PATH transfer does not move already minted movement tokens", async function () {
+    const { deployer, nft, roles, movements } = await deployPathNftEnv(ethers);
+    const [, alice, bob] = await ethers.getSigners();
+
+    await grantAndFreezePublicMinter(nft, roles, deployer.address);
+    await (await nft.safeMint(alice.address, 29n, "0x")).wait();
+
+    const Movement = await ethers.getContractFactory("MockMovementToken", deployer);
+    const movementToken = await Movement.deploy(await nft.getAddress(), movements.THOUGHT);
+    await movementToken.waitForDeployment();
+    await (await nft.setMovementConfig(movements.THOUGHT, await movementToken.getAddress(), 2)).wait();
+
+    const aliceAuth = await signConsumeAuthorization(
+      nft,
+      alice,
+      alice.address,
+      await movementToken.getAddress(),
+      29n,
+      movements.THOUGHT
+    );
+    await (
+      await movementToken.connect(alice).mintWithPath(29n, aliceAuth.deadline, aliceAuth.signature)
+    ).wait();
+
+    expect(await movementToken.ownerOf(0n)).to.equal(alice.address);
+    expect(await nft.getStageMinted(29n)).to.equal(1n);
+
+    await (await nft.connect(alice).transferFrom(alice.address, bob.address, 29n)).wait();
+    expect(await nft.ownerOf(29n)).to.equal(bob.address);
+    expect(await movementToken.ownerOf(0n)).to.equal(alice.address);
+    expect(await nft.getStageMinted(29n)).to.equal(1n);
+
+    const bobAuth = await signConsumeAuthorization(
+      nft,
+      bob,
+      bob.address,
+      await movementToken.getAddress(),
+      29n,
+      movements.THOUGHT
+    );
+    await (
+      await movementToken.connect(bob).mintWithPath(29n, bobAuth.deadline, bobAuth.signature)
+    ).wait();
+
+    expect(await movementToken.ownerOf(0n)).to.equal(alice.address);
+    expect(await movementToken.ownerOf(1n)).to.equal(bob.address);
+    expect(await nft.getStage(29n)).to.equal(1n);
+    expect(await nft.getStageMinted(29n)).to.equal(0n);
   });
 
   it("consumeUnit uses nonce-based auth and rejects signature replay", async function () {
@@ -814,7 +1154,7 @@ describe("PathNFT (Solidity)", function () {
       mover
         .connect(bob)
         .consume(await nft.getAddress(), 24n, movements.THOUGHT, bob.address, auth.deadline, auth.signature)
-    ).to.be.revertedWith("BAD_CONSUME_AUTH");
+    ).to.be.revertedWithCustomError(nft, "BadConsumeAuthorization");
   });
 
   it("consumeUnit accepts ERC-1271 contract-wallet signatures", async function () {
@@ -871,7 +1211,7 @@ describe("PathNFT (Solidity)", function () {
 
     await expect(
       consumeViaMover(mover, alice, nft, 31n, movements.WILL, alice)
-    ).to.be.revertedWith("BAD_MOVEMENT_ORDER");
+    ).to.be.revertedWithCustomError(nft, "BadMovementOrder");
 
     await (await consumeViaMover(mover, alice, nft, 31n, movements.THOUGHT, alice)).wait();
     expect(await nft.getStage(31n)).to.equal(0n);
@@ -888,7 +1228,7 @@ describe("PathNFT (Solidity)", function () {
     expect(await nft.getStage(31n)).to.equal(3n);
     await expect(
       consumeViaMover(mover, alice, nft, 31n, movements.AWA, alice)
-    ).to.be.revertedWith("BAD_STAGE");
+    ).to.be.revertedWithCustomError(nft, "BadStage");
   });
 
   it("movement freeze is per-movement", async function () {
@@ -908,7 +1248,8 @@ describe("PathNFT (Solidity)", function () {
     await (await consumeViaMover(mover, alice, nft, 41n, movements.THOUGHT, alice)).wait();
     expect(await nft.isMovementFrozen(movements.THOUGHT)).to.equal(true);
 
-    await expect(nft.setMovementConfig(movements.THOUGHT, bob.address, 2)).to.be.revertedWith("MOVEMENT_FROZEN");
+    await expect(nft.setMovementConfig(movements.THOUGHT, bob.address, 2))
+      .to.be.revertedWithCustomError(nft, "MovementConfigFrozen");
 
     await (await nft.setMovementConfig(movements.WILL, alice.address, 3)).wait();
     expect(await nft.getAuthorizedMinter(movements.WILL)).to.equal(alice.address);

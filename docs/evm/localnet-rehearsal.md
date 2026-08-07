@@ -84,7 +84,8 @@ await nft.name();               // PATH
 await nft.symbol();             // PATH
 await nft.SPARK_BASE();         // 1000000000000000
 await nft.getReservedCap();     // Spark quota supplied in deploy calldata
-await nft.getReservedRemaining();
+await nft.getReservedRemaining(); // available, unallocated Spark slots
+await nft.getReservedPending(); // slots held by active invitations
 await nft.sparkClaimDuration(); // Spark self-claim window in seconds
 ```
 
@@ -127,60 +128,73 @@ You should see `epochIndex` keep increasing and price/floor evolve after each sa
 
 ## 4.5) Optional Spark pass mint check
 
-If the deployment used a non-zero Spark quota, grant the reserved role, allowlist the recipient, then have the recipient self-mint one Spark PATH:
+If the deployment used a non-zero Spark quota, grant the reserved role, create
+a named invitation, then have the recipient confirm the name and self-mint one
+permanently locked Spark PATH:
 
 ```js
 const RESERVED_ROLE = await nft.RESERVED_ROLE();
 await (await nft.grantRole(RESERVED_ROLE, deployer.address)).wait();
-await (await nft.allowSparker(buyer.address)).wait();
-await nft.sparkAllowanceExpiresAt(buyer.address);
-const sparkId = await nft.connect(buyer).mintSparker.staticCall("0x");
-await (await nft.connect(buyer).mintSparker("0x")).wait();
+const sparkName = "Alice";
+await (await nft.allowSparker(buyer.address, sparkName)).wait();
+await nft.getSparkInvitation(buyer.address); // [expiresAt, "Alice"]
+const expectedNameHash = ethers.keccak256(ethers.toUtf8Bytes(sparkName));
+const sparkId = await nft.connect(buyer).mintSparker.staticCall(expectedNameHash, "0x");
+await (await nft.connect(buyer).mintSparker(expectedNameHash, "0x")).wait();
 await nft.ownerOf(sparkId);
 await nft.isSparker(sparkId);   // true
+await nft.locked(sparkId);      // true (ERC-5192)
+await nft.sparkName(sparkId);   // Alice
 ```
 
 ## 5) Exercise movement progression in PathNFT
 
-Deploy a movement minter helper and configure movements:
+The canonical deploy already configured and froze all movements. Local rehearsal
+uses the deployer account as the movement executor:
 
 ```js
-const MF = await ethers.getContractFactory("MockMovementMinter");
-const mover = await MF.deploy();
-await mover.waitForDeployment();
+const THOUGHT = await nft.MOVEMENT_THOUGHT();
+const WILL = await nft.MOVEMENT_WILL();
+const AWA = await nft.MOVEMENT_AWA();
 
-const THOUGHT = ethers.encodeBytes32String("THOUGHT");
-const WILL = ethers.encodeBytes32String("WILL");
-const AWA = ethers.encodeBytes32String("AWA");
-
-await (await nft.setMovementConfig(THOUGHT, await mover.getAddress(), 2)).wait();
-await (await nft.setMovementConfig(WILL, await mover.getAddress(), 2)).wait();
-await (await nft.setMovementConfig(AWA, await mover.getAddress(), 1)).wait();
+await nft.getMovementQuota(THOUGHT);       // 1
+await nft.getMovementQuota(WILL);          // 10
+await nft.getMovementQuota(AWA);           // 1
+await nft.getAuthorizedMinter(THOUGHT);    // deployer.address on local rehearsal
+await nft.isMovementFrozen(THOUGHT);       // true
 ```
 
-Mint a direct training token and consume movements in order:
+Use the PATH minted by the smoke bid and sign its owner-only consume authorization:
 
 ```js
-const MINTER_ROLE = await nft.MINTER_ROLE();
-await (await nft.grantRole(MINTER_ROLE, deployer.address)).wait();
+const pathId = 1n;
+const typeHash = ethers.id(
+  "ConsumeAuthorization(address pathNft,uint256 chainId,uint256 pathId,bytes32 movement,address claimer,address executor,uint256 permissionEpoch,uint256 nonce,uint256 deadline)"
+);
 
-const trainingId = 9001n;
-await (await nft.safeMint(buyer.address, trainingId, "0x")).wait();
+async function consume(movement) {
+  const chainId = (await ethers.provider.getNetwork()).chainId;
+  const permissionEpoch = await nft.getPermissionEpoch(pathId);
+  const nonce = await nft.getConsumeNonce(buyer.address);
+  const deadline = BigInt((await ethers.provider.getBlock("latest")).timestamp) + 3600n;
+  const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
+    ["bytes32", "address", "uint256", "uint256", "bytes32", "address", "address", "uint256", "uint256", "uint256"],
+    [typeHash, await nft.getAddress(), chainId, pathId, movement, buyer.address, deployer.address, permissionEpoch, nonce, deadline]
+  );
+  const signature = await buyer.signMessage(ethers.getBytes(ethers.keccak256(encoded)));
+  return nft.connect(deployer).consumeUnit(pathId, movement, buyer.address, deadline, signature);
+}
 
-await (await mover.connect(buyer).consume(await nft.getAddress(), trainingId, THOUGHT, buyer.address)).wait();
-await nft.getStage(trainingId);       // still 0 (quota 2)
-await nft.getStageMinted(trainingId); // 1
-
-await (await mover.connect(buyer).consume(await nft.getAddress(), trainingId, THOUGHT, buyer.address)).wait();
-await nft.getStage(trainingId);       // now 1
-await nft.getStageMinted(trainingId); // reset to 0
+await (await consume(THOUGHT)).wait();
+await nft.getStage(pathId);       // 1 (WILL)
+await nft.getStageMinted(pathId); // 0
 ```
 
 Try a wrong-order consume to see guardrails:
 
 ```js
-await mover.connect(buyer).consume(await nft.getAddress(), trainingId, AWA, buyer.address);
-// expected revert: BAD_MOVEMENT_ORDER
+await consume(AWA);
+// expected custom error: BadMovementOrder()
 ```
 
 ## 6) Quick failure-mode checks

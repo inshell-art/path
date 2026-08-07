@@ -66,7 +66,7 @@ The codebase is relatively small and uses OpenZeppelin primitives; the main risk
   - can call `safeMint` / `safe_mint`
 - **Movement config freeze**
   - First successful `consumeUnit` for a movement sets `_movementFrozen[movement] = true`.
-  - After that, `setMovementConfig` for that movement reverts (`MOVEMENT_FROZEN`).
+  - After that, `setMovementConfig` for that movement reverts with `MovementConfigFrozen()`.
 
 ### `PathMinter` roles and the sales caller freeze
 - `DEFAULT_ADMIN_ROLE` (constructor `admin`)

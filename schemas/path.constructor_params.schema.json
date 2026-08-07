@@ -16,6 +16,9 @@
     "epochBase",
     "reservedCap",
     "sparkClaimDurationSec",
+    "thoughtMinter",
+    "willMinter",
+    "awaMinter",
     "paymentToken",
     "treasury"
   ],
@@ -67,6 +70,15 @@
     },
     "sparkClaimDurationSec": {
       "$ref": "#/$defs/positiveUint"
+    },
+    "thoughtMinter": {
+      "$ref": "#/$defs/nonZeroAddress"
+    },
+    "willMinter": {
+      "$ref": "#/$defs/nonZeroAddress"
+    },
+    "awaMinter": {
+      "$ref": "#/$defs/nonZeroAddress"
     },
     "paymentToken": {
       "$ref": "#/$defs/address"

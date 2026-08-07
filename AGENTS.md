@@ -37,14 +37,18 @@
 - Public mint authority is one-way frozen with `freezePublicMinter`; after freeze, only the selected public minter can mint public IDs and `MINTER_ROLE` administration is locked.
 - The active public minter is `PathPulseAdapter`, which settles Pulse epochs directly into `PathNFT.safeMint`.
 - `PathMinter` / `PathMinterAdapter` are legacy compatibility surfaces only; do not use them in deploy bundles or public issuance paths.
-- Spark pass minting lives on `PathNFT`: deploy calldata sets `reservedCap` and `sparkClaimDurationSec`, Spark IDs start at `SPARK_BASE = 1_000_000_000_000_000`, `RESERVED_ROLE` can allowlist recipients with `allowSparker`, and allowlisted recipients self-mint with `mintSparker` before expiry.
+- Spark pass minting lives on `PathNFT`: deploy calldata sets `reservedCap` and `sparkClaimDurationSec`, Spark IDs start at `SPARK_BASE = 1_000_000_000_000_000`, `RESERVED_ROLE` reserves one slot and an immutable display name with `allowSparker(recipient, name)`, and the named recipient self-mints with `mintSparker(expectedNameHash, data)` before expiry.
+- Spark invitation accounting must preserve `reservedCap = available + pending + minted`. An invitation reserves capacity immediately; claim consumes it permanently; revoke or permissionless expiry cleanup returns it to available capacity.
+- Spark PATH tokens are permanent non-transferable awards implementing ERC-5192. Regular PATH tokens remain transferable. Both retain normal owner-only movement-consume entitlement and the same stable `Stage`, `THOUGHT`, `WILL`, and `AWA` traits.
+- Spark `tokenURI.name` is `PATH Spark #<serial>: <name>`, where the unpadded decimal `serial = tokenId - SPARK_BASE + 1`; the ERC-721 token ID remains unchanged.
 - Public mint IDs must remain below `SPARK_BASE`; frontends should use `PathNFT.isSparker(tokenId)` for Spark classification instead of raw token-ID thresholds.
 - Sepolia deploy bundles must use Safe-backed treasury custody: constructor `treasury` is the Safe address, `treasurySignerRef` is `SEPOLIA_TREASURY_SAFE_1OF1`, the Safe owner ref is `SEPOLIA_TREASURY_HW_A`, and `ADMIN` remains the direct Ledger-backed `SEPOLIA_ADMIN_HW_A`.
 - Safe-backed deploy bundles must include a verified `treasury_safe.json` artifact in the immutable bundle manifest.
 - Movement order is fixed: `THOUGHT`, then `WILL`, then `AWA`.
-- Movement config is one-way frozen per movement, either explicitly by admin or implicitly on first successful consume.
-- `consumeUnit` must require owner/approved authorization, a valid consume signature, the configured movement minter, and available quota.
-- `consumeUnit` must emit `MetadataUpdate(tokenId)` and `MovementConsumed` so marketplaces/indexers can refresh token metadata.
+- Canonical deployment must configure and explicitly freeze `THOUGHT=1`, `WILL=10`, and `AWA=1` with nonzero movement minters before auction wiring and authority handoff. Outside that flow, movement config remains one-way frozen per movement, either explicitly by admin or implicitly on first successful consume.
+- `consumeUnit` must require authorization signed by the current `ownerOf(pathId)`, the configured movement minter, the current per-token permission epoch, and available quota. ERC-721 approvals authorize transfer only and must not grant movement-consume rights.
+- Every successful non-mint regular PATH transfer must increment the token's permission epoch without resetting movement progress or quota. Spark transfer attempts must revert.
+- `consumeUnit` must emit `MetadataUpdate(tokenId)` and `MovementConsumed`; movement configuration changes must emit collection-wide `BatchMetadataUpdate` so marketplaces/indexers can refresh token metadata.
 - `tokenURI` and `contractURI` must remain self-contained data URLs with embedded SVG. Do not depend on an off-chain renderer for marketplace display.
 - PATH token artwork must use the generated nine-glyph Inshell Mono 76 subset in `evm/glyphs/inshell-mono-76-path-400.json`; do not add a full font or hand-edit generated glyph paths.
 - `npm run evm:glyphs:check` must pass before renderer releases.

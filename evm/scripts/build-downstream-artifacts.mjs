@@ -109,7 +109,7 @@ const manifest = {
   contractSourceCommit,
   compiler: {
     solidity: "0.8.24",
-    optimizer: { enabled: true, runs: 200 },
+    optimizer: { enabled: true, runs: 1 },
     viaIR: true
   },
   canonicalContracts: ["PathNFT", "PathPulseAdapter", "PulseAuction"],
@@ -126,7 +126,14 @@ const manifest = {
     fontWeight: preview.renderer.weight
   },
   compatibility: {
-    contractAbiAndBytecodeUnchangedFrom: "v0.4.1",
+    breakingFrom: "v0.4.2",
+    pathNftRedeploymentRequired: true,
+    consumeAuthorizationSchema: "permission-epoch-v1",
+    sparkInvitationSchema: "reserved-name-hash-v1",
+    sparkTransferPolicy: "erc5192-locked",
+    pathErrorSchema: "custom-errors-v1",
+    movementDeploymentPolicy: "configured-frozen-1-10-1",
+    erc5192MintEvents: true,
     networkAddressesIncluded: false,
     legacyMintContractsIncluded: false
   }
@@ -150,9 +157,15 @@ verified deployment release for the target chain.
 
 ## Compatibility
 
-This release adds the in-repository exact-artifact preview and downstream bundle.
-The three canonical contract ABIs and bytecode are unchanged from \`v0.4.1\`.
-No redeployment is required solely for the preview or packaging change.
+This release changes the \`PathNFT\` ABI, bytecode, and consume-authorization
+payload relative to \`v0.4.2\`. A new \`PathNFT\` deployment is required; do not
+point this ABI or signing code at an older deployment. Import all addresses from
+the separately verified deployment release for the target chain.
+
+The Solidity arguments to \`consumeUnit\` are unchanged. Its signed EIP-191
+struct now includes \`permissionEpoch\` between \`executor\` and \`nonce\`.
+Old signing code fails with the \`BadConsumeAuthorization()\` custom error. PATH-specific
+reverts are typed custom errors in this release; decode them from the release ABI.
 
 The manifest distinguishes the Hardhat runtime template hash from the preview's
 deployed-instance runtime hash. \`PathNFT\` has constructor immutables, so deployed
@@ -171,12 +184,40 @@ Do not use legacy \`PathMinter\` or \`PathMinterAdapter\` for new integrations.
   \`image\` SVG data URL directly. Do not rebuild the token image in the frontend.
 - Stable traits are \`Stage\`, \`THOUGHT\`, \`WILL\`, and \`AWA\`.
 - Movement order is fixed: THOUGHT, WILL, AWA.
-- The preview uses quotas \`1 / 10 / 1\` as a concrete inspection fixture; read
-  deployed movement quotas from \`getMovementQuota(bytes32)\` in production.
+- Regular PATH remains ERC-721 transferable. Spark PATH is a permanently locked
+  ERC-5192 award. Progress and remaining quota stay attached to the token ID.
+- Only the current \`ownerOf(pathId)\` may sign movement authorization. ERC-721
+  token approvals and operators have transfer rights only.
+- Read \`getPermissionEpoch(pathId)\` before signing. Every successful non-mint
+  regular PATH transfer increments the epoch and emits \`PermissionEpochAdvanced\`,
+  invalidating older signatures even if the PATH later returns to the same owner.
+- Movement tokens minted before a PATH transfer remain with their existing owners.
+- The canonical deploy flow configures and freezes quotas \`1 / 10 / 1\` before
+  auction wiring. Still read deployed movement quotas from
+  \`getMovementQuota(bytes32)\` rather than hard-coding them in clients.
 - Classify Spark tokens with \`isSparker(tokenId)\`. Spark is intentionally not a
   metadata trait and consumers should not infer it from an unpinned raw threshold.
-- Spark recipients self-claim with \`mintSparker(bytes)\` after \`RESERVED_ROLE\`
-  calls \`allowSparker(address)\`, and before \`sparkAllowanceExpiresAt(address)\`.
+- Read ERC-5192 \`locked(tokenId)\` for transferability. Spark returns \`true\`;
+  regular PATH returns \`false\`. Mint logs emit \`Locked\` for Spark and
+  \`Unlocked\` for regular PATH.
+- \`RESERVED_ROLE\` creates an invitation with \`allowSparker(recipient, name)\`.
+  It reserves one slot immediately. Read it with \`getSparkInvitation(recipient)\`.
+- The recipient confirms the returned name, hashes its exact UTF-8 bytes, and calls
+  \`mintSparker(expectedNameHash, data)\` before expiry. Read the minted immutable
+  value with \`sparkName(tokenId)\`. The top-level metadata name is
+  \`PATH Spark #<serial>: <name>\`, where the unpadded decimal
+  \`serial = tokenId - SPARK_BASE + 1\`; the ERC-721 token ID remains unchanged.
+- Spark metadata uses the permanent acknowledgment and invitation-to-create
+  description; regular PATH retains the permission-token description.
+- \`getReservedRemaining()\` is available capacity and \`getReservedPending()\`
+  is invitation-held capacity. \`revokeSparker\` or permissionless
+  \`releaseExpiredSparker\` returns a pending slot; a successful claim consumes it.
+- Spark names are 1-31 printable ASCII bytes, excluding quote and backslash, with
+  no leading or trailing spaces. No \`Spark\` or \`Name\` metadata trait is added.
+
+Frontend implementers must follow
+\`docs/evm/PATH_REMAINING_ENTITLEMENT_FE_HANDOFF.md\`, including the exact signed
+field order and the pre-purchase \`Remaining entitlement\` display.
 
 ## Renderer
 

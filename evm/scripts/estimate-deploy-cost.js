@@ -7,6 +7,7 @@ const GENESIS_FLOOR = 900n;
 const PTS = 1n;
 const FIRST_PUBLIC_ID = 1n;
 const EPOCH_BASE = 1n;
+const MOVEMENT_QUOTAS = { THOUGHT: 1n, WILL: 10n, AWA: 1n };
 const RESERVED_CAP = BigInt(process.env.DEPLOY_RESERVED_CAP ?? "99");
 const SPARK_CLAIM_DURATION_SEC = BigInt(
   process.env.DEPLOY_SPARK_CLAIM_DURATION_SEC ?? "604800"
@@ -235,6 +236,16 @@ async function estimateWiringAndAuthorityGas(ethers, deployer, finalAdmin) {
   const minterRole = ethers.id("MINTER_ROLE");
   const defaultAdminRole = await nft.DEFAULT_ADMIN_ROLE();
 
+  const movementConfigGas = {};
+  for (const label of Object.keys(MOVEMENT_QUOTAS)) {
+    const movement = await nft[`MOVEMENT_${label}`]();
+    const setGas = await txGas(nft.setMovementConfig(movement, deployer.address, MOVEMENT_QUOTAS[label]));
+    const freezeGas = await txGas(nft.freezeMovementConfig(movement));
+    movementConfigGas[label] = { setGas, freezeGas };
+  }
+  const movementConfigTotalGas = Object.values(movementConfigGas)
+    .reduce((total, item) => total + item.setGas + item.freezeGas, 0n);
+
   const setAuctionGas = await txGas(adapter.setAuction(await auction.getAddress()));
   const freezeWiringGas = await txGas(adapter.freezeWiring());
   const grantMinterRoleGas = await txGas(nft.grantRole(minterRole, await adapter.getAddress()));
@@ -258,12 +269,43 @@ async function estimateWiringAndAuthorityGas(ethers, deployer, finalAdmin) {
     freezeWiringGas,
     grantMinterRoleGas,
     freezePublicMinterGas,
+    movementConfigGas,
+    movementConfigTotalGas,
     wiringTotalGas,
     grantNftAdminGas,
     renounceNftAdminGas,
     transferAdapterOwnerGas,
     authorityTotalGas,
-    totalGas: wiringTotalGas + authorityTotalGas
+    totalGas: movementConfigTotalGas + wiringTotalGas + authorityTotalGas
+  };
+}
+
+async function estimateSparkIssuanceGas(ethers, deployer, recipient) {
+  const Nft = await ethers.getContractFactory("PathNFT", deployer);
+  const nft = await Nft.deploy(
+    deployer.address,
+    NAME,
+    SYMBOL,
+    BASE_URI,
+    RESERVED_CAP === 0n ? 1n : RESERVED_CAP,
+    SPARK_CLAIM_DURATION_SEC
+  );
+  await nft.waitForDeployment();
+
+  const reservedRole = ethers.id("RESERVED_ROLE");
+  const sparkName = "Gas Sample";
+  const expectedNameHash = ethers.keccak256(ethers.toUtf8Bytes(sparkName));
+  const grantReservedRoleGas = await txGas(nft.grantRole(reservedRole, deployer.address));
+  const allowSparkerGas = await txGas(nft.allowSparker(recipient.address, sparkName));
+  const mintSparkerGas = await txGas(
+    nft.connect(recipient).mintSparker(expectedNameHash, "0x")
+  );
+
+  return {
+    grantReservedRoleGas,
+    allowSparkerGas,
+    mintSparkerGas,
+    totalGas: grantReservedRoleGas + allowSparkerGas + mintSparkerGas
   };
 }
 
@@ -277,10 +319,11 @@ async function main() {
       `estimate-deploy-cost sends live deploy/wiring/authority transactions and is only allowed on hardhat(default)/localhost. Refusing network: ${conn.networkName}`
     );
   }
-  const [deployer, finalAdmin] = await ethers.getSigners();
+  const [deployer, finalAdmin, sparkRecipient] = await ethers.getSigners();
 
   const deployments = await estimateDeployments(ethers, deployer);
   const wiring = await estimateWiringAndAuthorityGas(ethers, deployer, finalAdmin);
+  const spark = await estimateSparkIssuanceGas(ethers, deployer, sparkRecipient);
   const combinedGas = deployments.totalGas + wiring.totalGas;
 
   const gasPrice = await resolveGasPriceGwei(ethers.provider);
@@ -307,6 +350,14 @@ async function main() {
   printRow("DEPLOY TOTAL", deployments.totalGas, gasPrice.gwei, ethUsd.usd);
 
   console.log("");
+  console.log("Estimated movement configuration gas:");
+  for (const [label, item] of Object.entries(wiring.movementConfigGas)) {
+    printRow(`nft.set${label}`, item.setGas, gasPrice.gwei, ethUsd.usd);
+    printRow(`nft.freeze${label}`, item.freezeGas, gasPrice.gwei, ethUsd.usd);
+  }
+  printRow("MOVEMENT TOTAL", wiring.movementConfigTotalGas, gasPrice.gwei, ethUsd.usd);
+
+  console.log("");
   console.log("Estimated wiring gas:");
   printRow("adapter.setAuction", wiring.setAuctionGas, gasPrice.gwei, ethUsd.usd);
   printRow("adapter.freezeWiring", wiring.freezeWiringGas, gasPrice.gwei, ethUsd.usd);
@@ -320,6 +371,13 @@ async function main() {
   printRow("nft.renounceAdmin", wiring.renounceNftAdminGas, gasPrice.gwei, ethUsd.usd);
   printRow("adapter.transferOwner", wiring.transferAdapterOwnerGas, gasPrice.gwei, ethUsd.usd);
   printRow("AUTHORITY TOTAL", wiring.authorityTotalGas, gasPrice.gwei, ethUsd.usd);
+
+  console.log("");
+  console.log("Measured Spark issuance gas (separate from ALL-IN deployment total):");
+  printRow("nft.grantReserved", spark.grantReservedRoleGas, gasPrice.gwei, ethUsd.usd);
+  printRow("nft.allowSparker", spark.allowSparkerGas, gasPrice.gwei, ethUsd.usd);
+  printRow("nft.mintSparker", spark.mintSparkerGas, gasPrice.gwei, ethUsd.usd);
+  printRow("SPARK FLOW TOTAL", spark.totalGas, gasPrice.gwei, ethUsd.usd);
 
   console.log("");
   printRow("ALL-IN TOTAL", combinedGas, gasPrice.gwei, ethUsd.usd);

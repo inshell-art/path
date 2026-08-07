@@ -142,27 +142,59 @@ function makeProfiles(thoughtQuota, willQuota, awaQuota) {
 async function signConsumeAuthorization(ethers, nft, chainId, claimerSigner, executor, tokenId, movement, deadline) {
   const pathNft = await nft.getAddress();
   const typeHash = ethers.id(
-    "ConsumeAuthorization(address pathNft,uint256 chainId,uint256 pathId,bytes32 movement,address claimer,address executor,uint256 nonce,uint256 deadline)"
+    "ConsumeAuthorization(address pathNft,uint256 chainId,uint256 pathId,bytes32 movement,address claimer,address executor,uint256 permissionEpoch,uint256 nonce,uint256 deadline)"
   );
+  const permissionEpoch = await nft.getPermissionEpoch(tokenId);
   const nonce = await nft.getConsumeNonce(claimerSigner.address);
   const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
-    ["bytes32", "address", "uint256", "uint256", "bytes32", "address", "address", "uint256", "uint256"],
-    [typeHash, pathNft, chainId, tokenId, movement, claimerSigner.address, executor, nonce, deadline]
+    [
+      "bytes32",
+      "address",
+      "uint256",
+      "uint256",
+      "bytes32",
+      "address",
+      "address",
+      "uint256",
+      "uint256",
+      "uint256"
+    ],
+    [
+      typeHash,
+      pathNft,
+      chainId,
+      tokenId,
+      movement,
+      claimerSigner.address,
+      executor,
+      permissionEpoch,
+      nonce,
+      deadline
+    ]
   );
   const structHash = ethers.keccak256(encoded);
   const signature = await claimerSigner.signMessage(ethers.getBytes(structHash));
   return { signature, deadline };
 }
 
-async function consumeUnits(ethers, nft, signer, chainId, tokenId, movement, count) {
+async function consumeUnits(ethers, nft, ownerSigner, executorSigner, chainId, tokenId, movement, count) {
   for (let i = 0n; i < count; i += 1n) {
-    const now = BigInt((await signer.provider.getBlock("latest")).timestamp);
+    const now = BigInt((await ownerSigner.provider.getBlock("latest")).timestamp);
     const deadline = now + 3_600n;
-    const auth = await signConsumeAuthorization(ethers, nft, chainId, signer, signer.address, tokenId, movement, deadline);
+    const auth = await signConsumeAuthorization(
+      ethers,
+      nft,
+      chainId,
+      ownerSigner,
+      executorSigner.address,
+      tokenId,
+      movement,
+      deadline
+    );
     await (
       await nft
-        .connect(signer)
-        .consumeUnit(tokenId, movement, signer.address, auth.deadline, auth.signature)
+        .connect(executorSigner)
+        .consumeUnit(tokenId, movement, ownerSigner.address, auth.deadline, auth.signature)
     ).wait();
   }
 }
@@ -230,13 +262,6 @@ async function main() {
     }
 
     ownerSigner = thoughtSigner;
-    for (const movementSigner of [thoughtSigner, willSigner, awaSigner]) {
-      if (movementSigner.address.toLowerCase() === ownerSigner.address.toLowerCase()) continue;
-      const isApproved = await nft.isApprovedForAll(ownerSigner.address, movementSigner.address);
-      if (!isApproved) {
-        await (await nft.connect(ownerSigner).setApprovalForAll(movementSigner.address, true)).wait();
-      }
-    }
   } else {
     thoughtConfig = {
       minter: await nft.getAuthorizedMinter(MOVEMENT_THOUGHT),
@@ -262,9 +287,9 @@ async function main() {
     const tokenId = await mintViaAuction(ethers, provider, auction, deployment, ownerSigner);
 
     if (bootstrapMovements) {
-      await consumeUnits(ethers, nft, thoughtSigner, chainId, tokenId, MOVEMENT_THOUGHT, profile.thought);
-      await consumeUnits(ethers, nft, willSigner, chainId, tokenId, MOVEMENT_WILL, profile.will);
-      await consumeUnits(ethers, nft, awaSigner, chainId, tokenId, MOVEMENT_AWA, profile.awa);
+      await consumeUnits(ethers, nft, ownerSigner, thoughtSigner, chainId, tokenId, MOVEMENT_THOUGHT, profile.thought);
+      await consumeUnits(ethers, nft, ownerSigner, willSigner, chainId, tokenId, MOVEMENT_WILL, profile.will);
+      await consumeUnits(ethers, nft, ownerSigner, awaSigner, chainId, tokenId, MOVEMENT_AWA, profile.awa);
     }
 
     const tokenUri = await nft.tokenURI(tokenId);

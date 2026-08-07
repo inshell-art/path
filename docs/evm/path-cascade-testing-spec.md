@@ -18,17 +18,22 @@ Validate that the Solidity PATH stack preserves the critical PATH behavior:
   - deploy-time `reservedCap`
   - deploy-time `sparkClaimDurationSec`
   - `RESERVED_ROLE` gate
-  - recipient allowlist and expiry checks
-  - recipient self-claim gas payment
+  - named invitation, expiry, revoke, and stale-name checks
+  - reservation accounting with no overbooking or double release
+  - recipient self-claim gas payment and exact-expiry semantics
   - `SPARK_BASE` token domain
   - `isSparker(tokenId)` classification
+  - permanent ERC-5192 locking while regular PATH remains transferable
+  - `Locked` / `Unlocked` mint signaling
+  - immutable Spark metadata name and acknowledgment description with the stable four-trait schema
 - Movement consumption rules:
   - authorized minter only
   - claimer checks
-  - owner/approval checks
+  - current-owner authorization and approved-operator consume denial
   - movement order (`THOUGHT -> WILL -> AWA`)
   - quota progression and stage transitions
   - movement freeze behavior
+  - collection-wide `BatchMetadataUpdate` on movement configuration changes
 - `tokenURI` returns on-chain JSON data URI metadata with the canonical
   Inshell Mono 76 native-path SVG image.
 - The renderer contains exactly the nine pinned glyphs required by
