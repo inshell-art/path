@@ -143,7 +143,7 @@ if [[ -z "$POLICY_FILE" ]]; then
   exit 2
 fi
 
-IFS=$'\t' read -r REQUIRES_REHEARSAL REHEARSAL_NETWORK REQUIRED_INPUT_KINDS EXPECTED_DEPLOYER_ADDRESS <<EOF_POLICY
+IFS=$'\t' read -r REQUIRES_REHEARSAL REHEARSAL_NETWORK REQUIRED_INPUT_KINDS ALLOWED_INPUT_KINDS EXPECTED_DEPLOYER_ADDRESS <<EOF_POLICY
 $(POLICY_FILE="$POLICY_FILE" RUN_LANE="$LANE_FROM_RUN" python3 - <<'PY'
 import json
 import os
@@ -189,6 +189,14 @@ for item in required_inputs:
     if isinstance(item, dict) and isinstance(item.get("kind"), str) and item.get("kind").strip():
         kinds.append(item["kind"].strip())
 
+allowed_kinds = []
+for item in lane.get("allowed_input_kinds", []) or []:
+    if isinstance(item, str) and item.strip():
+        allowed_kinds.append(item.strip())
+for kind in kinds:
+    if kind not in allowed_kinds:
+        allowed_kinds.append(kind)
+
 expected_deployer = ""
 if run_lane == "deploy":
     allowed_signers = lane.get("allowed_signers", [])
@@ -206,6 +214,7 @@ print("\t".join([
     "true" if require_flag else "false",
     proof_network if proof_network else "__EMPTY__",
     ",".join(kinds) if kinds else "__EMPTY__",
+    ",".join(allowed_kinds) if allowed_kinds else "__EMPTY__",
     expected_deployer if expected_deployer else "__EMPTY__",
 ]))
 PY
@@ -217,6 +226,9 @@ if [[ "$REHEARSAL_NETWORK" == "__EMPTY__" ]]; then
 fi
 if [[ "$REQUIRED_INPUT_KINDS" == "__EMPTY__" ]]; then
   REQUIRED_INPUT_KINDS=""
+fi
+if [[ "$ALLOWED_INPUT_KINDS" == "__EMPTY__" ]]; then
+  ALLOWED_INPUT_KINDS=""
 fi
 if [[ "$EXPECTED_DEPLOYER_ADDRESS" == "__EMPTY__" ]]; then
   EXPECTED_DEPLOYER_ADDRESS=""
@@ -241,7 +253,8 @@ fi
 
 INPUTS_FILE_USED=""
 INPUTS_SHA256_USED=""
-if [[ -n "$REQUIRED_INPUT_KINDS" ]]; then
+WRAPPER_KIND=""
+if [[ -n "$REQUIRED_INPUT_KINDS" || -n "$INTENT_INPUTS_HASH" ]]; then
   EXPECTED_INPUTS_PATH="$BUNDLE_DIR/inputs.json"
   if [[ ! -f "$EXPECTED_INPUTS_PATH" ]]; then
     echo "inputs.json required by policy but missing: $EXPECTED_INPUTS_PATH" >&2
@@ -304,17 +317,20 @@ EOF_INPUTS
     exit 2
   fi
 
-  IFS=',' read -r -a REQUIRED_KINDS_ARRAY <<< "$REQUIRED_INPUT_KINDS"
-  KIND_MATCH=0
-  for k in "${REQUIRED_KINDS_ARRAY[@]}"; do
-    if [[ "$WRAPPER_KIND" == "$k" ]]; then
-      KIND_MATCH=1
-      break
+  EXPECTED_INPUT_KINDS="${ALLOWED_INPUT_KINDS:-$REQUIRED_INPUT_KINDS}"
+  if [[ -n "$EXPECTED_INPUT_KINDS" ]]; then
+    IFS=',' read -r -a EXPECTED_KINDS_ARRAY <<< "$EXPECTED_INPUT_KINDS"
+    KIND_MATCH=0
+    for k in "${EXPECTED_KINDS_ARRAY[@]}"; do
+      if [[ "$WRAPPER_KIND" == "$k" ]]; then
+        KIND_MATCH=1
+        break
+      fi
+    done
+    if [[ "$KIND_MATCH" != "1" ]]; then
+      echo "inputs kind '$WRAPPER_KIND' not allowed; expected one of: $EXPECTED_INPUT_KINDS" >&2
+      exit 2
     fi
-  done
-  if [[ "$KIND_MATCH" != "1" ]]; then
-    echo "inputs kind '$WRAPPER_KIND' not allowed; expected one of: $REQUIRED_INPUT_KINDS" >&2
-    exit 2
   fi
 
   if [[ "$WRAPPER_NETWORK" != "$NETWORK_FROM_RUN" || "$WRAPPER_LANE" != "$LANE_FROM_RUN" || "$WRAPPER_RUN_ID" != "$RUN_ID_FROM_RUN" ]]; then
@@ -367,27 +383,60 @@ if [[ "$LANE_FROM_RUN" == "deploy" ]]; then
   mkdir -p "$BUNDLE_DIR/deployments"
   DEPLOY_CMD=()
 
-  case "$NETWORK_FROM_RUN" in
-    devnet)
-      DEPLOY_FILE="$BUNDLE_DIR/deployments/localhost-eth.json"
-      DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
-      DEPLOY_CMD=(npm run evm:deploy:local:eth)
+  CAMPAIGN_SCRIPT=""
+  case "$WRAPPER_KIND" in
+    path_campaign_phase_a)
+      CAMPAIGN_SCRIPT="$ROOT/evm/scripts/deploy-campaign-phase-a.js"
+      DEPLOY_FILE="$BUNDLE_DIR/deployments/path-phase-a-receipt.json"
       ;;
-    sepolia)
-      DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
-      DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
-      DEPLOY_CMD=(npm --prefix "$ROOT/evm" exec -- hardhat --config "$ROOT/evm/hardhat.config.js" run "$ROOT/evm/scripts/deploy-local-eth.js" --network sepolia)
+    path_campaign_phase_b)
+      CAMPAIGN_SCRIPT="$ROOT/evm/scripts/deploy-campaign-phase-b.js"
+      DEPLOY_FILE="$BUNDLE_DIR/deployments/path-phase-b-final-receipt.json"
       ;;
-    mainnet)
-      DEPLOY_FILE="$BUNDLE_DIR/deployments/mainnet-eth.json"
-      DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
-      DEPLOY_CMD=(npm --prefix "$ROOT/evm" exec -- hardhat --config "$ROOT/evm/hardhat.config.js" run "$ROOT/evm/scripts/deploy-local-eth.js" --network mainnet)
-      ;;
+    constructor_params|"") ;;
     *)
-      echo "Unsupported network for deploy lane: $NETWORK_FROM_RUN" >&2
+      echo "Refusing unsupported deploy input kind: $WRAPPER_KIND" >&2
       exit 2
       ;;
   esac
+
+  if [[ -n "$CAMPAIGN_SCRIPT" ]]; then
+    DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
+    case "$NETWORK_FROM_RUN" in
+      devnet)
+        DEPLOY_CMD=(npm --prefix "$ROOT/evm" exec -- hardhat --config "$ROOT/evm/hardhat.config.js" run "$CAMPAIGN_SCRIPT" --network localhost)
+        ;;
+      sepolia|mainnet)
+        DEPLOY_CMD=(npm --prefix "$ROOT/evm" exec -- hardhat --config "$ROOT/evm/hardhat.config.js" run "$CAMPAIGN_SCRIPT" --network "$NETWORK_FROM_RUN")
+        ;;
+      *)
+        echo "Unsupported network for deploy lane: $NETWORK_FROM_RUN" >&2
+        exit 2
+        ;;
+    esac
+  else
+    case "$NETWORK_FROM_RUN" in
+      devnet)
+        DEPLOY_FILE="$BUNDLE_DIR/deployments/localhost-eth.json"
+        DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
+        DEPLOY_CMD=(npm run evm:deploy:local:eth)
+        ;;
+      sepolia)
+        DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
+        DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
+        DEPLOY_CMD=(npm --prefix "$ROOT/evm" exec -- hardhat --config "$ROOT/evm/hardhat.config.js" run "$ROOT/evm/scripts/deploy-local-eth.js" --network sepolia)
+        ;;
+      mainnet)
+        DEPLOY_FILE="$BUNDLE_DIR/deployments/mainnet-eth.json"
+        DEPLOY_LOG="$BUNDLE_DIR/deploy.deploy.log"
+        DEPLOY_CMD=(npm --prefix "$ROOT/evm" exec -- hardhat --config "$ROOT/evm/hardhat.config.js" run "$ROOT/evm/scripts/deploy-local-eth.js" --network mainnet)
+        ;;
+      *)
+        echo "Unsupported network for deploy lane: $NETWORK_FROM_RUN" >&2
+        exit 2
+        ;;
+    esac
+  fi
 
   if [[ "$NETWORK_FROM_RUN" == "sepolia" || "$NETWORK_FROM_RUN" == "mainnet" ]]; then
     NETWORK_UPPER=$(echo "$NETWORK_FROM_RUN" | tr '[:lower:]' '[:upper:]')
@@ -448,6 +497,9 @@ EOF_KEY
     if [[ -n "$DEPLOY_PARAMS_FILE_USED" ]]; then
       DEPLOY_ENV+=(DEPLOY_PARAMS_FILE="$DEPLOY_PARAMS_FILE_USED")
     fi
+    if [[ "$WRAPPER_KIND" == "path_campaign_phase_a" || "$WRAPPER_KIND" == "path_campaign_phase_b" ]]; then
+      DEPLOY_ENV+=(PATH_CAMPAIGN_SOURCE_BUNDLE_DIGEST="$BUNDLE_HASH")
+    fi
     case "$NETWORK_FROM_RUN" in
       sepolia)
         if [[ -n "$RESOLVED_DEPLOY_PRIVATE_KEY" ]]; then
@@ -473,7 +525,7 @@ EOF_KEY
   fi
 fi
 
-export APPLIED_AT TXS_PATH SNAP_DIR INPUTS_FILE_USED INPUTS_SHA256_USED APPLY_EXECUTION_MODE DEPLOY_FILE DEPLOY_LOG DEPLOY_COMMAND NETWORK_FROM_RUN LANE_FROM_RUN DEPLOY_PARAMS_FILE_USED SIGNER_INPUT_SOURCE SIGNER_ADDRESS_USED EXPECTED_DEPLOYER_ADDRESS PROOF_RUN_ID REHEARSAL_NETWORK PLAN_FILE APPLY_MODE
+export APPLIED_AT TXS_PATH SNAP_DIR INPUTS_FILE_USED INPUTS_SHA256_USED APPLY_EXECUTION_MODE DEPLOY_FILE DEPLOY_LOG DEPLOY_COMMAND NETWORK_FROM_RUN LANE_FROM_RUN DEPLOY_PARAMS_FILE_USED SIGNER_INPUT_SOURCE SIGNER_ADDRESS_USED EXPECTED_DEPLOYER_ADDRESS PROOF_RUN_ID REHEARSAL_NETWORK PLAN_FILE APPLY_MODE WRAPPER_KIND
 python3 - <<'PY'
 import json
 import os
@@ -494,6 +546,7 @@ expected_deployer_address = os.environ.get("EXPECTED_DEPLOYER_ADDRESS", "").stri
 rehearsal_proof_run_id = os.environ.get("PROOF_RUN_ID", "").strip()
 rehearsal_proof_network = os.environ.get("REHEARSAL_NETWORK", "").strip()
 plan_file = os.environ.get("PLAN_FILE", "").strip()
+input_kind = os.environ.get("WRAPPER_KIND", "").strip()
 
 inputs_file = os.environ.get("INPUTS_FILE_USED", "").strip()
 inputs_hash = os.environ.get("INPUTS_SHA256_USED", "").strip()
@@ -512,6 +565,8 @@ if deployment_file and Path(deployment_file).exists():
 # deployer in the deployment output so audit can still bind observed signer use.
 if not signer_address_used:
     deployer_from_file = deployment.get("deployer")
+    if not deployer_from_file and isinstance(deployment.get("retainedAuthority"), dict):
+        deployer_from_file = deployment["retainedAuthority"].get("holder")
     if isinstance(deployer_from_file, str) and deployer_from_file.strip():
         signer_address_used = deployer_from_file.strip()
         if not signer_input_source:
@@ -526,6 +581,23 @@ if execution_mode == "deployed":
         for _, tx_hash in tx_group.items():
             if isinstance(tx_hash, str) and tx_hash.startswith("0x") and len(tx_hash) > 2:
                 txs.append(tx_hash)
+    if input_kind == "path_campaign_phase_a":
+        path_nft = deployment.get("pathNft", {})
+        tx_hash = path_nft.get("deploymentTx") if isinstance(path_nft, dict) else None
+        if isinstance(tx_hash, str) and tx_hash.startswith("0x") and len(tx_hash) == 66:
+            txs.append(tx_hash)
+    elif input_kind == "path_campaign_phase_b":
+        def collect_hashes(value):
+            if isinstance(value, str) and value.startswith("0x") and len(value) == 66:
+                txs.append(value)
+            elif isinstance(value, dict):
+                for child in value.values():
+                    collect_hashes(child)
+            elif isinstance(value, list):
+                for child in value:
+                    collect_hashes(child)
+        collect_hashes(deployment.get("transactions", {}))
+    txs = list(dict.fromkeys(txs))
 elif execution_mode == "stub":
     txs = ["0xSTUB_TX"]
 
@@ -540,6 +612,8 @@ if inputs_file:
     common_fields["inputs_file"] = inputs_file
 if inputs_hash:
     common_fields["inputs_sha256"] = inputs_hash
+if input_kind:
+    common_fields["input_kind"] = input_kind
 if deploy_params_file:
     common_fields["deploy_params_file"] = deploy_params_file
 if signer_input_source:
@@ -590,8 +664,12 @@ else:
         snapshot_payload["deployment"] = {
             "network": deployment.get("network"),
             "chainId": deployment.get("chainId"),
+            "campaignId": deployment.get("campaignId"),
+            "kind": deployment.get("kind"),
+            "status": deployment.get("status"),
             "deployer": deployment.get("deployer"),
-            "contracts": deployment.get("contracts", {})
+            "contracts": deployment.get("contracts", {}),
+            "pathNft": deployment.get("pathNft")
         }
 
     (Path(os.environ["SNAP_DIR"]) / "post_state.json").write_text(json.dumps(snapshot_payload, indent=2, sort_keys=True) + "\n")

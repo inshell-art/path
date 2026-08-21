@@ -1,0 +1,16 @@
+{
+  "checkpointVersion": "1",
+  "kind": "path_campaign_phase_a_checkpoint",
+  "status": "path_nft_deployed",
+  "campaignId": "path-thought-devnet-example-20260821",
+  "environment": "devnet",
+  "chainId": "31337",
+  "paramsSha256": "5d50f0798d8728c6167e1b7f7dfca7202f18988fa4e30696d00e67dd27df2e9d",
+  "sourceBundleDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "pathNft": {
+    "address": "0x1000000000000000000000000000000000000001",
+    "deploymentTx": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "blockNumber": "101",
+    "runtimeBytecodeHash": "0x1212121212121212121212121212121212121212121212121212121212121212"
+  }
+}

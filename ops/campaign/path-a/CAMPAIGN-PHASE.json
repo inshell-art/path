@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "bundle_id": "path-v0.5.0-path-a",
+  "phase_id": "path-a",
+  "environment": "internal-sepolia",
+  "chain_id": 11155111,
+  "entrypoints": {
+    "preflight": "bin/preflight",
+    "execute": "bin/execute",
+    "postconditions": "bin/postconditions"
+  },
+  "input_receipt_type": null,
+  "output_receipt_type": "inshell.path.phase-a.receipt.v1",
+  "allowed_environment_variables": [
+    "PATH_CAMPAIGN_PARAMS_FILE"
+  ],
+  "resume_checkpoints": [
+    {
+      "checkpoint_id": "path-nft-deployed",
+      "verifier": "bin/verify-checkpoint",
+      "entrypoint": "bin/resume"
+    }
+  ]
+}

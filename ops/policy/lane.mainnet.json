@@ -55,6 +55,12 @@
       "required_inputs": [
         {
           "kind": "constructor_params"
+        },
+        {
+          "kind": "path_campaign_phase_a"
+        },
+        {
+          "kind": "path_campaign_phase_b"
         }
       ]
     },

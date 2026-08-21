@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "inshell.deployment.protocol-receipt-envelope.v1",
+  "title": "Inshell deployment campaign protocol receipt envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_type",
+    "campaign_id",
+    "phase_id",
+    "environment",
+    "chain_id",
+    "input_receipt_sha256",
+    "protocol_payload"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "receipt_type": {
+      "enum": [
+        "inshell.path.phase-a.receipt.v1",
+        "inshell.thought.deployment.receipt.v1",
+        "inshell.path.phase-b.final-receipt.v1"
+      ]
+    },
+    "campaign_id": { "$ref": "#/$defs/id" },
+    "phase_id": { "enum": ["path-a", "thought", "path-b"] },
+    "environment": {
+      "enum": ["internal-sepolia", "public-beta-sepolia", "mainnet"]
+    },
+    "chain_id": { "type": "integer", "minimum": 1 },
+    "input_receipt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$|^$"
+    },
+    "protocol_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner", "schema_id", "canonicalization", "sha256", "payload"],
+      "properties": {
+        "owner": { "enum": ["path", "thought"] },
+        "schema_id": {
+          "enum": [
+            "inshell.path.deployment.phase-a.receipt.v1",
+            "inshell.thought.deployment.receipt.v1",
+            "inshell.path.deployment.phase-b.final-receipt.v1"
+          ]
+        },
+        "canonicalization": { "const": "rfc8785-jcs" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "payload": { "type": "object" }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

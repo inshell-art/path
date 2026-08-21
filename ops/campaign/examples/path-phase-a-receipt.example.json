@@ -1,0 +1,66 @@
+{
+  "receiptVersion": "1",
+  "kind": "path_campaign_phase_a_receipt",
+  "status": "phase_a_complete",
+  "campaignId": "path-thought-devnet-example-20260821",
+  "environment": "devnet",
+  "chainId": "31337",
+  "pathRelease": {
+    "repository": "https://github.com/inshell-art/path.git",
+    "releaseTag": "v0.5.0",
+    "gitCommit": "085cfc084b0e568740e0da639e968eb535f7e5c8",
+    "artifactManifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "sourceBundleDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "deployer": "0x2000000000000000000000000000000000000002",
+  "pathNft": {
+    "address": "0x1000000000000000000000000000000000000001",
+    "deploymentTx": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "blockNumber": "101",
+    "runtimeBytecodeHash": "0x1212121212121212121212121212121212121212121212121212121212121212"
+  },
+  "retainedAuthority": {
+    "holder": "0x2000000000000000000000000000000000000002",
+    "signerRef": "DEVNET_DEPLOY_SW_A",
+    "role": "DEFAULT_ADMIN_ROLE",
+    "permittedRemainingActions": [
+      "SET_THOUGHT_MOVEMENT",
+      "FREEZE_THOUGHT_MOVEMENT",
+      "SET_WILL_MOVEMENT",
+      "FREEZE_WILL_MOVEMENT",
+      "SET_AWA_MOVEMENT",
+      "FREEZE_AWA_MOVEMENT",
+      "DEPLOY_AND_WIRE_PUBLIC_SALE",
+      "FREEZE_PUBLIC_MINTER",
+      "GRANT_FINAL_ROLES",
+      "RENOUNCE_DEPLOYER_ADMIN"
+    ],
+    "handoffComplete": false
+  },
+  "movementStates": {
+    "THOUGHT": {
+      "minter": "0x0000000000000000000000000000000000000000",
+      "quota": "0",
+      "frozen": false
+    },
+    "WILL": {
+      "minter": "0x0000000000000000000000000000000000000000",
+      "quota": "0",
+      "frozen": false
+    },
+    "AWA": {
+      "minter": "0x0000000000000000000000000000000000000000",
+      "quota": "0",
+      "frozen": false
+    }
+  },
+  "publicExposure": {
+    "pathPulseAdapter": null,
+    "pulseAuction": null,
+    "openTime": null,
+    "publicMinter": "0x0000000000000000000000000000000000000000",
+    "publicMinterFrozen": false,
+    "publicMintEnabled": false
+  },
+  "observedAtBlock": "101"
+}

@@ -16,6 +16,8 @@
     "node": "hardhat node --hostname 127.0.0.1 --port 8546 --chain-id 31338",
     "estimate:deploy:cost": "hardhat run scripts/estimate-deploy-cost.js",
     "deploy:local:eth": "hardhat run scripts/deploy-local-eth.js --network localhost",
+    "deploy:campaign:phase-a": "hardhat run scripts/deploy-campaign-phase-a.js --network localhost",
+    "deploy:campaign:phase-b": "hardhat run scripts/deploy-campaign-phase-b.js --network localhost",
     "gallery:looks:local:eth": "hardhat run scripts/generate-token-look-gallery.js --network localhost",
     "smoke:local:eth": "hardhat run scripts/smoke-local-eth.js --network localhost",
     "smoke:bid:local:eth": "npm run smoke:local:eth",

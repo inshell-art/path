@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PATH Campaign Phase B Params",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "campaignId",
+    "environment",
+    "expectedChainId",
+    "releaseMatrix",
+    "pathPhaseA",
+    "thoughtDeployment",
+    "remainingMovements",
+    "openTimeAuthorization",
+    "auction",
+    "treasury",
+    "treasurySignerRef",
+    "finalAuthority"
+  ],
+  "properties": {
+    "campaignId": { "type": "string", "minLength": 1 },
+    "environment": {
+      "enum": ["devnet", "internal-sepolia", "public-beta-sepolia", "mainnet"]
+    },
+    "expectedChainId": { "$ref": "#/$defs/positiveUint" },
+    "releaseMatrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "thought"],
+      "properties": {
+        "path": { "$ref": "#/$defs/releaseIdentity" },
+        "thought": { "$ref": "#/$defs/thoughtReleaseIdentity" }
+      }
+    },
+    "pathPhaseA": { "$ref": "#/$defs/embeddedReceipt" },
+    "thoughtDeployment": { "$ref": "#/$defs/embeddedReceipt" },
+    "remainingMovements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["WILL", "AWA"],
+      "properties": {
+        "WILL": { "$ref": "#/$defs/movementConfig" },
+        "AWA": { "$ref": "#/$defs/movementConfig" }
+      }
+    },
+    "openTimeAuthorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment",
+        "authorizedOpenTime",
+        "minimumLeadTimeSec",
+        "authorizedAt",
+        "expiresAt",
+        "authorizerRef",
+        "authorizationId",
+        "authorizationDigest"
+      ],
+      "properties": {
+        "environment": {
+          "enum": ["devnet", "internal-sepolia", "public-beta-sepolia", "mainnet"]
+        },
+        "authorizedOpenTime": { "$ref": "#/$defs/positiveUint" },
+        "minimumLeadTimeSec": { "$ref": "#/$defs/positiveUint" },
+        "authorizedAt": { "$ref": "#/$defs/positiveUint" },
+        "expiresAt": { "$ref": "#/$defs/positiveUint" },
+        "authorizerRef": { "type": "string", "minLength": 1 },
+        "authorizationId": { "type": "string", "minLength": 1 },
+        "authorizationDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "auction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "k",
+        "genesisPrice",
+        "genesisFloor",
+        "pts",
+        "firstPublicId",
+        "epochBase",
+        "paymentToken"
+      ],
+      "properties": {
+        "k": { "$ref": "#/$defs/positiveUint" },
+        "genesisPrice": { "$ref": "#/$defs/positiveUint" },
+        "genesisFloor": { "$ref": "#/$defs/nonNegativeUint" },
+        "pts": { "$ref": "#/$defs/positiveUint" },
+        "firstPublicId": { "$ref": "#/$defs/positiveUint" },
+        "epochBase": { "$ref": "#/$defs/nonNegativeUint" },
+        "paymentToken": { "$ref": "#/$defs/address" }
+      }
+    },
+    "treasury": { "$ref": "#/$defs/nonZeroAddress" },
+    "treasurySignerRef": { "type": "string", "minLength": 1 },
+    "finalAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "admin",
+        "adminSignerRef",
+        "treasury",
+        "treasurySignerRef",
+        "sparkIssuer",
+        "sparkIssuerSignerRef"
+      ],
+      "properties": {
+        "admin": { "$ref": "#/$defs/nonZeroAddress" },
+        "adminSignerRef": { "type": "string", "minLength": 1 },
+        "treasury": { "$ref": "#/$defs/nonZeroAddress" },
+        "treasurySignerRef": { "type": "string", "minLength": 1 },
+        "sparkIssuer": { "$ref": "#/$defs/nonZeroAddress" },
+        "sparkIssuerSignerRef": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "nonNegativeUint": {
+      "oneOf": [
+        { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+        { "type": "integer", "minimum": 0 }
+      ]
+    },
+    "positiveUint": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        { "type": "integer", "minimum": 1 }
+      ]
+    },
+    "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "nonZeroAddress": {
+      "allOf": [
+        { "$ref": "#/$defs/address" },
+        { "not": { "const": "0x0000000000000000000000000000000000000000" } }
+      ]
+    },
+    "evmHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "releaseIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "releaseTag", "gitCommit", "artifactManifestSha256"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "releaseTag": { "type": "string", "minLength": 1 },
+        "gitCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "artifactManifestSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "thoughtReleaseIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "manifestSha256", "publicationCommit", "sourceTag"],
+      "properties": {
+        "artifactId": { "type": "string", "minLength": 1 },
+        "manifestSha256": { "$ref": "#/$defs/sha256" },
+        "publicationCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "sourceTag": { "type": "string", "minLength": 1 }
+      }
+    },
+    "embeddedReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receiptSha256", "receiptRaw", "receipt"],
+      "properties": {
+        "receiptSha256": { "$ref": "#/$defs/sha256" },
+        "receiptRaw": { "type": "string", "minLength": 1 },
+        "receipt": { "type": "object" }
+      }
+    },
+    "movementConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minter", "runtimeBytecodeHash", "quota"],
+      "properties": {
+        "minter": { "$ref": "#/$defs/nonZeroAddress" },
+        "runtimeBytecodeHash": { "$ref": "#/$defs/evmHash" },
+        "quota": { "$ref": "#/$defs/positiveUint" }
+      }
+    }
+  }
+}

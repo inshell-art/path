@@ -1,0 +1,36 @@
+{
+  "checkpointVersion": "1",
+  "kind": "path_campaign_phase_b_checkpoint",
+  "status": "phase_running",
+  "campaignId": "path-thought-devnet-example-20260821",
+  "environment": "devnet",
+  "chainId": "31337",
+  "paramsSha256": "116d2dc554e846e561232a7b8992d4e0acbef2759d11d127cfe3a9acc79a60d1",
+  "sourceBundleDigest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "linkedReceipts": {
+    "pathPhaseAReceiptSha256": "af45f18bd746e368a9b6690cf59c7ada03721f4f3ebc19307325f46451b90cfc",
+    "thoughtDeploymentReceiptSha256": "8e2d4745de0e93e16564e65c5cdc5fa4beef3a99f26b20abb2890b9c702bb5f1"
+  },
+  "completedActions": [
+    "SET_THOUGHT_MOVEMENT",
+    "FREEZE_THOUGHT_MOVEMENT"
+  ],
+  "contracts": {},
+  "transactions": {
+    "movement": {
+      "THOUGHT": {
+        "set": {
+          "hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "blockNumber": "101"
+        },
+        "freeze": {
+          "hash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "blockNumber": "102"
+        }
+      }
+    },
+    "deployment": {},
+    "wiring": {},
+    "authority": {}
+  }
+}

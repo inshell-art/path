@@ -1,0 +1,210 @@
+{
+  "receiptVersion": "1",
+  "kind": "path_campaign_phase_b_final_receipt",
+  "status": "complete",
+  "campaignId": "path-thought-devnet-example-20260821",
+  "environment": "devnet",
+  "chainId": "31337",
+  "sourceBundleDigest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "releaseMatrix": {
+    "path": {
+      "repository": "https://github.com/inshell-art/path.git",
+      "releaseTag": "v0.5.0",
+      "gitCommit": "085cfc084b0e568740e0da639e968eb535f7e5c8",
+      "artifactManifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "thought": {
+      "artifactId": "thought-v2-canonical-portable-release-20260807-r2",
+      "manifestSha256": "7cf7965edb3de6421c79d9c08f0781cabb78ea675bad354847b56ec8f19306cc",
+      "publicationCommit": "d29ddbfe76ff94c726b0786e43e61519c4087aab",
+      "sourceTag": "thought-v2-canonical-portable-release-20260807-r2"
+    }
+  },
+  "linkedReceipts": {
+    "pathPhaseAReceiptSha256": "af45f18bd746e368a9b6690cf59c7ada03721f4f3ebc19307325f46451b90cfc",
+    "thoughtDeploymentReceiptSha256": "8e2d4745de0e93e16564e65c5cdc5fa4beef3a99f26b20abb2890b9c702bb5f1",
+    "pathPhaseAProtocolPayloadSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "thoughtProtocolPayloadSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "deployer": "0x2000000000000000000000000000000000000002",
+  "contracts": {
+    "pathNft": {
+      "address": "0x1000000000000000000000000000000000000001",
+      "deploymentTx": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "blockNumber": "101",
+      "runtimeBytecodeHash": "0x1212121212121212121212121212121212121212121212121212121212121212"
+    },
+    "thoughtNft": {
+      "address": "0x3000000000000000000000000000000000000003",
+      "deploymentTx": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      "blockNumber": "120",
+      "runtimeBytecodeHash": "0x3434343434343434343434343434343434343434343434343434343434343434"
+    },
+    "pathPulseAdapter": {
+      "address": "0x9000000000000000000000000000000000000009",
+      "deploymentTx": "0x9999999999999999999999999999999999999999999999999999999999999999",
+      "blockNumber": "140",
+      "runtimeBytecodeHash": "0x9191919191919191919191919191919191919191919191919191919191919191"
+    },
+    "pulseAuction": {
+      "address": "0xa00000000000000000000000000000000000000a",
+      "deploymentTx": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "blockNumber": "141",
+      "runtimeBytecodeHash": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+    }
+  },
+  "movementStates": {
+    "THOUGHT": {
+      "minter": "0x3000000000000000000000000000000000000003",
+      "quota": "1",
+      "frozen": true
+    },
+    "WILL": {
+      "minter": "0x4000000000000000000000000000000000000004",
+      "quota": "10",
+      "frozen": true
+    },
+    "AWA": {
+      "minter": "0x5000000000000000000000000000000000000005",
+      "quota": "1",
+      "frozen": true
+    }
+  },
+  "auction": {
+    "openTime": "2000000000",
+    "openTimeAuthorizationDigest": "5a7e23ebadd20f20fdc832c92ae68fc32057227839a54ba053e2c107d9b17ea5",
+    "paymentToken": "0x0000000000000000000000000000000000000000",
+    "treasury": "0x7000000000000000000000000000000000000007",
+    "mintAdapter": "0x9000000000000000000000000000000000000009"
+  },
+  "finalAuthority": {
+    "admin": "0x6000000000000000000000000000000000000006",
+    "adminSignerRef": "DEVNET_ADMIN_A",
+    "sparkIssuer": "0x8000000000000000000000000000000000000008",
+    "sparkIssuerSignerRef": "DEVNET_SPARK_ISSUER_A",
+    "treasury": "0x7000000000000000000000000000000000000007",
+    "treasurySignerRef": "DEVNET_TREASURY_A",
+    "adapterOwner": "0x6000000000000000000000000000000000000006",
+    "deployerRetainsDefaultAdmin": false
+  },
+  "transactions": {
+    "movement": {
+      "THOUGHT": {
+        "set": {
+          "hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "blockNumber": "130"
+        },
+        "freeze": {
+          "hash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "blockNumber": "131"
+        }
+      },
+      "WILL": {
+        "set": {
+          "hash": "0x3333333333333333333333333333333333333333333333333333333333333333",
+          "blockNumber": "132"
+        },
+        "freeze": {
+          "hash": "0x4444444444444444444444444444444444444444444444444444444444444444",
+          "blockNumber": "133"
+        }
+      },
+      "AWA": {
+        "set": {
+          "hash": "0x5555555555555555555555555555555555555555555555555555555555555555",
+          "blockNumber": "134"
+        },
+        "freeze": {
+          "hash": "0x6666666666666666666666666666666666666666666666666666666666666666",
+          "blockNumber": "135"
+        }
+      }
+    },
+    "deployment": {
+      "pathPulseAdapter": {
+        "hash": "0x9999999999999999999999999999999999999999999999999999999999999999",
+        "blockNumber": "140"
+      },
+      "pulseAuction": {
+        "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "blockNumber": "141"
+      }
+    },
+    "wiring": {
+      "adapterSetAuction": {
+        "hash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "blockNumber": "142"
+      },
+      "adapterFreezeWiring": {
+        "hash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "blockNumber": "143"
+      },
+      "nftGrantMinterRole": {
+        "hash": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "blockNumber": "144"
+      },
+      "nftFreezePublicMinter": {
+        "hash": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "blockNumber": "145"
+      }
+    },
+    "authority": {
+      "nftGrantReservedRole": {
+        "hash": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "blockNumber": "146"
+      },
+      "nftGrantDefaultAdmin": {
+        "hash": "0x1212121212121212121212121212121212121212121212121212121212121212",
+        "blockNumber": "147"
+      },
+      "adapterTransferOwnership": {
+        "hash": "0x3434343434343434343434343434343434343434343434343434343434343434",
+        "blockNumber": "148"
+      },
+      "nftRenounceDeployerDefaultAdmin": {
+        "hash": "0x5656565656565656565656565656565656565656565656565656565656565656",
+        "blockNumber": "149"
+      }
+    }
+  },
+  "actionOrder": [
+    "VERIFY_PHASE_A_RECEIPT_AND_ONCHAIN_CHECKPOINT",
+    "VERIFY_THOUGHT_RECEIPT_AND_PATH_BINDING",
+    "SET_THOUGHT_MOVEMENT",
+    "VERIFY_THOUGHT_MOVEMENT",
+    "FREEZE_THOUGHT_MOVEMENT",
+    "VERIFY_THOUGHT_MOVEMENT_FROZEN",
+    "SET_WILL_MOVEMENT",
+    "VERIFY_WILL_MOVEMENT",
+    "FREEZE_WILL_MOVEMENT",
+    "VERIFY_WILL_MOVEMENT_FROZEN",
+    "SET_AWA_MOVEMENT",
+    "VERIFY_AWA_MOVEMENT",
+    "FREEZE_AWA_MOVEMENT",
+    "VERIFY_AWA_MOVEMENT_FROZEN",
+    "DEPLOY_PATH_PULSE_ADAPTER",
+    "DEPLOY_PULSE_AUCTION_WITH_AUTHORIZED_OPEN_TIME",
+    "SET_ADAPTER_AUCTION",
+    "FREEZE_ADAPTER_WIRING",
+    "GRANT_PUBLIC_MINTER_ROLE_TO_ADAPTER",
+    "FREEZE_PUBLIC_MINTER_TO_ADAPTER",
+    "GRANT_RESERVED_ROLE_TO_SPARK_ISSUER",
+    "GRANT_DEFAULT_ADMIN_TO_FINAL_ADMIN",
+    "TRANSFER_ADAPTER_OWNERSHIP_TO_FINAL_ADMIN",
+    "RENOUNCE_DEPLOYER_DEFAULT_ADMIN",
+    "VERIFY_COMBINED_POSTCONDITIONS"
+  ],
+  "acceptance": {
+    "phaseAReceiptLinked": true,
+    "thoughtReceiptLinked": true,
+    "thoughtPathBindingVerified": true,
+    "allMovementsConfiguredAndFrozen": true,
+    "adapterAndAuctionWiringFrozen": true,
+    "openTimeAuthorizedAndFuture": true,
+    "publicMinterFrozen": true,
+    "finalAuthorityVerified": true,
+    "deployerAuthorityRemoved": true,
+    "noPrematurePublicExposure": true
+  },
+  "observedAtBlock": "150"
+}

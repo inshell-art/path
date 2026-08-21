@@ -265,7 +265,8 @@ except Exception as exc:
 if not isinstance(params, dict):
     raise SystemExit("INPUT_FILE JSON must be an object")
 
-params = normalize(params)
+if input_kind not in {"path_campaign_phase_a", "path_campaign_phase_b"}:
+    params = normalize(params)
 try:
     ensure_invariants(params)
 except ValueError as exc:

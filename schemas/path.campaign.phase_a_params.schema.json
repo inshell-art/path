@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PATH Campaign Phase A Params",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "campaignId",
+    "environment",
+    "expectedChainId",
+    "pathRelease",
+    "name",
+    "symbol",
+    "baseUri",
+    "reservedCap",
+    "sparkClaimDurationSec",
+    "retainedAuthority"
+  ],
+  "properties": {
+    "campaignId": { "type": "string", "minLength": 1 },
+    "environment": {
+      "enum": ["devnet", "internal-sepolia", "public-beta-sepolia", "mainnet"]
+    },
+    "expectedChainId": { "$ref": "#/$defs/positiveUint" },
+    "pathRelease": { "$ref": "#/$defs/releaseIdentity" },
+    "name": { "const": "PATH" },
+    "symbol": { "const": "PATH" },
+    "baseUri": { "type": "string" },
+    "reservedCap": { "$ref": "#/$defs/nonNegativeUint" },
+    "sparkClaimDurationSec": { "$ref": "#/$defs/positiveUint" },
+    "retainedAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address", "signerRef"],
+      "properties": {
+        "address": { "$ref": "#/$defs/nonZeroAddress" },
+        "signerRef": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "nonNegativeUint": {
+      "oneOf": [
+        { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+        { "type": "integer", "minimum": 0 }
+      ]
+    },
+    "positiveUint": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        { "type": "integer", "minimum": 1 }
+      ]
+    },
+    "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "nonZeroAddress": {
+      "allOf": [
+        { "$ref": "#/$defs/address" },
+        { "not": { "const": "0x0000000000000000000000000000000000000000" } }
+      ]
+    },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "releaseIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "releaseTag", "gitCommit", "artifactManifestSha256"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "releaseTag": { "type": "string", "minLength": 1 },
+        "gitCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "artifactManifestSha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

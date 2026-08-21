@@ -1,0 +1,342 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PATH Campaign Phase B Final Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receiptVersion",
+    "kind",
+    "status",
+    "campaignId",
+    "environment",
+    "chainId",
+    "sourceBundleDigest",
+    "releaseMatrix",
+    "linkedReceipts",
+    "deployer",
+    "contracts",
+    "movementStates",
+    "auction",
+    "finalAuthority",
+    "transactions",
+    "actionOrder",
+    "acceptance",
+    "observedAtBlock"
+  ],
+  "properties": {
+    "receiptVersion": { "const": "1" },
+    "kind": { "const": "path_campaign_phase_b_final_receipt" },
+    "status": { "const": "complete" },
+    "campaignId": { "type": "string", "minLength": 1 },
+    "environment": {
+      "enum": ["devnet", "internal-sepolia", "public-beta-sepolia", "mainnet"]
+    },
+    "chainId": { "$ref": "#/$defs/positiveUint" },
+    "sourceBundleDigest": { "$ref": "#/$defs/sha256" },
+    "releaseMatrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "thought"],
+      "properties": {
+        "path": { "$ref": "#/$defs/releaseIdentity" },
+        "thought": { "$ref": "#/$defs/thoughtReleaseIdentity" }
+      }
+    },
+    "linkedReceipts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pathPhaseAReceiptSha256",
+        "thoughtDeploymentReceiptSha256",
+        "pathPhaseAProtocolPayloadSha256",
+        "thoughtProtocolPayloadSha256"
+      ],
+      "properties": {
+        "pathPhaseAReceiptSha256": { "$ref": "#/$defs/sha256" },
+        "thoughtDeploymentReceiptSha256": { "$ref": "#/$defs/sha256" },
+        "pathPhaseAProtocolPayloadSha256": { "$ref": "#/$defs/sha256" },
+        "thoughtProtocolPayloadSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "deployer": { "$ref": "#/$defs/nonZeroAddress" },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pathNft", "thoughtNft", "pathPulseAdapter", "pulseAuction"],
+      "properties": {
+        "pathNft": { "$ref": "#/$defs/contractEvidence" },
+        "thoughtNft": { "$ref": "#/$defs/contractEvidence" },
+        "pathPulseAdapter": { "$ref": "#/$defs/contractEvidence" },
+        "pulseAuction": { "$ref": "#/$defs/contractEvidence" }
+      }
+    },
+    "movementStates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["THOUGHT", "WILL", "AWA"],
+      "properties": {
+        "THOUGHT": { "$ref": "#/$defs/thoughtMovement" },
+        "WILL": { "$ref": "#/$defs/willMovement" },
+        "AWA": { "$ref": "#/$defs/awaMovement" }
+      }
+    },
+    "auction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "openTime",
+        "openTimeAuthorizationDigest",
+        "paymentToken",
+        "treasury",
+        "mintAdapter"
+      ],
+      "properties": {
+        "openTime": { "$ref": "#/$defs/positiveUint" },
+        "openTimeAuthorizationDigest": { "$ref": "#/$defs/sha256" },
+        "paymentToken": { "$ref": "#/$defs/address" },
+        "treasury": { "$ref": "#/$defs/nonZeroAddress" },
+        "mintAdapter": { "$ref": "#/$defs/nonZeroAddress" }
+      }
+    },
+    "finalAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "admin",
+        "adminSignerRef",
+        "sparkIssuer",
+        "sparkIssuerSignerRef",
+        "treasury",
+        "treasurySignerRef",
+        "adapterOwner",
+        "deployerRetainsDefaultAdmin"
+      ],
+      "properties": {
+        "admin": { "$ref": "#/$defs/nonZeroAddress" },
+        "adminSignerRef": { "type": "string", "minLength": 1 },
+        "sparkIssuer": { "$ref": "#/$defs/nonZeroAddress" },
+        "sparkIssuerSignerRef": { "type": "string", "minLength": 1 },
+        "treasury": { "$ref": "#/$defs/nonZeroAddress" },
+        "treasurySignerRef": { "type": "string", "minLength": 1 },
+        "adapterOwner": { "$ref": "#/$defs/nonZeroAddress" },
+        "deployerRetainsDefaultAdmin": { "const": false }
+      }
+    },
+    "transactions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["movement", "deployment", "wiring", "authority"],
+      "properties": {
+        "movement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["THOUGHT", "WILL", "AWA"],
+          "properties": {
+            "THOUGHT": { "$ref": "#/$defs/movementTransactions" },
+            "WILL": { "$ref": "#/$defs/movementTransactions" },
+            "AWA": { "$ref": "#/$defs/movementTransactions" }
+          }
+        },
+        "deployment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pathPulseAdapter", "pulseAuction"],
+          "properties": {
+            "pathPulseAdapter": { "$ref": "#/$defs/transactionEvidence" },
+            "pulseAuction": { "$ref": "#/$defs/transactionEvidence" }
+          }
+        },
+        "wiring": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "adapterSetAuction",
+            "adapterFreezeWiring",
+            "nftGrantMinterRole",
+            "nftFreezePublicMinter"
+          ],
+          "properties": {
+            "adapterSetAuction": { "$ref": "#/$defs/transactionEvidence" },
+            "adapterFreezeWiring": { "$ref": "#/$defs/transactionEvidence" },
+            "nftGrantMinterRole": { "$ref": "#/$defs/transactionEvidence" },
+            "nftFreezePublicMinter": { "$ref": "#/$defs/transactionEvidence" }
+          }
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "nftGrantReservedRole",
+            "nftGrantDefaultAdmin",
+            "adapterTransferOwnership",
+            "nftRenounceDeployerDefaultAdmin"
+          ],
+          "properties": {
+            "nftGrantReservedRole": { "$ref": "#/$defs/transactionEvidence" },
+            "nftGrantDefaultAdmin": { "$ref": "#/$defs/transactionEvidence" },
+            "adapterTransferOwnership": { "$ref": "#/$defs/transactionEvidence" },
+            "nftRenounceDeployerDefaultAdmin": { "$ref": "#/$defs/transactionEvidence" }
+          }
+        }
+      }
+    },
+    "actionOrder": {
+      "type": "array",
+      "minItems": 25,
+      "maxItems": 25,
+      "prefixItems": [
+        { "const": "VERIFY_PHASE_A_RECEIPT_AND_ONCHAIN_CHECKPOINT" },
+        { "const": "VERIFY_THOUGHT_RECEIPT_AND_PATH_BINDING" },
+        { "const": "SET_THOUGHT_MOVEMENT" },
+        { "const": "VERIFY_THOUGHT_MOVEMENT" },
+        { "const": "FREEZE_THOUGHT_MOVEMENT" },
+        { "const": "VERIFY_THOUGHT_MOVEMENT_FROZEN" },
+        { "const": "SET_WILL_MOVEMENT" },
+        { "const": "VERIFY_WILL_MOVEMENT" },
+        { "const": "FREEZE_WILL_MOVEMENT" },
+        { "const": "VERIFY_WILL_MOVEMENT_FROZEN" },
+        { "const": "SET_AWA_MOVEMENT" },
+        { "const": "VERIFY_AWA_MOVEMENT" },
+        { "const": "FREEZE_AWA_MOVEMENT" },
+        { "const": "VERIFY_AWA_MOVEMENT_FROZEN" },
+        { "const": "DEPLOY_PATH_PULSE_ADAPTER" },
+        { "const": "DEPLOY_PULSE_AUCTION_WITH_AUTHORIZED_OPEN_TIME" },
+        { "const": "SET_ADAPTER_AUCTION" },
+        { "const": "FREEZE_ADAPTER_WIRING" },
+        { "const": "GRANT_PUBLIC_MINTER_ROLE_TO_ADAPTER" },
+        { "const": "FREEZE_PUBLIC_MINTER_TO_ADAPTER" },
+        { "const": "GRANT_RESERVED_ROLE_TO_SPARK_ISSUER" },
+        { "const": "GRANT_DEFAULT_ADMIN_TO_FINAL_ADMIN" },
+        { "const": "TRANSFER_ADAPTER_OWNERSHIP_TO_FINAL_ADMIN" },
+        { "const": "RENOUNCE_DEPLOYER_DEFAULT_ADMIN" },
+        { "const": "VERIFY_COMBINED_POSTCONDITIONS" }
+      ],
+      "items": false
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phaseAReceiptLinked",
+        "thoughtReceiptLinked",
+        "thoughtPathBindingVerified",
+        "allMovementsConfiguredAndFrozen",
+        "adapterAndAuctionWiringFrozen",
+        "openTimeAuthorizedAndFuture",
+        "publicMinterFrozen",
+        "finalAuthorityVerified",
+        "deployerAuthorityRemoved",
+        "noPrematurePublicExposure"
+      ],
+      "properties": {
+        "phaseAReceiptLinked": { "const": true },
+        "thoughtReceiptLinked": { "const": true },
+        "thoughtPathBindingVerified": { "const": true },
+        "allMovementsConfiguredAndFrozen": { "const": true },
+        "adapterAndAuctionWiringFrozen": { "const": true },
+        "openTimeAuthorizedAndFuture": { "const": true },
+        "publicMinterFrozen": { "const": true },
+        "finalAuthorityVerified": { "const": true },
+        "deployerAuthorityRemoved": { "const": true },
+        "noPrematurePublicExposure": { "const": true }
+      }
+    },
+    "observedAtBlock": { "$ref": "#/$defs/positiveUint" }
+  },
+  "$defs": {
+    "positiveUint": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        { "type": "integer", "minimum": 1 }
+      ]
+    },
+    "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "nonZeroAddress": {
+      "allOf": [
+        { "$ref": "#/$defs/address" },
+        { "not": { "const": "0x0000000000000000000000000000000000000000" } }
+      ]
+    },
+    "evmHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "releaseIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "releaseTag", "gitCommit", "artifactManifestSha256"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "releaseTag": { "type": "string", "minLength": 1 },
+        "gitCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "artifactManifestSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "thoughtReleaseIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "manifestSha256", "publicationCommit", "sourceTag"],
+      "properties": {
+        "artifactId": { "type": "string", "minLength": 1 },
+        "manifestSha256": { "$ref": "#/$defs/sha256" },
+        "publicationCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "sourceTag": { "type": "string", "minLength": 1 }
+      }
+    },
+    "contractEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address", "deploymentTx", "blockNumber", "runtimeBytecodeHash"],
+      "properties": {
+        "address": { "$ref": "#/$defs/nonZeroAddress" },
+        "deploymentTx": { "$ref": "#/$defs/evmHash" },
+        "blockNumber": { "$ref": "#/$defs/positiveUint" },
+        "runtimeBytecodeHash": { "$ref": "#/$defs/evmHash" }
+      }
+    },
+    "transactionEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hash", "blockNumber"],
+      "properties": {
+        "hash": { "$ref": "#/$defs/evmHash" },
+        "blockNumber": { "$ref": "#/$defs/positiveUint" }
+      }
+    },
+    "movementTransactions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["set", "freeze"],
+      "properties": {
+        "set": { "$ref": "#/$defs/transactionEvidence" },
+        "freeze": { "$ref": "#/$defs/transactionEvidence" }
+      }
+    },
+    "movementBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minter", "quota", "frozen"],
+      "properties": {
+        "minter": { "$ref": "#/$defs/nonZeroAddress" },
+        "quota": { "$ref": "#/$defs/positiveUint" },
+        "frozen": { "const": true }
+      }
+    },
+    "thoughtMovement": {
+      "allOf": [
+        { "$ref": "#/$defs/movementBase" },
+        { "properties": { "quota": { "const": "1" } } }
+      ]
+    },
+    "willMovement": {
+      "allOf": [
+        { "$ref": "#/$defs/movementBase" },
+        { "properties": { "quota": { "const": "10" } } }
+      ]
+    },
+    "awaMovement": {
+      "allOf": [
+        { "$ref": "#/$defs/movementBase" },
+        { "properties": { "quota": { "const": "1" } } }
+      ]
+    }
+  }
+}

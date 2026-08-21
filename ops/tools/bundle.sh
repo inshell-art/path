@@ -115,7 +115,7 @@ if [[ "$LANE" == "deploy" && ( "$NETWORK" == "sepolia" || "$NETWORK" == "mainnet
 fi
 
 if [[ "$PATH_INVARIANTS_REQUIRED" == "1" && "$DEFER_PATH_INVARIANTS_TO_VERIFY" != "1" ]]; then
-  NETWORK="$NETWORK" LANE="$LANE" OUT_FILE="$BUNDLE_DIR/checks.path.json" POLICY_FILE="$POLICY_FILE" "$ROOT/ops/tools/generate_path_checks.sh"
+  NETWORK="$NETWORK" LANE="$LANE" OUT_FILE="$BUNDLE_DIR/checks.path.json" POLICY_FILE="$POLICY_FILE" CAMPAIGN_INPUTS_FILE="$LOCKED_INPUTS_FILE_ABS" "$ROOT/ops/tools/generate_path_checks.sh"
 fi
 
 GIT_COMMIT=$(git rev-parse HEAD)
@@ -217,6 +217,14 @@ for item in required_inputs:
     if isinstance(item, dict) and isinstance(item.get("kind"), str) and item.get("kind").strip():
         required_kinds.append(item["kind"].strip())
 
+allowed_kinds = []
+for item in lane_cfg.get("allowed_input_kinds", []) or []:
+    if isinstance(item, str) and item.strip():
+        allowed_kinds.append(item.strip())
+for kind in required_kinds:
+    if kind not in allowed_kinds:
+        allowed_kinds.append(kind)
+
 inputs_payload = None
 inputs_sha256 = ""
 if locked_inputs_file:
@@ -244,10 +252,10 @@ if locked_inputs_file:
     if inputs_payload.get("run_id") != run_id:
         raise SystemExit("inputs.run_id does not match bundle RUN_ID")
 
-    if required_kinds:
+    if allowed_kinds:
         kind = str(inputs_payload.get("kind", ""))
-        if kind not in required_kinds:
-            raise SystemExit(f"inputs.kind '{kind}' not allowed for lane; expected one of {required_kinds}")
+        if kind not in allowed_kinds:
+            raise SystemExit(f"inputs.kind '{kind}' not allowed for lane; expected one of {allowed_kinds}")
 
     canonical_inputs = json.dumps(inputs_payload, indent=2, sort_keys=True) + "\n"
     (bundle_dir / "inputs.json").write_text(canonical_inputs)
@@ -318,6 +326,15 @@ def validate_treasury_safe(payload, params):
 treasury_safe_sha256 = ""
 if inputs_payload is not None:
     params = inputs_payload.get("params", {}) if isinstance(inputs_payload.get("params"), dict) else {}
+    input_kind = str(inputs_payload.get("kind", ""))
+    if input_kind == "path_campaign_phase_a":
+        campaign_commit = str((params.get("pathRelease") or {}).get("gitCommit", ""))
+        if campaign_commit != git_commit:
+            raise SystemExit("Phase A PATH release commit does not match the bundle source commit")
+    elif input_kind == "path_campaign_phase_b":
+        campaign_commit = str((((params.get("releaseMatrix") or {}).get("path") or {}).get("gitCommit", "")))
+        if campaign_commit != git_commit:
+            raise SystemExit("Phase B PATH release commit does not match the bundle source commit")
     treasury_signer_ref = params.get("treasurySignerRef", "")
     if is_safe_ref(treasury_signer_ref) and not treasury_safe_file:
         raise SystemExit("constructor treasurySignerRef is Safe-backed; provide TREASURY_SAFE_FILE")
@@ -350,17 +367,34 @@ intent = {
     "network": network,
     "lane": lane,
     "run_id": run_id,
-    "operation": "path.deploy",
+    "operation": {
+        "path_campaign_phase_a": "path.campaign.phase_a",
+        "path_campaign_phase_b": "path.campaign.phase_b",
+    }.get(inputs_payload.get("kind") if inputs_payload else "", "path.deploy"),
     "source_commit": git_commit,
 }
 if inputs_sha256:
     intent["inputs_sha256"] = inputs_sha256
 if inputs_payload is not None:
     source = inputs_payload.get("source", {}) if isinstance(inputs_payload.get("source"), dict) else {}
-    intent["constructor_params_source"] = source.get("path_hint", "")
-    intent["constructor_params_source_sha256"] = source.get("sha256", "")
-    intent["constructor_params_kind"] = inputs_payload.get("kind", "")
-    intent["constructor_params"] = params
+    input_kind = inputs_payload.get("kind", "")
+    intent["input_kind"] = input_kind
+    intent["input_source"] = source.get("path_hint", "")
+    intent["input_source_sha256"] = source.get("sha256", "")
+    intent["params"] = params
+    if input_kind == "constructor_params":
+        intent["constructor_params_source"] = source.get("path_hint", "")
+        intent["constructor_params_source_sha256"] = source.get("sha256", "")
+        intent["constructor_params_kind"] = input_kind
+        intent["constructor_params"] = params
+    elif input_kind in {"path_campaign_phase_a", "path_campaign_phase_b"}:
+        intent["campaign_id"] = params.get("campaignId", "")
+        intent["campaign_environment"] = params.get("environment", "")
+        intent["campaign_phase"] = "A" if input_kind == "path_campaign_phase_a" else "B"
+        if input_kind == "path_campaign_phase_b":
+            intent["path_phase_a_receipt_sha256"] = ((params.get("pathPhaseA") or {}).get("receiptSha256", ""))
+            intent["thought_deployment_receipt_sha256"] = ((params.get("thoughtDeployment") or {}).get("receiptSha256", ""))
+            intent["open_time_authorization_digest"] = ((params.get("openTimeAuthorization") or {}).get("authorizationDigest", ""))
     allowed_signers = lane_cfg.get("allowed_signers") or []
     if allowed_signers:
         intent["deployerSignerRef"] = allowed_signers[0]
@@ -377,7 +411,9 @@ checks = {
 }
 if inputs_sha256:
     checks["inputs_pinned"] = True
-    checks["constructor_params_schema_checked"] = True
+    checks["inputs_schema_checked"] = True
+    if inputs_payload.get("kind") == "constructor_params":
+        checks["constructor_params_schema_checked"] = True
 if treasury_safe_sha256:
     checks["treasury_safe_verified"] = True
     checks["treasury_safe_sha256"] = treasury_safe_sha256
@@ -396,6 +432,10 @@ runbook_lines = [
 ]
 if inputs_sha256:
     runbook_lines.append(f"- inputs sha256: `{inputs_sha256}`")
+if inputs_payload is not None and inputs_payload.get("kind") in {"path_campaign_phase_a", "path_campaign_phase_b"}:
+    runbook_lines.append(f"- campaign id: `{params.get('campaignId', '')}`")
+    runbook_lines.append(f"- campaign environment: `{params.get('environment', '')}`")
+    runbook_lines.append(f"- campaign phase: `{'A' if inputs_payload.get('kind') == 'path_campaign_phase_a' else 'B'}`")
 if treasury_safe_sha256:
     runbook_lines.append(f"- treasury Safe sha256: `{treasury_safe_sha256}`")
 
@@ -420,6 +460,8 @@ runbook_lines.extend([
     "- signer allowlist mismatch",
     "- Safe treasury evidence mismatch",
     "- predeploy/postdeploy invariant failure",
+    "- campaign receipt, release, chain, bytecode, or authority mismatch",
+    "- elapsed, unsafe, or unauthorized auction openTime",
 ])
 (bundle_dir / "RUNBOOK.md").write_text("\n".join(runbook_lines) + "\n")
 

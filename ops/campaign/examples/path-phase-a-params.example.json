@@ -1,0 +1,20 @@
+{
+  "campaignId": "path-thought-devnet-example-20260821",
+  "environment": "devnet",
+  "expectedChainId": "31337",
+  "pathRelease": {
+    "repository": "https://github.com/inshell-art/path.git",
+    "releaseTag": "v0.5.0",
+    "gitCommit": "085cfc084b0e568740e0da639e968eb535f7e5c8",
+    "artifactManifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "name": "PATH",
+  "symbol": "PATH",
+  "baseUri": "",
+  "reservedCap": "99",
+  "sparkClaimDurationSec": "604800",
+  "retainedAuthority": {
+    "address": "0x2000000000000000000000000000000000000002",
+    "signerRef": "DEVNET_DEPLOY_SW_A"
+  }
+}

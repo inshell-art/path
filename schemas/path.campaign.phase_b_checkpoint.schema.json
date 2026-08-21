@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PATH Campaign Phase B Checkpoint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "checkpointVersion",
+    "kind",
+    "status",
+    "campaignId",
+    "environment",
+    "chainId",
+    "paramsSha256",
+    "sourceBundleDigest",
+    "linkedReceipts",
+    "completedActions",
+    "contracts",
+    "transactions"
+  ],
+  "properties": {
+    "checkpointVersion": { "const": "1" },
+    "kind": { "const": "path_campaign_phase_b_checkpoint" },
+    "status": { "const": "phase_running" },
+    "campaignId": { "type": "string", "minLength": 1 },
+    "environment": {
+      "enum": ["devnet", "internal-sepolia", "public-beta-sepolia", "mainnet"]
+    },
+    "chainId": { "$ref": "#/$defs/positiveUint" },
+    "paramsSha256": { "$ref": "#/$defs/sha256" },
+    "sourceBundleDigest": { "$ref": "#/$defs/sha256" },
+    "linkedReceipts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pathPhaseAReceiptSha256", "thoughtDeploymentReceiptSha256"],
+      "properties": {
+        "pathPhaseAReceiptSha256": { "$ref": "#/$defs/sha256" },
+        "thoughtDeploymentReceiptSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "completedActions": {
+      "type": "array",
+      "maxItems": 16,
+      "prefixItems": [
+        { "const": "SET_THOUGHT_MOVEMENT" },
+        { "const": "FREEZE_THOUGHT_MOVEMENT" },
+        { "const": "SET_WILL_MOVEMENT" },
+        { "const": "FREEZE_WILL_MOVEMENT" },
+        { "const": "SET_AWA_MOVEMENT" },
+        { "const": "FREEZE_AWA_MOVEMENT" },
+        { "const": "DEPLOY_PATH_PULSE_ADAPTER" },
+        { "const": "DEPLOY_PULSE_AUCTION_WITH_AUTHORIZED_OPEN_TIME" },
+        { "const": "SET_ADAPTER_AUCTION" },
+        { "const": "FREEZE_ADAPTER_WIRING" },
+        { "const": "GRANT_PUBLIC_MINTER_ROLE_TO_ADAPTER" },
+        { "const": "FREEZE_PUBLIC_MINTER_TO_ADAPTER" },
+        { "const": "GRANT_RESERVED_ROLE_TO_SPARK_ISSUER" },
+        { "const": "GRANT_DEFAULT_ADMIN_TO_FINAL_ADMIN" },
+        { "const": "TRANSFER_ADAPTER_OWNERSHIP_TO_FINAL_ADMIN" },
+        { "const": "RENOUNCE_DEPLOYER_DEFAULT_ADMIN" }
+      ],
+      "items": false
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pathPulseAdapter": { "$ref": "#/$defs/contractEvidence" },
+        "pulseAuction": { "$ref": "#/$defs/contractEvidence" }
+      }
+    },
+    "transactions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["movement", "deployment", "wiring", "authority"],
+      "properties": {
+        "movement": { "type": "object" },
+        "deployment": { "type": "object" },
+        "wiring": { "type": "object" },
+        "authority": { "type": "object" }
+      }
+    },
+    "completedAtBlock": { "$ref": "#/$defs/positiveUint" }
+  },
+  "$defs": {
+    "positiveUint": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        { "type": "integer", "minimum": 1 }
+      ]
+    },
+    "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "evmHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "contractEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address", "deploymentTx", "blockNumber", "runtimeBytecodeHash"],
+      "properties": {
+        "address": { "$ref": "#/$defs/address" },
+        "deploymentTx": { "$ref": "#/$defs/evmHash" },
+        "blockNumber": { "$ref": "#/$defs/positiveUint" },
+        "runtimeBytecodeHash": { "$ref": "#/$defs/evmHash" }
+      }
+    }
+  }
+}

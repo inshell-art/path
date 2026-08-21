@@ -1,0 +1,60 @@
+{
+  "campaignId": "path-thought-devnet-example-20260821",
+  "environment": "devnet",
+  "expectedChainId": "31337",
+  "releaseMatrix": {
+    "path": {
+      "repository": "https://github.com/inshell-art/path.git",
+      "releaseTag": "v0.5.0",
+      "gitCommit": "085cfc084b0e568740e0da639e968eb535f7e5c8",
+      "artifactManifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "thought": {
+      "artifactId": "thought-v2-canonical-portable-release-20260807-r2",
+      "manifestSha256": "7cf7965edb3de6421c79d9c08f0781cabb78ea675bad354847b56ec8f19306cc",
+      "publicationCommit": "d29ddbfe76ff94c726b0786e43e61519c4087aab",
+      "sourceTag": "thought-v2-canonical-portable-release-20260807-r2"
+    }
+  },
+  "remainingMovements": {
+    "WILL": {
+      "minter": "0x4000000000000000000000000000000000000004",
+      "runtimeBytecodeHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
+      "quota": "10"
+    },
+    "AWA": {
+      "minter": "0x5000000000000000000000000000000000000005",
+      "runtimeBytecodeHash": "0x5555555555555555555555555555555555555555555555555555555555555555",
+      "quota": "1"
+    }
+  },
+  "openTimeAuthorization": {
+    "environment": "devnet",
+    "authorizedOpenTime": "2000000000",
+    "minimumLeadTimeSec": "3600",
+    "authorizedAt": "1900000000",
+    "expiresAt": "2000003600",
+    "authorizerRef": "DEVNET_OPEN_TIME_OPERATOR_A",
+    "authorizationId": "devnet-open-time-example-20260821",
+    "authorizationDigest": "5a7e23ebadd20f20fdc832c92ae68fc32057227839a54ba053e2c107d9b17ea5"
+  },
+  "auction": {
+    "k": "600",
+    "genesisPrice": "1000",
+    "genesisFloor": "900",
+    "pts": "1",
+    "firstPublicId": "1",
+    "epochBase": "1",
+    "paymentToken": "0x0000000000000000000000000000000000000000"
+  },
+  "treasury": "0x7000000000000000000000000000000000000007",
+  "treasurySignerRef": "DEVNET_TREASURY_A",
+  "finalAuthority": {
+    "admin": "0x6000000000000000000000000000000000000006",
+    "adminSignerRef": "DEVNET_ADMIN_A",
+    "treasury": "0x7000000000000000000000000000000000000007",
+    "treasurySignerRef": "DEVNET_TREASURY_A",
+    "sparkIssuer": "0x8000000000000000000000000000000000000008",
+    "sparkIssuerSignerRef": "DEVNET_SPARK_ISSUER_A"
+  }
+}

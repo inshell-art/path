@@ -76,6 +76,7 @@ else
 
   RUN_JSON="$BUNDLE_DIR/run.json"
   RUN_LANE=""
+  RUN_INPUT_KIND=""
   if [[ -f "$RUN_JSON" ]]; then
     RUN_LANE=$(RUN_JSON="$RUN_JSON" python3 - <<'PY'
 import json
@@ -88,18 +89,40 @@ PY
 )
   fi
 
+  if [[ -f "$BUNDLE_DIR/inputs.json" ]]; then
+    RUN_INPUT_KIND=$(INPUTS_JSON="$BUNDLE_DIR/inputs.json" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+inputs = json.loads(Path(os.environ["INPUTS_JSON"]).read_text())
+print(inputs.get("kind", ""))
+PY
+)
+  fi
+
   if [[ "$RUN_LANE" == "deploy" ]]; then
     PATH_POSTCHECK_FILE="$BUNDLE_DIR/checks.path.post.json"
     PATH_POSTCHECK_LOG="$BUNDLE_DIR/postconditions.pathcheck.log"
-    case "$NETWORK" in
-      devnet)
-        PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/localhost-eth.json"
+    case "$RUN_INPUT_KIND" in
+      path_campaign_phase_a)
+        PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/path-phase-a-receipt.json"
         ;;
-      sepolia)
-        PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
+      path_campaign_phase_b)
+        PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/path-phase-b-final-receipt.json"
         ;;
-      mainnet)
-        PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/mainnet-eth.json"
+      *)
+        case "$NETWORK" in
+          devnet)
+            PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/localhost-eth.json"
+            ;;
+          sepolia)
+            PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/sepolia-eth.json"
+            ;;
+          mainnet)
+            PATH_POSTCHECK_DEPLOY_FILE="$BUNDLE_DIR/deployments/mainnet-eth.json"
+            ;;
+        esac
         ;;
     esac
     if DEPLOY_FILE="$PATH_POSTCHECK_DEPLOY_FILE" NETWORK="$NETWORK" LANE="$RUN_LANE" OUT_FILE="$PATH_POSTCHECK_FILE" "$ROOT/ops/tools/generate_path_checks.sh" >"$PATH_POSTCHECK_LOG" 2>&1; then

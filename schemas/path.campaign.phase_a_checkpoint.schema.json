@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PATH Campaign Phase A Checkpoint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "checkpointVersion",
+    "kind",
+    "status",
+    "campaignId",
+    "environment",
+    "chainId",
+    "paramsSha256",
+    "sourceBundleDigest",
+    "pathNft"
+  ],
+  "properties": {
+    "checkpointVersion": { "const": "1" },
+    "kind": { "const": "path_campaign_phase_a_checkpoint" },
+    "status": { "const": "path_nft_deployed" },
+    "campaignId": { "type": "string", "minLength": 1 },
+    "environment": {
+      "enum": ["devnet", "internal-sepolia", "public-beta-sepolia", "mainnet"]
+    },
+    "chainId": { "$ref": "#/$defs/positiveUint" },
+    "paramsSha256": { "$ref": "#/$defs/sha256" },
+    "sourceBundleDigest": { "$ref": "#/$defs/sha256" },
+    "pathNft": { "$ref": "#/$defs/contractEvidence" }
+  },
+  "$defs": {
+    "positiveUint": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        { "type": "integer", "minimum": 1 }
+      ]
+    },
+    "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "evmHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "contractEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address", "deploymentTx", "blockNumber", "runtimeBytecodeHash"],
+      "properties": {
+        "address": { "$ref": "#/$defs/address" },
+        "deploymentTx": { "$ref": "#/$defs/evmHash" },
+        "blockNumber": { "$ref": "#/$defs/positiveUint" },
+        "runtimeBytecodeHash": { "$ref": "#/$defs/evmHash" }
+      }
+    }
+  }
+}

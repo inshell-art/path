@@ -62,7 +62,12 @@
       "gates": {
         "require_rehearsal_proof": false,
         "rehearsal_proof_network": "devnet"
-      }
+      },
+      "allowed_input_kinds": [
+        "constructor_params",
+        "path_campaign_phase_a",
+        "path_campaign_phase_b"
+      ]
     },
     "handoff": {
       "writes": true,

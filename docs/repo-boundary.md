@@ -33,6 +33,9 @@ PATH-specific means:
 - bundle manifests and locked inputs
 - PATH contract addresses, ABIs, and release metadata
 - PATH acceptance criteria for `verify`, `approve`, `apply`, `postconditions`, and audit
+- PATH + THOUGHT campaign Phase A/B input kinds, PATH receipt schemas, receipt
+  hashing, movement ordering, `openTime` authorization checks, and combined PATH
+  postconditions
 
 ## Does Not Own
 
@@ -132,6 +135,11 @@ PATH-owned protocol data may include additional fields such as:
 Those PATH-specific values may travel inside `PATH-RUN-BUNDLE/`, but they do
 not become `signing-os-ops/` source of truth just because they cross the
 artifact boundary.
+
+For an integrated deployment campaign, Signing OS links opaque protocol-owned
+phase receipts by digest. The THOUGHT repository owns its deployment receipt.
+Signing OS core must not encode PATH movement names, PATH/THOUGHT addresses,
+contract ABIs, or auction rules.
 
 Execution contract for the bundle:
 - the artifact bridge is artifact-only, not a shared workspace

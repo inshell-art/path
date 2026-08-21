@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PATH Campaign Phase A Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receiptVersion",
+    "kind",
+    "status",
+    "campaignId",
+    "environment",
+    "chainId",
+    "pathRelease",
+    "sourceBundleDigest",
+    "deployer",
+    "pathNft",
+    "retainedAuthority",
+    "movementStates",
+    "publicExposure",
+    "observedAtBlock"
+  ],
+  "properties": {
+    "receiptVersion": { "const": "1" },
+    "kind": { "const": "path_campaign_phase_a_receipt" },
+    "status": { "const": "phase_a_complete" },
+    "campaignId": { "type": "string", "minLength": 1 },
+    "environment": {
+      "enum": ["devnet", "internal-sepolia", "public-beta-sepolia", "mainnet"]
+    },
+    "chainId": { "$ref": "#/$defs/positiveUint" },
+    "pathRelease": { "$ref": "#/$defs/releaseIdentity" },
+    "sourceBundleDigest": { "$ref": "#/$defs/sha256" },
+    "deployer": { "$ref": "#/$defs/nonZeroAddress" },
+    "pathNft": { "$ref": "#/$defs/contractEvidence" },
+    "retainedAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["holder", "signerRef", "role", "permittedRemainingActions", "handoffComplete"],
+      "properties": {
+        "holder": { "$ref": "#/$defs/nonZeroAddress" },
+        "signerRef": { "type": "string", "minLength": 1 },
+        "role": { "const": "DEFAULT_ADMIN_ROLE" },
+        "permittedRemainingActions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "handoffComplete": { "const": false }
+      }
+    },
+    "movementStates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["THOUGHT", "WILL", "AWA"],
+      "properties": {
+        "THOUGHT": { "$ref": "#/$defs/unsetMovement" },
+        "WILL": { "$ref": "#/$defs/unsetMovement" },
+        "AWA": { "$ref": "#/$defs/unsetMovement" }
+      }
+    },
+    "publicExposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pathPulseAdapter", "pulseAuction", "openTime", "publicMinter", "publicMinterFrozen", "publicMintEnabled"],
+      "properties": {
+        "pathPulseAdapter": { "type": "null" },
+        "pulseAuction": { "type": "null" },
+        "openTime": { "type": "null" },
+        "publicMinter": { "const": "0x0000000000000000000000000000000000000000" },
+        "publicMinterFrozen": { "const": false },
+        "publicMintEnabled": { "const": false }
+      }
+    },
+    "observedAtBlock": { "$ref": "#/$defs/positiveUint" }
+  },
+  "$defs": {
+    "positiveUint": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        { "type": "integer", "minimum": 1 }
+      ]
+    },
+    "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "nonZeroAddress": {
+      "allOf": [
+        { "$ref": "#/$defs/address" },
+        { "not": { "const": "0x0000000000000000000000000000000000000000" } }
+      ]
+    },
+    "evmHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "releaseIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "releaseTag", "gitCommit", "artifactManifestSha256"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "releaseTag": { "type": "string", "minLength": 1 },
+        "gitCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "artifactManifestSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "contractEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address", "deploymentTx", "blockNumber", "runtimeBytecodeHash"],
+      "properties": {
+        "address": { "$ref": "#/$defs/nonZeroAddress" },
+        "deploymentTx": { "$ref": "#/$defs/evmHash" },
+        "blockNumber": { "$ref": "#/$defs/positiveUint" },
+        "runtimeBytecodeHash": { "$ref": "#/$defs/evmHash" }
+      }
+    },
+    "unsetMovement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minter", "quota", "frozen"],
+      "properties": {
+        "minter": { "const": "0x0000000000000000000000000000000000000000" },
+        "quota": { "const": "0" },
+        "frozen": { "const": false }
+      }
+    }
+  }
+}

@@ -54,6 +54,184 @@ esac
 
 DEPLOY_FILE="${DEPLOY_FILE:-$DEFAULT_DEPLOY_FILE}"
 
+CAMPAIGN_WRAPPER="${CAMPAIGN_INPUTS_FILE:-}"
+if [[ -z "$CAMPAIGN_WRAPPER" ]]; then
+  OUT_DIR="$(dirname "$OUT_FILE")"
+  if [[ -f "$OUT_DIR/inputs.json" ]]; then
+    CAMPAIGN_WRAPPER="$OUT_DIR/inputs.json"
+  fi
+fi
+
+CAMPAIGN_KIND=""
+if [[ -n "$CAMPAIGN_WRAPPER" && -f "$CAMPAIGN_WRAPPER" ]]; then
+  CAMPAIGN_KIND=$(CAMPAIGN_WRAPPER="$CAMPAIGN_WRAPPER" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+payload = json.loads(Path(os.environ["CAMPAIGN_WRAPPER"]).read_text())
+print(payload.get("kind", ""))
+PY
+)
+fi
+
+if [[ "$CAMPAIGN_KIND" == "path_campaign_phase_a" || "$CAMPAIGN_KIND" == "path_campaign_phase_b" ]]; then
+  PARAMS_TMP="$(mktemp)"
+  CAMPAIGN_LOG="${OUT_FILE%.json}.campaign.log"
+  cleanup_campaign() {
+    rm -f "$PARAMS_TMP"
+  }
+  trap cleanup_campaign EXIT
+
+  CAMPAIGN_WRAPPER="$CAMPAIGN_WRAPPER" PARAMS_TMP="$PARAMS_TMP" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+wrapper = json.loads(Path(os.environ["CAMPAIGN_WRAPPER"]).read_text())
+params = wrapper.get("params")
+if not isinstance(params, dict):
+    raise SystemExit("campaign inputs wrapper params must be an object")
+Path(os.environ["PARAMS_TMP"]).write_text(json.dumps(params, indent=2, sort_keys=True) + "\n")
+PY
+
+  CAMPAIGN_MODE="predeploy"
+  CAMPAIGN_RECEIPT_FILE=""
+  if [[ -f "$DEPLOY_FILE" ]]; then
+    CAMPAIGN_MODE="postdeploy"
+    CAMPAIGN_RECEIPT_FILE="$DEPLOY_FILE"
+  fi
+  CAMPAIGN_CHECKPOINT_FILE="${PATH_CAMPAIGN_CHECKPOINT_FILE:-}"
+  if [[ -z "$CAMPAIGN_CHECKPOINT_FILE" ]]; then
+    case "$CAMPAIGN_KIND" in
+      path_campaign_phase_a)
+        CAMPAIGN_CHECKPOINT_FILE="$(dirname "$DEPLOY_FILE")/path-phase-a-checkpoint.json"
+        ;;
+      path_campaign_phase_b)
+        CAMPAIGN_CHECKPOINT_FILE="$(dirname "$DEPLOY_FILE")/path-phase-b-checkpoint.json"
+        ;;
+    esac
+  fi
+  CAMPAIGN_SOURCE_BUNDLE_DIGEST="${PATH_CAMPAIGN_SOURCE_BUNDLE_DIGEST:-}"
+  if [[ -z "$CAMPAIGN_SOURCE_BUNDLE_DIGEST" && -n "${BUNDLE_DIR:-}" && -f "$BUNDLE_DIR/bundle_manifest.json" ]]; then
+    CAMPAIGN_SOURCE_BUNDLE_DIGEST=$(jq -r '.bundle_hash // empty' "$BUNDLE_DIR/bundle_manifest.json")
+  fi
+
+  CAMPAIGN_POLICY_FILE="${POLICY_FILE:-}"
+  if [[ -z "$CAMPAIGN_POLICY_FILE" ]]; then
+    for candidate in \
+      "$ROOT/ops/policy/lane.${NETWORK}.json" \
+      "$ROOT/ops/policy/${NETWORK}.policy.json" \
+      "$ROOT/ops/policy/lane.${NETWORK}.example.json" \
+      "$ROOT/ops/policy/${NETWORK}.policy.example.json"
+    do
+      if [[ -f "$candidate" ]]; then
+        CAMPAIGN_POLICY_FILE="$candidate"
+        break
+      fi
+    done
+  fi
+  if [[ -z "$CAMPAIGN_POLICY_FILE" ]]; then
+    echo "Missing campaign policy for $NETWORK" >&2
+    exit 2
+  fi
+
+  case "$NETWORK" in
+    devnet) CAMPAIGN_RPC_URL="${PATH_LOCAL_RPC_URL:-http://127.0.0.1:8546}" ;;
+    sepolia) CAMPAIGN_RPC_URL="${SEPOLIA_RPC_URL:-}" ;;
+    mainnet) CAMPAIGN_RPC_URL="${MAINNET_RPC_URL:-}" ;;
+  esac
+  if [[ -z "$CAMPAIGN_RPC_URL" ]]; then
+    echo "Missing RPC URL for PATH campaign $NETWORK checks" >&2
+    exit 2
+  fi
+
+  IFS=$'\t' read -r CAMPAIGN_EXPECTED_SIGNER CAMPAIGN_RPC_ALLOWED <<EOF_CAMPAIGN_POLICY
+$(CAMPAIGN_POLICY_FILE="$CAMPAIGN_POLICY_FILE" CAMPAIGN_RPC_URL="$CAMPAIGN_RPC_URL" NETWORK="$NETWORK" LANE="$LANE" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+from urllib.parse import urlparse
+
+policy = json.loads(Path(os.environ["CAMPAIGN_POLICY_FILE"]).read_text())
+lane = ((policy.get("lanes") or {}).get(os.environ["LANE"]) or {})
+aliases = lane.get("allowed_signers") or []
+if len(aliases) != 1:
+    raise SystemExit("PATH campaign deploy lane requires exactly one allowed signer alias")
+signer = str((policy.get("signer_alias_map") or {}).get(aliases[0], "")).strip()
+if not signer:
+    raise SystemExit(f"Missing signer_alias_map address for {aliases[0]}")
+
+host = (urlparse(os.environ["CAMPAIGN_RPC_URL"]).hostname or "").lower()
+if not host:
+    raise SystemExit("Unable to parse campaign RPC host")
+if os.environ["NETWORK"] == "devnet":
+    allowed = host in {"127.0.0.1", "localhost", "::1"}
+else:
+    allowlist = {str(item).strip().lower() for item in policy.get("rpc_host_allowlist") or []}
+    allowed = host in allowlist
+print(f"{signer}\t{'1' if allowed else '0'}")
+PY
+)
+EOF_CAMPAIGN_POLICY
+  if [[ "$CAMPAIGN_RPC_ALLOWED" != "1" ]]; then
+    echo "Campaign RPC host is not policy-allowlisted" >&2
+    exit 2
+  fi
+
+  if (
+    cd "$ROOT/evm"
+    DEPLOY_PARAMS_FILE="$PARAMS_TMP" \
+      PATH_CAMPAIGN_INPUT_KIND="$CAMPAIGN_KIND" \
+      PATH_CAMPAIGN_CHECK_MODE="$CAMPAIGN_MODE" \
+      PATH_CAMPAIGN_RECEIPT_FILE="$CAMPAIGN_RECEIPT_FILE" \
+      PATH_CAMPAIGN_CHECKPOINT_FILE="$CAMPAIGN_CHECKPOINT_FILE" \
+      PATH_CAMPAIGN_SOURCE_BUNDLE_DIGEST="$CAMPAIGN_SOURCE_BUNDLE_DIGEST" \
+      PATH_CAMPAIGN_POLICY_SIGNER_ADDRESS="$CAMPAIGN_EXPECTED_SIGNER" \
+      PATH_CAMPAIGN_RPC_HOST_ALLOWED="$CAMPAIGN_RPC_ALLOWED" \
+      PATH_CAMPAIGN_NETWORK_LABEL="$NETWORK" \
+      PATH_CAMPAIGN_LANE_LABEL="$LANE" \
+      PATH_CAMPAIGN_CHECKS_OUT="$OUT_FILE" \
+      npx hardhat run scripts/check-path-campaign-state.js --network "$HARDHAT_NETWORK" \
+      >"$CAMPAIGN_LOG" 2>&1
+  ); then
+    cat "$OUT_FILE"
+    exit 0
+  else
+    campaign_rc=$?
+  fi
+  CAMPAIGN_KIND="$CAMPAIGN_KIND" CAMPAIGN_MODE="$CAMPAIGN_MODE" CAMPAIGN_LOG="$CAMPAIGN_LOG" OUT_FILE="$OUT_FILE" NETWORK="$NETWORK" LANE="$LANE" CAMPAIGN_RC="$campaign_rc" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+payload = {
+    "checks_version": 2,
+    "network": os.environ["NETWORK"],
+    "lane": os.environ["LANE"],
+    "phase": os.environ["CAMPAIGN_MODE"],
+    "deployment_present": os.environ["CAMPAIGN_MODE"] == "postdeploy",
+    "pass": False,
+    "required_checks": {
+        "chain_id": False,
+        "rpc_allowlist": False,
+        "signer_allowlist": False,
+        "bytecode_hash": False,
+        "proxy_implementation": False,
+        "path_invariants": False,
+    },
+    "path_invariants": {"campaign_pre_or_postconditions": False},
+    "details": {
+        "inputKind": os.environ["CAMPAIGN_KIND"],
+        "exitCode": int(os.environ["CAMPAIGN_RC"]),
+        "log": os.environ["CAMPAIGN_LOG"],
+    },
+}
+Path(os.environ["OUT_FILE"]).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+PY
+  exit "$campaign_rc"
+fi
+
 if [[ -z "${ALLOW_WRITE_HANDSHAKE:-}" ]]; then
   HANDSHAKE_FROM_POLICY=""
   if [[ -n "${POLICY_FILE:-}" && -f "${POLICY_FILE}" ]]; then
