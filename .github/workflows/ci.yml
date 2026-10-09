@@ -40,6 +40,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # evm/src/PulseAuction.sol is a symlink into the vendors/pulse submodule.
+          submodules: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
